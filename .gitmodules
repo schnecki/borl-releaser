@@ -4,3 +4,6 @@
 [submodule "simsim"]
 	path = simsim
 	url = git@git.uibk.ac.at:c4371143/simsim.git
+[submodule "experimenter"]
+	path = experimenter
+	url = git@git.uibk.ac.at:c4371143/experimenter.git
