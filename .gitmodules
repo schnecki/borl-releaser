@@ -1,0 +1,6 @@
+[submodule "borl"]
+	path = borl
+	url = git@git.uibk.ac.at:c4371143/borl.git
+[submodule "simsim"]
+	path = simsim
+	url = git@git.uibk.ac.at:c4371143/simsim.git
