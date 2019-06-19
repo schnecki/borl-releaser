@@ -1,8 +1,10 @@
 flags: {}
 packages:
 - .
-- borl/
 - simsim/
+- experimenter/
+- borl/
+- borl/gym-haskell/
 - borl/grenade/
 - borl/grenade/examples/
 - borl/tensorflow-haskell/tensorflow-core-ops/
@@ -18,4 +20,6 @@ packages:
 - borl/tensorflow-haskell/tensorflow/
 extra-deps:
 - snappy-framing-0.1.2
+- esqueleto-3.0.0
+- cpython-3.4.0
 resolver: lts-12.26
