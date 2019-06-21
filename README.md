@@ -9,7 +9,7 @@ Blackwell Optimal Reinforcement Learning
 Ensure to clone all submodules:
 
 
-    git clone --recursive git@git.uibk.ac.at:c4371143/borl.git
+    git clone --recursive git@git.uibk.ac.at:c4371143/borl-releaser.git
     cd borl-releaser/borl/tensorflow-haskell
     git checkout 3cd2e15
     cd ../../
