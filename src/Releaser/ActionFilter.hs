@@ -14,9 +14,9 @@ import           Releaser.Type
 
 
 data ActionFilterPLTConfig = ActionFilterPLTConfig
-  { minimumPLT   :: Integer
-  , maximumPLT   :: Integer
-  , periodLength :: Time
+  { actFilMinimumPLT   :: Integer
+  , actFilMaximumPLT   :: Integer
+  , actFilPeriodLength :: Time
   }
 
 

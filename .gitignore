@@ -4,3 +4,5 @@ borl-releaser.cabal
 emacs.desktop
 /TAGS
 /.emacs.desktop.lock
+/episodeLength
+/stateValues

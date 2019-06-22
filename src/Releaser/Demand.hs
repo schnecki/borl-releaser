@@ -22,7 +22,7 @@ import           Releaser.Type
 
 
 interArrivalTimeDistribution :: UniformDistribution
-interArrivalTimeDistribution = uniformDistr (64/960) (320/960)
+interArrivalTimeDistribution = uniformDistr (61.935483871/960) (274.285714286/960)
 
 productTypeDistribution :: UniformDistribution
 productTypeDistribution = uniformDistr 1 2
@@ -31,4 +31,5 @@ dueDateSlack :: Time
 dueDateSlack = Time 7
 
 generateOrders :: SimSim -> IO [Order]
-generateOrders sim = generateOrdersFixedDueDateSlack sim interArrivalTimeDistribution productTypeDistribution 7
+generateOrders sim = generateOrdersUniform sim 3 15 dueDateSlack
+  -- generateOrdersFixedDueDateSlack sim interArrivalTimeDistribution productTypeDistribution dueDateSlack

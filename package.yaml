@@ -33,6 +33,8 @@ dependencies:
   - random
   - statistics
   - mwc-random
+  - time
+  - deepseq
 
 
 library:

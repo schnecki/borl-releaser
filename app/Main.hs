@@ -1,5 +1,8 @@
 module Main where
 
+import           Control.Monad  (void)
+
+import           Releaser.Build
 
 main :: IO ()
-main = undefined
+main = void $ buildBORL

@@ -1,4 +1,5 @@
-{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns      #-}
 
 
 module Releaser.Action
@@ -23,18 +24,18 @@ import           Releaser.ReleasePLT
 import           Releaser.Type
 
 data ActionConfig = ActionConfig
-  { lowerActionBound :: Integer
-  , upperActionBound :: Integer
-  , periodLength     :: Time
-  , productTypes     :: [ProductType] -- ^ Product types must be sorted!
+  { actLowerActionBound :: Integer
+  , actUpperActionBound :: Integer
+  , actPeriodLength     :: Time
+  , actProductTypes     :: [ProductType] -- ^ Product types must be sorted!
   }
 
 
 actionsPLT :: St -> Reader ActionConfig (ListOfActions, [Action St])
 actionsPLT (St sim _ _ _) = do
-  lowerBound <- asks lowerActionBound
-  upperBound <- asks upperActionBound
-  perLen <- asks periodLength
+  lowerBound <- asks actLowerActionBound
+  upperBound <- asks actUpperActionBound
+  perLen <- asks actPeriodLength
   let actionList =
         map (map ((* perLen) . fromInteger)) $
         foldl (combs [lowerBound,lowerBound+1,upperBound]) [] [1..length pts]
@@ -51,13 +52,13 @@ combs (force -> base) (force -> acc) _ = concat [ map (b:) acc | b <- base]
 mkAction :: [Time] -> Reader ActionConfig (Action St)
 mkAction act = do
   actionFun <- action act
-  return $ Action actionFun (tshow act)
+  return $ Action actionFun (tshow $ map (\x -> if x < 0 then tshow x else "+" <> tshow x) act)
 
 
 action :: [Time] -> Reader ActionConfig (St -> IO (Reward, St, EpisodeEnd))
 action pltChange = do
-  perLen <- asks periodLength
-  prodTypes <- asks productTypes
+  perLen <- asks actPeriodLength
+  prodTypes <- asks actProductTypes
   return $ \(St sim incomingOrders rewardFun plts) -> do
     let pltsChangeMap = M.fromList $ zip prodTypes pltChange
         pltsNew = M.unionWith (+) plts pltsChangeMap

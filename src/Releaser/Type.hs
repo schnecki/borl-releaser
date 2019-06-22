@@ -8,6 +8,7 @@ module Releaser.Type where
 import           Control.Monad.Trans.Reader
 import           Control.Monad.Trans.State
 
+import           Control.DeepSeq
 import           Control.Lens
 import qualified Data.Map.Strict            as M
 import           Data.Serialize
@@ -28,9 +29,8 @@ type StRep = [Double]
 data RewardFunction
   = RewardShippedSimple         -- ^ The costs are accumulated from the shipped orders only
   | RewardPeriodEndSimple       -- ^ The costs are accumulated at the end of the period for all orders in the system
-
   -- TODO: need future reward in BORL! | RewardByReleasedPeriod (M.Map Period [OrderId]) -- ^ The costs are caluclated by all orders released at each period.
-  deriving (Generic, Serialize)
+  deriving (Generic, Serialize, NFData, Show)
 
 type PLTs = M.Map ProductType Time
 
@@ -40,7 +40,16 @@ data St = St
   , _nextIncomingOrders   :: [Order]        -- ^ The incoming orders for next period
   , _rewardFunctionOrders :: RewardFunction -- ^ Defines how to calculate rewards
   , _plannedLeadTimes     :: PLTs          -- ^ Planned lead times currently set
-  }
+  } deriving (Generic, NFData)
+
+instance Show St where
+  show (St sim _ _ plts) = show plts ++ ": " ++ show sim
+
+instance Eq St where
+  (St sim1 inc1 _ plt1) == (St sim2 inc2 _ plt2) = (sim1,inc1,plt1) == (sim2,inc2,plt2)
+
+instance Ord St where
+  compare (St sim1 inc1 _ plt1) (St sim2 inc2 _ plt2) = compare (sim1,inc1,plt1) (sim2,inc2,plt2)
 
 data StSerialisable = StSerialisable
   { _serSimulation           :: SimSimSerialisable
