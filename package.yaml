@@ -34,7 +34,7 @@ dependencies:
   - statistics
   - mwc-random
   - time
-  - deepseq
+  - text
 
 
 library:
@@ -48,7 +48,6 @@ library:
     -fwarn-tabs
     -fno-warn-name-shadowing
     -O2
-    -fvia-C
     -funbox-strict-fields
 
 executables:
@@ -60,7 +59,6 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     - -O2
-    - -fvia-C
     - -funbox-strict-fields
 
     dependencies:

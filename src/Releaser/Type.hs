@@ -42,9 +42,6 @@ data St = St
   , _plannedLeadTimes     :: PLTs          -- ^ Planned lead times currently set
   } deriving (Generic, NFData)
 
-instance Show St where
-  show (St sim _ _ plts) = show plts ++ ": " ++ show sim
-
 instance Eq St where
   (St sim1 inc1 _ plt1) == (St sim2 inc2 _ plt2) = (sim1,inc1,plt1) == (sim2,inc2,plt2)
 

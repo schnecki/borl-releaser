@@ -14,6 +14,7 @@ import           Data.Foldable              (toList)
 import           Data.List                  (nub)
 import qualified Data.Map.Strict            as M
 import           Data.Maybe                 (fromMaybe)
+import qualified Data.Text                  as T
 
 import           ML.BORL
 import           SimSim
@@ -52,7 +53,7 @@ combs (force -> base) (force -> acc) _ = concat [ map (b:) acc | b <- base]
 mkAction :: [Time] -> Reader ActionConfig (Action St)
 mkAction act = do
   actionFun <- action act
-  return $ Action actionFun (tshow $ map (\x -> if x < 0 then tshow x else "+" <> tshow x) act)
+  return $ Action actionFun (T.pack $ filter (/= '"') $ show $ map (\x -> if x < 0 then show x else "+" <> show x) act)
 
 
 action :: [Time] -> Reader ActionConfig (St -> IO (Reward, St, EpisodeEnd))
@@ -69,7 +70,7 @@ action pltChange = do
     let (reward, rewardFun') = mkReward rewardFun sim sim'
     newIncomingOrders <- generateOrders sim'
 
-    return (reward, St sim' [] rewardFun' pltsNew, False)
+    return (20-reward, St sim' [] rewardFun' pltsNew, False)
 
 type SimT = SimSim
 type SimTPlus1 = SimSim

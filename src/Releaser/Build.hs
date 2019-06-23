@@ -12,7 +12,8 @@ import           Control.DeepSeq                 (NFData, force)
 import           Control.Lens                    (over)
 import           Control.Monad
 import           Data.Function                   (on)
-import           Data.List                       (groupBy, nub, sort, sortBy)
+import           Data.List                       (foldl', genericLength, groupBy, nub,
+                                                  sort, sortBy)
 import           Data.List                       (find, sortBy)
 import qualified Data.Map                        as M
 import           Data.Time.Clock
@@ -136,16 +137,44 @@ decay t  p@(Parameters alp bet del ga eps exp rand zeta xi)
     f = max 0.01
 
 
-buildBORL :: IO (BORL St)
+netInp :: St -> [Double]
+netInp (St sim _ _ plts) =
+  map timeToDouble (M.elems plts) ++
+  mkFromList (simOrdersOrderPool sim) ++
+  mkFromList (simOrdersShipped sim)
+  where currentTime = simCurrentTime sim
+        mkFromList xs = map genericLength (sortByTimeUntilDue (actFilMinimumPLT actionFilterConfig) (actFilMaximumPLT actionFilterConfig) currentTime xs)
+
+
+type PeriodMin = Integer
+type PeriodMax = Integer
+
+instance Show St where
+  show = show . netInp
+
+
+sortByTimeUntilDue :: PeriodMin -> PeriodMax -> CurrentTime -> [Order] -> [[Order]]
+sortByTimeUntilDue min max currentTime = M.elems . foldl' sortByTimeUntilDue' startMap
+  where
+    def = fromIntegral min - periodLength
+    -- startMap = M.fromList $ (map (\pt -> (pt,[])) (def : ptTypes) )
+    lookup = [currentTime + fromIntegral min * periodLength,currentTime + fromIntegral min * periodLength + periodLength .. currentTime + fromIntegral max * periodLength]
+    startMap = M.fromList $ zip (def : lookup) (repeat [])
+    sortByTimeUntilDue' m order =
+      case find (== (dueDate order - currentTime)) lookup of
+        Nothing -> M.insertWith (++) def [order] m
+        Just k  -> M.insertWith (++) k [order] m
+
+buildBORL :: IO ()
 buildBORL = do
   sim <- buildSim
   startOrds <- generateOrders sim
   let initSt = St sim startOrds RewardShippedSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
   let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
   let actionFilter = mkConfig (actionFilterPLT actionList) actionFilterConfig
-  let borl = mkUnichainTabular algBORL initSt id actions actionFilter borlParams decay Nothing
+  let borl = mkUnichainTabular algBORL initSt netInp actions actionFilter borlParams decay Nothing
   askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
-  return borl
+
 
   where cmds = []
         usage = []
