@@ -1,5 +1,6 @@
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric  #-}
+{-# LANGUAGE DeriveAnyClass  #-}
+{-# LANGUAGE DeriveGeneric   #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 
 module Releaser.Type where
@@ -30,7 +31,7 @@ data RewardFunction
   = RewardShippedSimple         -- ^ The costs are accumulated from the shipped orders only
   | RewardPeriodEndSimple       -- ^ The costs are accumulated at the end of the period for all orders in the system
   -- TODO: need future reward in BORL! | RewardByReleasedPeriod (M.Map Period [OrderId]) -- ^ The costs are caluclated by all orders released at each period.
-  deriving (Generic, Serialize, NFData, Show)
+  deriving (Generic, Serialize, NFData, Show, Eq, Ord)
 
 type PLTs = M.Map ProductType Time
 
@@ -41,6 +42,7 @@ data St = St
   , _rewardFunctionOrders :: RewardFunction -- ^ Defines how to calculate rewards
   , _plannedLeadTimes     :: PLTs          -- ^ Planned lead times currently set
   } deriving (Generic, NFData)
+makeLenses ''St
 
 instance Eq St where
   (St sim1 inc1 _ plt1) == (St sim2 inc2 _ plt2) = (sim1,inc1,plt1) == (sim2,inc2,plt2)
@@ -53,8 +55,8 @@ data StSerialisable = StSerialisable
   , _serNextIncomingOrders   :: [Order]
   , _serRewardFunctionOrders :: RewardFunction
   , _serPlannedLeadTimes     :: PLTs
-  } deriving (Generic, Serialize)
-
+  } deriving (Generic, Serialize, Eq, Ord)
+makeLenses ''StSerialisable
 
 type Releaser m a = StateT St m a
 

@@ -1,40 +1,68 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns      #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs      #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies      #-}
 
 
 module Releaser.Build
-    ( buildBORL
+    ( buildBORLTable
+    , buildBORLTensorflow
     , buildSim
     , periodLength
     , ptTypes
     ) where
 
-import           Control.DeepSeq                 (NFData, force)
-import           Control.Lens                    (over)
+import           Control.Lens
 import           Control.Monad
+import           Control.Monad.IO.Class
+import           Control.Monad.IO.Unlift
+import           Control.Monad.Trans.Class
 import           Data.Function                   (on)
 import           Data.List                       (foldl', genericLength, groupBy, nub,
                                                   sort, sortBy)
-import           Data.List                       (find, sortBy)
+import           Data.List                       (find)
 import qualified Data.Map                        as M
-import           Data.Time.Clock
+import           Data.Maybe                      (fromMaybe)
 import           Statistics.Distribution
 import           Statistics.Distribution.Uniform
-import           System.IO
-import           System.Random                   (newStdGen)
+import           System.IO.Unsafe                (unsafePerformIO)
+import           System.Random
+import           Text.Printf
 
-import           ML.BORL
+-- ANN modules
+import           Grenade
+import qualified TensorFlow.Core                 as TF hiding (value)
+import qualified TensorFlow.GenOps.Core          as TF (abs, add, approximateEqual,
+                                                        approximateEqual, assign, cast,
+                                                        getSessionHandle, getSessionTensor,
+                                                        identity', lessEqual, matMul, mul,
+                                                        readerSerializeState, relu, relu',
+                                                        shape, square, sub, tanh, tanh',
+                                                        truncatedNormal)
+import qualified TensorFlow.Minimize             as TF
+
+
+import           Experimenter                    hiding (sum)
+import qualified Experimenter                    as E
+import           ML.BORL                         as B
 import           SimSim
 
 import           Releaser.Action
 import           Releaser.ActionFilter
+import           Releaser.Costs
 import           Releaser.Demand
+import           Releaser.ReleasePLT
 import           Releaser.Type
 
 periodLength :: Time
 periodLength = 1
 
+
 buildSim :: IO SimSim
-buildSim = newSimSimIO routing procTimes periodLength releaseImmediate dispatchFirstComeFirstServe shipOnDueDate
+buildSim = newSimSimIO routing procTimes periodLength (mkReleasePLT plts) dispatchFirstComeFirstServe shipOnDueDate
+  where plts = M.fromList $ zip ptTypes [1..]
 
 procTimes :: ProcTimes
 procTimes = [(Machine 1,[(Product 1, fmap timeFromDouble . genContVar (uniformDistr (70/960) (130/960)))
@@ -84,7 +112,6 @@ testDemand = do
 --------------------------- BORL ---------------------------
 ------------------------------------------------------------
 
-
 actionConfig :: ActionConfig
 actionConfig = ActionConfig
   { actLowerActionBound = -1
@@ -117,7 +144,7 @@ borlParams = Parameters
 -- | Decay function of parameters.
 decay :: Decay
 decay t  p@(Parameters alp bet del ga eps exp rand zeta xi)
-  | t `mod` 200 == 0 =
+  | t `mod` 300 == 0 =
     Parameters
       (max 0.03 $ slow * alp)
       (max 0.015 $ slow * bet)
@@ -137,113 +164,208 @@ decay t  p@(Parameters alp bet del ga eps exp rand zeta xi)
     f = max 0.01
 
 
+-- SuperSimple: AggregatedOverProductTypes - OrderPool+Shipped
+
+netInpPre :: St -> [[Double]]
+netInpPre (St sim _ _ plts) =
+  [ map (scaleValue (1, 7) . timeToDouble) (M.elems plts)
+  , map reduce $ mkFromList (simOrdersOrderPool sim) -- TODO: split also by product type
+  , map reduce $ map genericLength (sortByTimeUntilDue (-actFilMaximumPLT actionFilterConfig) 0 currentTime (simOrdersShipped sim))
+  ]
+  where
+    currentTime = simCurrentTime sim
+    mkFromList xs = map genericLength (sortByTimeUntilDue (actFilMinimumPLT actionFilterConfig) (actFilMaximumPLT actionFilterConfig) currentTime xs)
+    reduce x = scaleValue (0, 12) x
+        -- reduce x = fromIntegral $ ceiling (x / 3)
+
 netInp :: St -> [Double]
-netInp (St sim _ _ plts) =
-  map timeToDouble (M.elems plts) ++
-  mkFromList (simOrdersOrderPool sim) ++
-  mkFromList (simOrdersShipped sim)
-  where currentTime = simCurrentTime sim
-        mkFromList xs = map genericLength (sortByTimeUntilDue (actFilMinimumPLT actionFilterConfig) (actFilMaximumPLT actionFilterConfig) currentTime xs)
+netInp = concat . netInpPre
+
+
+nnConfig :: NNConfig St
+nnConfig =
+  NNConfig
+    { _toNetInp = netInp
+    , _replayMemoryMaxSize = 5000
+    , _trainBatchSize = 128
+    , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
+    , _prettyPrintElems = ppSts
+    , _scaleParameters = scalingByMaxAbsReward False 20
+    , _updateTargetInterval = 10000
+    , _trainMSEMax = Just $ 1 / 100 * 3
+    }
+  where
+    len =
+      length ptTypes + 1 + length [actFilMinimumPLT actionFilterConfig .. actFilMaximumPLT actionFilterConfig] + 1 +
+      length [-actFilMaximumPLT actionFilterConfig .. 0]
+    (lows, highs) = (replicate len (-1), replicate len 1)
+    vals = zipWith (\lo hi -> map rnd [lo,lo + (hi - lo) / 3 .. hi]) lows highs
+    valsRev = zipWith (\lo hi -> map rnd [hi,hi - (hi - lo) / 3 .. lo]) lows highs
+    rnd x = fromIntegral (round (100 * x)) / 100
+    ppSts = take 300 (combinations vals) ++ take 300 (combinations valsRev)
+    combinations :: [[a]] -> [[a]]
+    combinations [] = []
+    combinations [xs] = map return xs
+    combinations (xs:xss) = concatMap (\x -> map (x :) ys) xs
+      where
+        ys = combinations xss
+
+
+modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> m TensorflowModel
+modelBuilder actions initState =
+  buildModel $
+  inputLayer1D (genericLength (netInp initState)) >> fullyConnected1D 89 TF.relu' >> fullyConnected1D 20 TF.relu' >> fullyConnected1D (genericLength actions) TF.tanh' >>
+  trainingByAdam1DWith TF.AdamConfig {TF.adamLearningRate = 0.001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
 
 
 type PeriodMin = Integer
 type PeriodMax = Integer
 
 instance Show St where
-  show = show . netInp
+  show = filter (/= '"') . show . map (map printFloat) . netInpPre
+    where
+    printFloat :: Double -> String
+    printFloat = printf "%2.0f"
 
+-- testSort :: IO ()
+-- testSort = do
+--   let xs = sortByTimeUntilDue 1 7 7 [newOrder (Product 1) 0 7,
+--                                      newOrder (Product 1) 0 7
+--                                     ]
+--   print $ map (map orderId) xs
 
 sortByTimeUntilDue :: PeriodMin -> PeriodMax -> CurrentTime -> [Order] -> [[Order]]
 sortByTimeUntilDue min max currentTime = M.elems . foldl' sortByTimeUntilDue' startMap
   where
     def = fromIntegral min - periodLength
     -- startMap = M.fromList $ (map (\pt -> (pt,[])) (def : ptTypes) )
-    lookup = [currentTime + fromIntegral min * periodLength,currentTime + fromIntegral min * periodLength + periodLength .. currentTime + fromIntegral max * periodLength]
+    lookup = [fromIntegral min * periodLength,fromIntegral min * periodLength + periodLength .. fromIntegral max * periodLength]
     startMap = M.fromList $ zip (def : lookup) (repeat [])
     sortByTimeUntilDue' m order =
       case find (== (dueDate order - currentTime)) lookup of
         Nothing -> M.insertWith (++) def [order] m
         Just k  -> M.insertWith (++) k [order] m
 
-buildBORL :: IO ()
-buildBORL = do
+buildBORLTable :: IO (BORL St)
+buildBORLTable = do
   sim <- buildSim
   startOrds <- generateOrders sim
   let initSt = St sim startOrds RewardShippedSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
   let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
   let actionFilter = mkConfig (actionFilterPLT actionList) actionFilterConfig
-  let borl = mkUnichainTabular algBORL initSt netInp actions actionFilter borlParams decay Nothing
-  askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
+  return $ mkUnichainTabular algBORL initSt netInp actions actionFilter borlParams decay Nothing
 
 
-  where cmds = []
-        usage = []
+buildBORLTensorflow :: MonadBorl (BORL St)
+buildBORLTensorflow = do
+  sim <- Simple buildSim
+  startOrds <- Simple $ generateOrders sim
+  let initSt = St sim startOrds RewardShippedSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
+  let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
+  let actionFilter = mkConfig (actionFilterPLT actionList) actionFilterConfig
+  let alg = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) (DivideValuesAfterGrowth 1000 70000) True
+  mkUnichainTensorflowM alg initSt actions actionFilter borlParams decay (modelBuilder actions initSt) nnConfig Nothing
+
+------------------------------------------------------------
+------------------ ExperimentDef instance ------------------
+------------------------------------------------------------
+
+instance ExperimentDef (BORL St) where
+
+  type ExpM (BORL St) = MonadBorl
+
+  type Serializable (BORL St) = BORLSerialisable StSerialisable
+  serialisable = toSerialisableWith serializeSt
+  deserialisable =
+    unsafePerformIO $
+    runMonadBorl $ do
+      borl <- Simple buildBORLTable
+      let (St sim _ _ _) = borl ^. s
+      let (_, actions) = mkConfig (actionsPLT (borl ^. s)) actionConfig
+      return $
+        fromSerialisableWith
+          (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
+          actions
+          (borl ^. actionFilter)
+          (borl ^. decayFunction)
+          netInp
+          netInp
+          (modelBuilder actions (borl ^. s))
+  type InputValue (BORL St) = [Order]
+  type InputState (BORL St) = ()
 
 
-askUser :: (NFData s, Ord s, Show s) => Bool -> [(String,String)] -> [(String, ActionIndexed s)] -> BORL s -> IO ()
-askUser showHelp addUsage cmds ql = do
-  let usage =
-        sortBy (compare `on` fst) $
-        [ ("v", "Print V+W tables")
-        , ("p", "Print everything")
-        , ("q", "Exit program (unsaved state will be lost)")
-        , ("r", "Run for X times")
-        , ("m", "Multiply all state values by X")
-        -- , ("s" "Save to file save.dat (overwrites the file if it exists)")
-        -- , ("l" "Load from file save.dat")
-        , ("_", "Any other input starts another learning round\n")
-        ] ++
-        addUsage
-  putStrLn ""
-  when showHelp $ putStrLn $ unlines $ map (\(c, h) -> c ++ ": " ++ h) usage
-  putStr "Enter value (h for help): " >> hFlush stdout
-  c <- getLine
-  case c of
-    "h" -> askUser True addUsage cmds ql
-    "?" -> askUser True addUsage cmds ql
-    -- "s" -> do
-    --   saveQL ql "save.dat"
-    --   askUser ql addUsage cmds
-    -- "l" -> do
-    --   ql' <- loadQL ql "save.dat"
-    --   print (prettyQLearner prettyState (text . show) ql')
-    --   askUser ql addUsage cmds'
-    "r" -> do
-      putStr "How many learning rounds should I execute: " >> hFlush stdout
-      l <- getLine
-      case reads l :: [(Integer, String)] of
-        [(nr, _)] -> mkTime (steps ql nr) >>= askUser False addUsage cmds
-        _ -> do
-          putStr "Could not read your input :( You are supposed to enter an Integer.\n"
-          askUser False addUsage cmds ql
-    "p" -> do
-      prettyBORL ql >>= print
-      askUser False addUsage cmds ql
-    "m" -> do
-      putStr "Multiply by: " >> hFlush stdout
-      l <- getLine
-      case reads l :: [(Double, String)] of
-        [(nr, _)] -> askUser False addUsage cmds (foldl (\q f -> over (proxies . f) (multiplyProxy nr) q) ql [psiV, v, w])
-        _ -> do
-          putStr "Could not read your input :( You are supposed to enter an Integer.\n"
-          askUser False addUsage cmds ql
-    "v" -> do
-      runMonadBorl (restoreTensorflowModels ql >> prettyBORLTables True False False ql) >>= print
-      askUser False addUsage cmds ql
-    _ ->
-      case find ((== c) . fst) cmds of
-        Nothing ->
-          unless
-            (c == "q")
-            (step ql >>= \x -> runMonadBorl (restoreTensorflowModels ql >> prettyBORLTables True False True x) >>= print >> return x >>= askUser False addUsage cmds)
-        Just (_, cmd) -> runMonadBorl (restoreTensorflowModels ql >> stepExecute (ql, False, cmd) >>= saveTensorflowModels) >>= askUser False addUsage cmds
+  -- ^ Generate some input values and possibly modify state. This function can be used to change the state. It is called
+  -- before `runStep` and its output is used to call `runStep`.
+  generateInput _ borl _ _ = do
+    let (St _ inc _ _) = borl ^. s
+    return (inc, ())
 
 
-mkTime :: NFData t => IO t -> IO t
-mkTime a = do
-    start <- getCurrentTime
-    !val <- force <$> a
-    end   <- getCurrentTime
-    putStrLn ("Computation Time: " ++ show (diffUTCTime end start))
-    return val
+  -- ^ Run a step of the environment and return new state and result.
+  -- runStep :: (MonadIO MonadBorl) => a -> InputValue a -> E.Period -> MonadBorl ([StepResult], a)
+  runStep borl incOrds _ = do
+    borl' <- stepM (set (s.nextIncomingOrders) incOrds borl)
+
+    -- helpers
+    let simT = timeToDouble $ simCurrentTime $ borl' ^. s.simulation
+    let borlT = borl' ^. t
+
+    -- cost related measures
+    let (StatsOrderCost earn wip bo fgi) = simStatsOrderCosts $ simStatistics (borl' ^. s.simulation)
+    let cEarn = StepResult "EARN" (Just simT) (fromIntegral earn)
+    let cBoc  = StepResult "BOC" (Just simT) (boCosts costConfig *  fromIntegral bo)
+    let cWip  = StepResult "WIPC" (Just simT) (wipCosts costConfig *  fromIntegral wip)
+    let cFgi  = StepResult "FGIC" (Just simT) (fgiCosts costConfig *  fromIntegral fgi)
+    let cSum = StepResult "SUM" (Just simT) (cBoc ^. resultYValue + cWip  ^. resultYValue + cFgi ^. resultYValue)
+
+    -- time related measures
+    let (StatsFlowTime ftNrFloorAndFgi (StatsOrderTime sumTimeFloorAndFgi stdDevFloorAndFgi _) mTardFloorAndFgi) = simStatsShopFloorAndFgi $ simStatistics (borl' ^. s.simulation)
+    let tFtMeanFloorAndFgi = StepResult "FTMeanFloorAndFgi" (Just simT) (fromRational sumTimeFloorAndFgi / fromIntegral ftNrFloorAndFgi)
+    let tFtStdDevFloorAndFgi = StepResult "FTStdDevFloorAndFgi" (Just simT) (maybe 0 fromRational $ getWelfordStdDev stdDevFloorAndFgi)
+    let tTardPctFloorAndFgi = StepResult "TARDPctFloorAndFgi" (Just simT) (fromRational (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromIntegral nrTard / fromIntegral ftNrFloorAndFgi ) mTardFloorAndFgi))
+    let tTardMeanFloorAndFgi = StepResult "TARDMeanFloorAndFGI" (Just simT) (fromRational (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard ) mTardFloorAndFgi))
+    let tTardStdDevFloorAndFgi = StepResult "TARDStdDevFloorAndFGI" (Just simT) (fromRational (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard) mTardFloorAndFgi))
+
+
+    let (StatsFlowTime ftNrFloor (StatsOrderTime sumTimeFloor stdDevFloor _) mTardFloor) = simStatsShopFloor $ simStatistics (borl' ^. s.simulation)
+    let tFtMeanFloor = StepResult "FTMeanFloor" (Just simT) (fromRational sumTimeFloor / fromIntegral ftNrFloor)
+    let tFtStdDevFloor = StepResult "FTStdDevloor" (Just simT) (maybe 0 fromRational $ getWelfordStdDev stdDevFloor)
+    let tTardPctFloor = StepResult "TARDPctFloor" (Just simT) (fromRational (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromIntegral nrTard / fromIntegral ftNrFloor ) mTardFloor))
+    let tTardMeanFloor = StepResult "TARDMeanFloorAndFGI" (Just simT) (fromRational (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard ) mTardFloor))
+    let tTardStdDevFloor = StepResult "TARDStdDevFloorAndFGI" (Just simT) (fromRational (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard ) mTardFloor))
+
+    -- BORL' related measures
+    let avgRew = StepResult "AvgReward" (Just $ fromIntegral borlT) (borl' ^?! proxies.rho.proxyScalar)
+        pltP1 = StepResult "PLT P1" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 1) (borl' ^. s.plannedLeadTimes))
+        pltP2 = StepResult "PLT P2" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 2) (borl' ^. s.plannedLeadTimes))
+        psiRho = StepResult "PsiRho" (Just $ fromIntegral borlT) (borl' ^. psis._1)
+        psiV = StepResult "PsiRho" (Just $ fromIntegral borlT) (borl' ^. psis._2)
+        psiW = StepResult "PsiRho" (Just $ fromIntegral borlT) (borl' ^. psis._3)
+
+    return ([-- cost related measures
+              cSum, cEarn, cBoc, cWip, cFgi
+             -- time related measures
+            , tFtMeanFloorAndFgi, tFtStdDevFloorAndFgi, tTardPctFloorAndFgi, tTardMeanFloorAndFgi, tTardStdDevFloorAndFgi
+            , tFtMeanFloor, tFtStdDevFloor, tTardPctFloor, tTardMeanFloor, tTardStdDevFloor
+             -- BORL related measures
+            , avgRew, pltP1, pltP2, psiRho, psiV, psiW
+            ], borl')
+
+
+  -- ^ Provides the parameter setting.
+  -- parameters :: a -> [ParameterSetup a]
+  parameters _ = [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORL, algVPsi, algDQN]) Nothing
+                 , ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [RewardShippedSimple, RewardPeriodEndSimple]) Nothing
+                 ]
+    where algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) (DivideValuesAfterGrowth 1000 70000) True
+
+
+  -- ^ This function defines how to find experiments that can be resumed. Note that the experiments name is always a
+  -- comparison factor, that is, experiments with different names are unequal.
+  equalExperiments (borl1, st1) (borl2, st2) =
+    st1 == st2 &&
+    (borl1 ^. s, borl1 ^. t, borl1 ^. episodeNrStart, borl1 ^. B.parameters, borl1 ^. algorithm, borl1 ^. phase, borl1 ^. lastVValues, borl1 ^. lastRewards, borl1 ^. psis) ==
+    (borl2 ^. s, borl2 ^. t, borl2 ^. episodeNrStart, borl2 ^. B.parameters, borl2 ^. algorithm, borl2 ^. phase, borl2 ^. lastVValues, borl2 ^. lastRewards, borl2 ^. psis)
+
 

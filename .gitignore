@@ -6,3 +6,7 @@ emacs.desktop
 /.emacs.desktop.lock
 /episodeLength
 /stateValues
+/test/episodeLength
+/test/reward
+/test/stateValues
+/reward

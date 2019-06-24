@@ -35,6 +35,19 @@ dependencies:
   - mwc-random
   - time
   - text
+  - pretty
+  - tensorflow
+  - tensorflow-core-ops
+  # - tensorflow-logging
+  - tensorflow-mnist-input-data
+  - tensorflow-mnist
+  # - tensorflow-opgen
+  - tensorflow-ops
+  - tensorflow-proto
+  # - tensorflow-records-conduit
+  # - tensorflow-records
+  - grenade
+  - unliftio-core
 
 
 library:
@@ -63,6 +76,20 @@ executables:
 
     dependencies:
     - borl-releaser
+
+  exp:
+    main:                Main.hs
+    source-dirs:         exp
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -O2
+    - -funbox-strict-fields
+
+    dependencies:
+    - borl-releaser
+
 
 tests:
   borl-releaser-test:

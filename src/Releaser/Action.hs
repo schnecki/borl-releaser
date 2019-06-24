@@ -7,7 +7,7 @@ module Releaser.Action
     , ActionConfig (..)
     ) where
 
-import           ClassyPrelude              (tshow)
+import           ClassyPrelude              (tshow, when)
 import           Control.DeepSeq
 import           Control.Monad.Trans.Reader
 import           Data.Foldable              (toList)
@@ -15,6 +15,7 @@ import           Data.List                  (nub)
 import qualified Data.Map.Strict            as M
 import           Data.Maybe                 (fromMaybe)
 import qualified Data.Text                  as T
+import           Text.Printf
 
 import           ML.BORL
 import           SimSim
@@ -53,7 +54,10 @@ combs (force -> base) (force -> acc) _ = concat [ map (b:) acc | b <- base]
 mkAction :: [Time] -> Reader ActionConfig (Action St)
 mkAction act = do
   actionFun <- action act
-  return $ Action actionFun (T.pack $ filter (/= '"') $ show $ map (\x -> if x < 0 then show x else "+" <> show x) act)
+  return $ Action actionFun (T.pack $ filter (/= '"') $ show $ map (\x -> if x < 0 then printInt x else "+" <> printInt x) act)
+
+  where printInt :: Time -> String
+        printInt = printf "%.2f" . timeToDouble
 
 
 action :: [Time] -> Reader ActionConfig (St -> IO (Reward, St, EpisodeEnd))
@@ -69,8 +73,8 @@ action pltChange = do
     sim' <- simulateUntil (simCurrentTime sim + perLen) simReleaseSet incomingOrders
     let (reward, rewardFun') = mkReward rewardFun sim sim'
     newIncomingOrders <- generateOrders sim'
-
-    return (20-reward, St sim' [] rewardFun' pltsNew, False)
+    writeFiles sim sim'
+    return (50-0.2*reward, St sim' newIncomingOrders rewardFun' pltsNew, False)
 
 type SimT = SimSim
 type SimTPlus1 = SimSim
@@ -99,5 +103,20 @@ calcRewardShipped sim order =
       periodsInFgi = fromTime $ fromM (shipped order) - fromM (prodEnd order)
       fgi = fgiCosts costConfig * fromRational (periodsInFgi / periodLen)
    in wip + fgi + bo
+
+
+writeFiles :: SimSim -> SimSim -> IO ()
+writeFiles sim sim' = do
+  let periodLen = simPeriodLength sim
+  let currentTime = simCurrentTime sim
+  let period = timeToDouble (currentTime / periodLen)
+  let p = show period ++ "\t"
+      lb = "\n"
+  let rewardShipped = fst $ mkReward RewardShippedSimple sim sim'
+  let rewardPeriodEnd = fst $ mkReward RewardPeriodEndSimple sim sim'
+  let fileReward = "reward"
+
+  when (currentTime == 0) $ writeFile fileReward "Period\tRewardPeriodEnd\tRewardShipped\n"
+  appendFile fileReward (p ++ show rewardPeriodEnd ++ "\t" ++ show rewardShipped ++ lb)
 
 
