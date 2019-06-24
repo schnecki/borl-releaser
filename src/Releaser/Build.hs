@@ -311,40 +311,51 @@ instance ExperimentDef (BORL St) where
     let simT = timeToDouble $ simCurrentTime $ borl' ^. s.simulation
     let borlT = borl' ^. t
 
+    -- demand
+    let demand = StepResult "demand" (Just simT) (fromIntegral $ length $ borl ^. s.nextIncomingOrders)
+
     -- cost related measures
+    let (StatsOrderCost earnOld wipOld boOld fgiOld) = simStatsOrderCosts $ simStatistics (borl ^. s.simulation)
     let (StatsOrderCost earn wip bo fgi) = simStatsOrderCosts $ simStatistics (borl' ^. s.simulation)
-    let cEarn = StepResult "EARN" (Just simT) (fromIntegral earn)
-    let cBoc  = StepResult "BOC" (Just simT) (boCosts costConfig *  fromIntegral bo)
-    let cWip  = StepResult "WIPC" (Just simT) (wipCosts costConfig *  fromIntegral wip)
-    let cFgi  = StepResult "FGIC" (Just simT) (fgiCosts costConfig *  fromIntegral fgi)
-    let cSum = StepResult "SUM" (Just simT) (cBoc ^. resultYValue + cWip  ^. resultYValue + cFgi ^. resultYValue)
+    let cEarn = StepResult "EARN" (Just simT) (fromIntegral (earn - earnOld))
+    let cBoc  = StepResult "BOC" (Just simT) (boCosts costConfig *  fromIntegral (bo - boOld))
+    let cWip  = StepResult "WIPC" (Just simT) (wipCosts costConfig *  fromIntegral (wip - wipOld))
+    let cFgi  = StepResult "FGIC" (Just simT) (fgiCosts costConfig *  fromIntegral (fgi - fgiOld))
+    let cSum = StepResult "SUMC" (Just simT) (cBoc ^. resultYValue + cWip ^. resultYValue + cFgi ^. resultYValue)
+
+    let curOp = StepResult "op" (Just simT) (fromIntegral $ length $ simOrdersOrderPool $ borl' ^. s.simulation)
+    let curWip = StepResult "wip" (Just simT) (fromIntegral $ wip-wipOld)
+    let curBo = StepResult "bo" (Just simT) (fromIntegral $ bo-boOld)
+    let curFgi = StepResult "fgi" (Just simT) (fromIntegral $ fgi-fgiOld)
 
     -- time related measures
     let (StatsFlowTime ftNrFloorAndFgi (StatsOrderTime sumTimeFloorAndFgi stdDevFloorAndFgi _) mTardFloorAndFgi) = simStatsShopFloorAndFgi $ simStatistics (borl' ^. s.simulation)
     let tFtMeanFloorAndFgi = StepResult "FTMeanFloorAndFgi" (Just simT) (fromRational sumTimeFloorAndFgi / fromIntegral ftNrFloorAndFgi)
     let tFtStdDevFloorAndFgi = StepResult "FTStdDevFloorAndFgi" (Just simT) (maybe 0 fromRational $ getWelfordStdDev stdDevFloorAndFgi)
-    let tTardPctFloorAndFgi = StepResult "TARDPctFloorAndFgi" (Just simT) (fromRational (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromIntegral nrTard / fromIntegral ftNrFloorAndFgi ) mTardFloorAndFgi))
-    let tTardMeanFloorAndFgi = StepResult "TARDMeanFloorAndFGI" (Just simT) (fromRational (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard ) mTardFloorAndFgi))
-    let tTardStdDevFloorAndFgi = StepResult "TARDStdDevFloorAndFGI" (Just simT) (fromRational (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard) mTardFloorAndFgi))
+    let tTardPctFloorAndFgi = StepResult "TARDPctFloorAndFgi" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromIntegral nrTard / fromIntegral ftNrFloorAndFgi ) mTardFloorAndFgi)
+    let tTardMeanFloorAndFgi = StepResult "TARDMeanFloorAndFGI" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard ) mTardFloorAndFgi)
+    let tTardStdDevFloorAndFgi = StepResult "TARDStdDevFloorAndFGI" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard) mTardFloorAndFgi)
 
 
     let (StatsFlowTime ftNrFloor (StatsOrderTime sumTimeFloor stdDevFloor _) mTardFloor) = simStatsShopFloor $ simStatistics (borl' ^. s.simulation)
     let tFtMeanFloor = StepResult "FTMeanFloor" (Just simT) (fromRational sumTimeFloor / fromIntegral ftNrFloor)
-    let tFtStdDevFloor = StepResult "FTStdDevloor" (Just simT) (maybe 0 fromRational $ getWelfordStdDev stdDevFloor)
-    let tTardPctFloor = StepResult "TARDPctFloor" (Just simT) (fromRational (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromIntegral nrTard / fromIntegral ftNrFloor ) mTardFloor))
-    let tTardMeanFloor = StepResult "TARDMeanFloorAndFGI" (Just simT) (fromRational (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard ) mTardFloor))
-    let tTardStdDevFloor = StepResult "TARDStdDevFloorAndFGI" (Just simT) (fromRational (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard ) mTardFloor))
+    let tFtStdDevFloor = StepResult "FTStdDevFloor" (Just simT) (maybe 0 fromRational $ getWelfordStdDev stdDevFloor)
+    let tTardPctFloor = StepResult "TARDPctFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromIntegral nrTard / fromIntegral ftNrFloor ) mTardFloor)
+    let tTardMeanFloor = StepResult "TARDMeanFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard ) mTardFloor)
+    let tTardStdDevFloor = StepResult "TARDStdDevFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard ) mTardFloor)
 
     -- BORL' related measures
     let avgRew = StepResult "AvgReward" (Just $ fromIntegral borlT) (borl' ^?! proxies.rho.proxyScalar)
         pltP1 = StepResult "PLT P1" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 1) (borl' ^. s.plannedLeadTimes))
         pltP2 = StepResult "PLT P2" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 2) (borl' ^. s.plannedLeadTimes))
         psiRho = StepResult "PsiRho" (Just $ fromIntegral borlT) (borl' ^. psis._1)
-        psiV = StepResult "PsiRho" (Just $ fromIntegral borlT) (borl' ^. psis._2)
-        psiW = StepResult "PsiRho" (Just $ fromIntegral borlT) (borl' ^. psis._3)
+        psiV = StepResult "PsiV" (Just $ fromIntegral borlT) (borl' ^. psis._2)
+        psiW = StepResult "PsiW" (Just $ fromIntegral borlT) (borl' ^. psis._3)
 
     return ([-- cost related measures
               cSum, cEarn, cBoc, cWip, cFgi
+             -- floor
+            , curOp, curWip, curBo, curFgi, demand
              -- time related measures
             , tFtMeanFloorAndFgi, tFtStdDevFloorAndFgi, tTardPctFloorAndFgi, tTardMeanFloorAndFgi, tTardStdDevFloorAndFgi
             , tFtMeanFloor, tFtStdDevFloor, tTardPctFloor, tTardMeanFloor, tTardStdDevFloor
@@ -364,8 +375,8 @@ instance ExperimentDef (BORL St) where
   -- ^ This function defines how to find experiments that can be resumed. Note that the experiments name is always a
   -- comparison factor, that is, experiments with different names are unequal.
   equalExperiments (borl1, st1) (borl2, st2) =
-    st1 == st2 &&
-    (borl1 ^. s, borl1 ^. t, borl1 ^. episodeNrStart, borl1 ^. B.parameters, borl1 ^. algorithm, borl1 ^. phase, borl1 ^. lastVValues, borl1 ^. lastRewards, borl1 ^. psis) ==
-    (borl2 ^. s, borl2 ^. t, borl2 ^. episodeNrStart, borl2 ^. B.parameters, borl2 ^. algorithm, borl2 ^. phase, borl2 ^. lastVValues, borl2 ^. lastRewards, borl2 ^. psis)
+    -- st1 == st2 &&
+    (borl1^.s.nextIncomingOrders,borl1^. s.rewardFunctionOrders,borl1^.s.plannedLeadTimes, borl1 ^. t, borl1 ^. episodeNrStart, borl1 ^. B.parameters, borl1 ^. algorithm, borl1 ^. phase, borl1 ^. lastVValues, borl1 ^. lastRewards, borl1 ^. psis) ==
+    (borl2^.s.nextIncomingOrders,borl2^. s.rewardFunctionOrders,borl2^.s.plannedLeadTimes, borl2 ^. t, borl2 ^. episodeNrStart, borl2 ^. B.parameters, borl2 ^. algorithm, borl2 ^. phase, borl2 ^. lastVValues, borl2 ^. lastRewards, borl2 ^. psis)
 
 
