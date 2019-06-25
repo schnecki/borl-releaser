@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs      #-}
@@ -61,7 +60,11 @@ periodLength = 1
 
 
 buildSim :: IO SimSim
-buildSim = newSimSimIO routing procTimes periodLength (mkReleasePLT plts) dispatchFirstComeFirstServe shipOnDueDate
+buildSim = newSimSimIO routing procTimes periodLength (releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)]))
+           --releaseImmediate
+           -- (mkReleasePLT plts)
+
+           dispatchFirstComeFirstServe shipOnDueDate
   where plts = M.fromList $ zip ptTypes [1..]
 
 procTimes :: ProcTimes
@@ -368,6 +371,7 @@ instance ExperimentDef (BORL St) where
   -- parameters :: a -> [ParameterSetup a]
   parameters _ = [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORL, algVPsi, algDQN]) Nothing
                  , ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [RewardShippedSimple, RewardPeriodEndSimple]) Nothing
+                 , ParameterSetup "ReleaseAlgorithm" (\r -> over (s.simulation) (\sim -> sim { simRelease = r })) (simRelease . view (s.simulation)) (Just $ return . const [])
                  ]
     where algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) (DivideValuesAfterGrowth 1000 70000) True
 

@@ -2,20 +2,21 @@
 {-# LANGUAGE Strict       #-}
 module Main where
 
-import           Control.DeepSeq  (NFData, force)
+import           Control.DeepSeq     (NFData, force)
 import           Control.Lens
-import           Control.Monad    (unless, when)
-import           Data.Function    (on)
-import           Data.List        (find, sortBy)
-import qualified Data.Text        as T
-import           Data.Time.Clock  (diffUTCTime, getCurrentTime)
-import           System.IO        (hFlush, stdout)
+import           Control.Monad       (foldM, unless, when)
+import           Data.Function       (on)
+import           Data.List           (find, sortBy)
+import qualified Data.Text           as T
+import           Data.Time.Clock     (diffUTCTime, getCurrentTime)
+import           System.IO           (hFlush, stdout)
 import           Text.PrettyPrint
 
 import           ML.BORL
 import           SimSim
 
 import           Releaser.Build
+import           Releaser.ReleasePLT
 import           Releaser.Type
 
 
@@ -65,7 +66,23 @@ askUser showHelp addUsage cmds ql = do
       Simple $ putStr "How many learning rounds should I execute: " >> hFlush stdout
       l <- Simple getLine
       case reads l :: [(Integer, String)] of
-        [(nr, _)] -> mkTime (stepsM ql nr) >>= askUser False addUsage cmds . force
+        [(nr, _)] -> mkTime (stepsM' ql nr) >>= askUser False addUsage cmds . force
+          where stepsM' borl nr = do
+                   !borl' <- foldM (\b _ -> stepsM ql nr >>= maybeDropTables) borl [1 .. min maxNr nr]
+                   if nr > maxNr
+                     then stepsM borl' (nr - maxNr)
+                     else return borl'
+                   where maxNr = 1000
+                maybeDropTables borl = return $
+                  if uniqueReleaseName (simRelease (borl^.s.simulation)) == pltReleaseName
+                  then borl
+                  else set (proxies.v.proxyTable) mempty $
+                       set (proxies.w.proxyTable) mempty $
+                       set (proxies.r0.proxyTable) mempty $
+                       set (proxies.r1.proxyTable) mempty $
+                       set (proxies.psiV.proxyTable) mempty borl
+
+
         _ -> do
           Simple $ putStr "Could not read your input :( You are supposed to enter an Integer.\n"
           askUser False addUsage cmds ql
