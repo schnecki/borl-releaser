@@ -59,17 +59,17 @@ main = do
               , Id $ Last $ Of "PsiW", Mean OverReplications (Last $ Of "PsiW")
               ]
   evalRes <- genEvals res evals
-  print (view evalsResults evalRes)
+  -- print (view evalsResults evalRes)
   writeAndCompileLatex evalRes
 
 
 expSetup :: ExperimentSetup
 expSetup = ExperimentSetup
-  { _experimentBaseName         = "Releaser AggregatedOverProductTypes - OrderPool+Shipped"
+  { _experimentBaseName         = "Releaser ANN AggregatedOverProductTypes - OrderPool+Shipped"
   , _experimentRepetitions      =  1
   , _preparationSteps           =  100000
   , _evaluationWarmUpSteps      =  750
   , _evaluationSteps            =  1000
-  , _evaluationReplications     =  5
+  , _evaluationReplications     =  1
   , _maximumParallelEvaluations =  1
   }

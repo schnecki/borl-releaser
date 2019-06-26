@@ -15,7 +15,7 @@ import           Releaser.Type
 
 
 pltReleaseName :: Text
-pltReleaseName = "PLT"
+pltReleaseName = "PLT by RL Agent"
 
 mkReleasePLT :: PLTs -> Release
 mkReleasePLT plts = Release (releaseFun plts) pltReleaseName

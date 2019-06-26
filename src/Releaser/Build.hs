@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs      #-}
@@ -13,38 +14,28 @@ module Releaser.Build
     , ptTypes
     ) where
 
+
 import           Control.Lens
 import           Control.Monad
-import           Control.Monad.IO.Class
-import           Control.Monad.IO.Unlift
-import           Control.Monad.Trans.Class
 import           Data.Function                   (on)
-import           Data.List                       (foldl', genericLength, groupBy, nub,
-                                                  sort, sortBy)
-import           Data.List                       (find)
+import           Data.List                       (find, foldl', genericLength, groupBy,
+                                                  nub, sort, sortBy)
 import qualified Data.Map                        as M
-import           Data.Maybe                      (fromMaybe)
+import           Data.Serialize                  as S
+import qualified Data.Text                       as T
 import           Statistics.Distribution
 import           Statistics.Distribution.Uniform
 import           System.IO.Unsafe                (unsafePerformIO)
-import           System.Random
 import           Text.Printf
 
 -- ANN modules
 import           Grenade
 import qualified TensorFlow.Core                 as TF hiding (value)
-import qualified TensorFlow.GenOps.Core          as TF (abs, add, approximateEqual,
-                                                        approximateEqual, assign, cast,
-                                                        getSessionHandle, getSessionTensor,
-                                                        identity', lessEqual, matMul, mul,
-                                                        readerSerializeState, relu, relu',
-                                                        shape, square, sub, tanh, tanh',
-                                                        truncatedNormal)
+import qualified TensorFlow.GenOps.Core          as TF (relu', tanh')
 import qualified TensorFlow.Minimize             as TF
 
 
 import           Experimenter                    hiding (sum)
-import qualified Experimenter                    as E
 import           ML.BORL                         as B
 import           SimSim
 
@@ -60,12 +51,13 @@ periodLength = 1
 
 
 buildSim :: IO SimSim
-buildSim = newSimSimIO routing procTimes periodLength (releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)]))
-           --releaseImmediate
-           -- (mkReleasePLT plts)
-
+buildSim = newSimSimIO routing procTimes periodLength
+           -- releaseImmediate
+           (mkReleasePLT initialPLTS)
            dispatchFirstComeFirstServe shipOnDueDate
-  where plts = M.fromList $ zip ptTypes [1..]
+
+initialPLTS :: M.Map ProductType Time
+initialPLTS = M.fromList $ zip ptTypes [1 ..]
 
 procTimes :: ProcTimes
 procTimes = [(Machine 1,[(Product 1, fmap timeFromDouble . genContVar (uniformDistr (70/960) (130/960)))
@@ -253,7 +245,7 @@ buildBORLTable :: IO (BORL St)
 buildBORLTable = do
   sim <- buildSim
   startOrds <- generateOrders sim
-  let initSt = St sim startOrds RewardShippedSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
+  let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
   let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
   let actionFilter = mkConfig (actionFilterPLT actionList) actionFilterConfig
   return $ mkUnichainTabular algBORL initSt netInp actions actionFilter borlParams decay Nothing
@@ -263,7 +255,7 @@ buildBORLTensorflow :: MonadBorl (BORL St)
 buildBORLTensorflow = do
   sim <- Simple buildSim
   startOrds <- Simple $ generateOrders sim
-  let initSt = St sim startOrds RewardShippedSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
+  let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
   let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
   let actionFilter = mkConfig (actionFilterPLT actionList) actionFilterConfig
   let alg = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) (DivideValuesAfterGrowth 1000 70000) True
@@ -282,7 +274,7 @@ instance ExperimentDef (BORL St) where
   deserialisable =
     unsafePerformIO $
     runMonadBorl $ do
-      borl <- Simple buildBORLTable
+      borl <- buildBORLTensorflow
       let (St sim _ _ _) = borl ^. s
       let (_, actions) = mkConfig (actionsPLT (borl ^. s)) actionConfig
       return $
@@ -369,9 +361,18 @@ instance ExperimentDef (BORL St) where
 
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
-  parameters _ = [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORL, algVPsi, algDQN]) Nothing
-                 , ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [RewardShippedSimple, RewardPeriodEndSimple]) Nothing
-                 , ParameterSetup "ReleaseAlgorithm" (\r -> over (s.simulation) (\sim -> sim { simRelease = r })) (simRelease . view (s.simulation)) (Just $ return . const [])
+  parameters _ = [ -- ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORL, algVPsi, algDQN]) Nothing (const False)
+                   ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [RewardShippedSimple, RewardPeriodEndSimple]) Nothing (const False)
+                 -- , ParameterSetup "ReleaseAlgorithm" (\r -> over (s.simulation) (\sim -> sim { simRelease = r })) (simRelease . view (s.simulation))
+                 --   (Just $ return . const [ mkReleasePLT initialPLTS
+                 --                          , releaseImmediate
+                 --                          , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
+                 --                          , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
+                 --                          , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
+                 --                          , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
+                 --                          ])
+                 -- Nothing
+                 -- (\x -> uniqueReleaseName x /= pltReleaseName)
                  ]
     where algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) (DivideValuesAfterGrowth 1000 70000) True
 
@@ -380,7 +381,27 @@ instance ExperimentDef (BORL St) where
   -- comparison factor, that is, experiments with different names are unequal.
   equalExperiments (borl1, st1) (borl2, st2) =
     -- st1 == st2 &&
-    (borl1^.s.nextIncomingOrders,borl1^. s.rewardFunctionOrders,borl1^.s.plannedLeadTimes, borl1 ^. t, borl1 ^. episodeNrStart, borl1 ^. B.parameters, borl1 ^. algorithm, borl1 ^. phase, borl1 ^. lastVValues, borl1 ^. lastRewards, borl1 ^. psis) ==
-    (borl2^.s.nextIncomingOrders,borl2^. s.rewardFunctionOrders,borl2^.s.plannedLeadTimes, borl2 ^. t, borl2 ^. episodeNrStart, borl2 ^. B.parameters, borl2 ^. algorithm, borl2 ^. phase, borl2 ^. lastVValues, borl2 ^. lastRewards, borl2 ^. psis)
+    (-- borl1^.s.nextIncomingOrders,
+    borl1^. s.rewardFunctionOrders,
+    borl1 ^. s.plannedLeadTimes,
+    borl1 ^. t, borl1 ^. episodeNrStart, borl1 ^. B.parameters, borl1 ^. algorithm, borl1 ^. phase, borl1 ^. lastVValues, borl1 ^. lastRewards, borl1 ^. psis) ==
+    (-- borl2^.s.nextIncomingOrders,
+    borl2^. s.rewardFunctionOrders,
+    borl2 ^. s.plannedLeadTimes,
+    borl2 ^. t, borl2 ^. episodeNrStart, borl2 ^. B.parameters, borl2 ^. algorithm, borl2 ^. phase, borl2 ^. lastVValues, borl2 ^. lastRewards, borl2 ^. psis)
+
+  afterPreparationPhase = id -- TODO: do not use exploration!!!
+
+
+instance Serialize Release where
+  put (Release _ n) = S.put $ T.unpack n
+  get = do
+    n <- T.pack <$> S.get
+    let fun | n == pltReleaseName = mkReleasePLT initialPLTS
+            | n ==  uniqueReleaseName releaseImmediate = releaseImmediate
+            | T.isPrefixOf bilName n = releaseBIL $ M.fromList bilArgs
+              where bilArgs = read (T.unpack $ T.drop (T.length bilName) n)
+                    bilName = T.takeWhile (/= '[') $ uniqueReleaseName (releaseBIL mempty)
+    return fun
 
 
