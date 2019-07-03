@@ -31,29 +31,30 @@ main = do
               , Sum OverPeriods $ Of "FGIC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "FGIC")
               , Sum OverPeriods $ Of "SUMC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")
 
-              , Id $ EveryXthElem 4 $ Of "demand"
-              , Id $ EveryXthElem 4 $ Of "op"
-              , Id $ EveryXthElem 4 $ Of "wip"
-              , Id $ EveryXthElem 4 $ Of "bo"
-              , Id $ EveryXthElem 4 $ Of "fgi"
+              -- , Id $ EveryXthElem 4 $ Of "demand"
+              -- , Id $ EveryXthElem 4 $ Of "op"
+              -- , Id $ EveryXthElem 4 $ Of "wip"
+              -- , Id $ EveryXthElem 4 $ Of "bo"
+              -- , Id $ EveryXthElem 4 $ Of "fgi"
 
-              , Id $ Last $ Of "FTMeanFloorAndFgi", Mean OverReplications (Last $ Of "FTMeanFloorAndFgi")
-              , Id $ Last $ Of "FTStdDevFloorAndFgi", Mean OverReplications (Last $ Of "FTStdDevFloorAndFgi")
-              , Id $ Last $ Of "TARDPctFloorAndFgi", Mean OverReplications (Last $ Of "TARDPctFloorAndFgi")
-              , Id $ Last $ Of "TARDMeanFloorAndFGI", Mean OverReplications (Last $ Of "TARDMeanFloorAndFGI")
-              , Id $ Last $ Of "TARDStdDevFloorAndFGI", Mean OverReplications (Last $ Of "TARDStdDevFloorAndFGI")
+              -- , Id $ Last $ Of "FTMeanFloorAndFgi", Mean OverReplications (Last $ Of "FTMeanFloorAndFgi")
+              -- , Id $ Last $ Of "FTStdDevFloorAndFgi", Mean OverReplications (Last $ Of "FTStdDevFloorAndFgi")
+              -- , Id $ Last $ Of "TARDPctFloorAndFgi", Mean OverReplications (Last $ Of "TARDPctFloorAndFgi")
+              -- , Id $ Last $ Of "TARDMeanFloorAndFGI", Mean OverReplications (Last $ Of "TARDMeanFloorAndFGI")
+              -- , Id $ Last $ Of "TARDStdDevFloorAndFGI", Mean OverReplications (Last $ Of "TARDStdDevFloorAndFGI")
 
-              , Id $ Last $ Of "FTMeanFloor", Mean OverReplications (Last $ Of "FTMeanFloor")
-              , Id $ Last $ Of "FTStdDevFloor", Mean OverReplications (Last $ Of "FTStdDevFloor")
-              , Id $ Last $ Of "TARDPctFloor", Mean OverReplications (Last $ Of "TARDPctFloor")
-              , Id $ Last $ Of "TARDMeanFloorAndFGI", Mean OverReplications (Last $ Of "TARDMeanFloorAndFGI")
-              , Id $ Last $ Of "TARDStdDevFloorAndFGI", Mean OverReplications (Last $ Of "TARDStdDevFloorAndFGI")
+              -- , Id $ Last $ Of "FTMeanFloor", Mean OverReplications (Last $ Of "FTMeanFloor")
+              -- , Id $ Last $ Of "FTStdDevFloor", Mean OverReplications (Last $ Of "FTStdDevFloor")
+              -- , Id $ Last $ Of "TARDPctFloor", Mean OverReplications (Last $ Of "TARDPctFloor")
+              -- , Id $ Last $ Of "TARDMeanFloorAndFGI", Mean OverReplications (Last $ Of "TARDMeanFloorAndFGI")
+              -- , Id $ Last $ Of "TARDStdDevFloorAndFGI", Mean OverReplications (Last $ Of "TARDStdDevFloorAndFGI")
 
-              , Id $ Last $ Of "AvgReward", Mean OverReplications (Last $ Of "AvgReward")
-              -- , Id $ EveryXthElem 10 $ Of "PLT P1", Mean OverReplications (EveryXthElem 10 $ Of "PLT P1")
-              , Id $ EveryXthElem 4 $ Of "PLT P1" -- , Mean OverReplications (EveryXthElem 1 $ Of "PLT P1")
-              -- , Id $ EveryXthElem 10 $ Of "PLT P2", Mean OverReplications (EveryXthElem 10 $ Of "PLT P2")
-              , Id $ EveryXthElem 4 $ Of "PLT P2" -- , Mean OverReplications (EveryXthElem 10 $ Of "PLT P2")
+              -- , Id $ Last $ Of "AvgReward", Mean OverReplications (Last $ Of "AvgReward")
+              -- -- , Id $ EveryXthElem 10 $ Of "PLT P1", Mean OverReplications (EveryXthElem 10 $ Of "PLT P1")
+              -- , Id $ EveryXthElem 4 $ Of "PLT P1" -- , Mean OverReplications (EveryXthElem 1 $ Of "PLT P1")
+              -- -- , Id $ EveryXthElem 10 $ Of "PLT P2", Mean OverReplications (EveryXthElem 10 $ Of "PLT P2")
+              -- , Id $ EveryXthElem 4 $ Of "PLT P2" -- , Mean OverReplications (EveryXthElem 10 $ Of "PLT P2")
+
               , Id $ Last $ Of "PsiRho", Mean OverReplications (Last $ Of "PsiRho")
               , Id $ Last $ Of "PsiV", Mean OverReplications (Last $ Of "PsiV")
               , Id $ Last $ Of "PsiW", Mean OverReplications (Last $ Of "PsiW")
@@ -65,11 +66,11 @@ main = do
 
 expSetup :: ExperimentSetup
 expSetup = ExperimentSetup
-  { _experimentBaseName         = "TEST3 Releaser ANN AggregatedOverProductTypes - OrderPool+Shipped"
+  { _experimentBaseName         = "Table AggregatedOverProductTypes - OrderPool+Shipped"
   , _experimentRepetitions      =  1
-  , _preparationSteps           =  1000
-  , _evaluationWarmUpSteps      =  750
+  , _preparationSteps           =  300000
+  , _evaluationWarmUpSteps      =  1000
   , _evaluationSteps            =  5000
-  , _evaluationReplications     =  1
+  , _evaluationReplications     =  3
   , _maximumParallelEvaluations =  1
   }

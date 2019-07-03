@@ -256,7 +256,7 @@ buildBORLTable = do
   let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
   let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
   let actionFilter = mkConfig (actionFilterPLT actionList) actionFilterConfig
-  let initVals = InitValues 15 0 0 0 0
+  let initVals = InitValues 25 0 0 0 0
   return $ mkUnichainTabular algBORL initSt netInpTbl actions actionFilter borlParams decay (Just initVals)
 
 
@@ -371,7 +371,9 @@ instance ExperimentDef (BORL St) where
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
   parameters _ = [ -- ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORL, algVPsi, algDQN]) Nothing Nothing Nothing
-                   ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [RewardShippedSimple, RewardPeriodEndSimple]) Nothing Nothing Nothing
+                   ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [-- RewardShippedSimple,
+                                                                                                                  RewardPeriodEndSimple
+                                                                                                                                     ]) Nothing Nothing Nothing
                  , ParameterSetup "ReleaseAlgorithm" (\r -> over (s.simulation) (\sim -> sim { simRelease = r })) (simRelease . view (s.simulation))
                    (Just $ return . const [ mkReleasePLT initialPLTS
                                           , releaseImmediate
@@ -382,7 +384,7 @@ instance ExperimentDef (BORL St) where
                                           ])
                  Nothing
                  (Just (\x -> uniqueReleaseName x /= pltReleaseName)) -- drop preparation phase for all release algorithms but the BORL releaser
-                 (Just (\x -> if uniqueReleaseName x == pltReleaseName then FullFactory else SingleInstance))
+                 (Just (\x -> if uniqueReleaseName x == pltReleaseName then FullFactory else SingleInstance)) -- only evaluate once if ImRe or BIL
 
                  ]
     where algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) (DivideValuesAfterGrowth 1000 70000) True
