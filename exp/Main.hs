@@ -65,7 +65,7 @@ main = do
 
 expSetup :: ExperimentSetup
 expSetup = ExperimentSetup
-  { _experimentBaseName         = "Releaser ANN AggregatedOverProductTypes - OrderPool+Shipped"
+  { _experimentBaseName         = "TEST3 Releaser ANN AggregatedOverProductTypes - OrderPool+Shipped"
   , _experimentRepetitions      =  1
   , _preparationSteps           =  1000
   , _evaluationWarmUpSteps      =  750

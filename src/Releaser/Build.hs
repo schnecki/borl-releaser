@@ -370,18 +370,20 @@ instance ExperimentDef (BORL St) where
 
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
-  parameters _ = [ -- ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORL, algVPsi, algDQN]) Nothing (const False)
-                   ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [RewardShippedSimple, RewardPeriodEndSimple]) Nothing (const False)
-                 -- , ParameterSetup "ReleaseAlgorithm" (\r -> over (s.simulation) (\sim -> sim { simRelease = r })) (simRelease . view (s.simulation))
-                 --   (Just $ return . const [ mkReleasePLT initialPLTS
-                 --                          , releaseImmediate
-                 --                          , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
-                 --                          , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
-                 --                          , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
-                 --                          , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
-                 --                          ])
-                 -- Nothing
-                 -- (\x -> uniqueReleaseName x /= pltReleaseName)
+  parameters _ = [ -- ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORL, algVPsi, algDQN]) Nothing Nothing Nothing
+                   ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [RewardShippedSimple, RewardPeriodEndSimple]) Nothing Nothing Nothing
+                 , ParameterSetup "ReleaseAlgorithm" (\r -> over (s.simulation) (\sim -> sim { simRelease = r })) (simRelease . view (s.simulation))
+                   (Just $ return . const [ mkReleasePLT initialPLTS
+                                          , releaseImmediate
+                                          -- , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
+                                          -- , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
+                                          -- , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
+                                          -- , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
+                                          ])
+                 Nothing
+                 (Just (\x -> uniqueReleaseName x /= pltReleaseName)) -- drop preparation phase for all release algorithms but the BORL releaser
+                 (Just (\x -> if uniqueReleaseName x == pltReleaseName then FullFactory else SingleInstance))
+
                  ]
     where algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) (DivideValuesAfterGrowth 1000 70000) True
 
