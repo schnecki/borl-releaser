@@ -403,7 +403,9 @@ instance ExperimentDef (BORL St) where
     borl2 ^. s.plannedLeadTimes,
     borl2 ^. t, borl2 ^. episodeNrStart, borl2 ^. B.parameters, borl2 ^. algorithm, borl2 ^. phase, borl2 ^. lastVValues, borl2 ^. lastRewards, borl2 ^. psis)
 
-  afterPreparationPhase = id -- TODO: do not use exploration!!!
+  afterPreparationPhase borl =
+    set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
+    set (B.parameters . gamma) 0 $ set (B.parameters . zeta) 0 $ set (B.parameters . xi) 0 borl
 
 
 instance Serialize Release where
