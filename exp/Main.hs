@@ -67,9 +67,9 @@ expSetup :: ExperimentSetup
 expSetup = ExperimentSetup
   { _experimentBaseName         = "Releaser ANN AggregatedOverProductTypes - OrderPool+Shipped"
   , _experimentRepetitions      =  1
-  , _preparationSteps           =  100000
+  , _preparationSteps           =  1000
   , _evaluationWarmUpSteps      =  750
-  , _evaluationSteps            =  1000
+  , _evaluationSteps            =  5000
   , _evaluationReplications     =  1
   , _maximumParallelEvaluations =  1
   }

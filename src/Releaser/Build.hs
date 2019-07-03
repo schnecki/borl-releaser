@@ -161,8 +161,8 @@ decay t  p@(Parameters alp bet del ga eps exp rand zeta xi)
 
 -- SuperSimple: AggregatedOverProductTypes - OrderPool+Shipped
 
-netInpPre :: St -> [[Double]]
-netInpPre (St sim _ _ plts) =
+netInpPre :: Bool -> St -> [[Double]]
+netInpPre useReduce (St sim _ _ plts) =
   [ map (scaleValue (1, 7) . timeToDouble) (M.elems plts)
   , map reduce $ mkFromList (simOrdersOrderPool sim) -- TODO: split also by product type
   , map reduce $ map genericLength (sortByTimeUntilDue (-actFilMaximumPLT actionFilterConfig) 0 currentTime (simOrdersShipped sim))
@@ -170,11 +170,18 @@ netInpPre (St sim _ _ plts) =
   where
     currentTime = simCurrentTime sim
     mkFromList xs = map genericLength (sortByTimeUntilDue (actFilMinimumPLT actionFilterConfig) (actFilMaximumPLT actionFilterConfig) currentTime xs)
-    reduce x = scaleValue (0, 12) x
-        -- reduce x = fromIntegral $ ceiling (x / 3)
+    reduce x | useReduce = scaleValue (0, 12) x
+             | otherwise = x
 
 netInp :: St -> [Double]
-netInp = concat . netInpPre
+netInp = concat . netInpPre True
+
+netInpTbl :: St -> [Double]
+netInpTbl st =
+  case netInpPre False st of
+    [plts, opOrds, shipOrds] -> plts ++ map reduce (opOrds ++ shipOrds)
+  where
+    reduce x = 7 * fromIntegral (ceiling (x / 7))
 
 
 nnConfig :: NNConfig St
@@ -217,10 +224,11 @@ type PeriodMin = Integer
 type PeriodMax = Integer
 
 instance Show St where
-  show = filter (/= '"') . show . map (map printFloat) . netInpPre
+  show st = filter (/= '"') $ show $ map (map printFloat) $ netInpPre False st
     where
     printFloat :: Double -> String
     printFloat = printf "%2.0f"
+
 
 -- testSort :: IO ()
 -- testSort = do
@@ -248,7 +256,8 @@ buildBORLTable = do
   let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
   let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
   let actionFilter = mkConfig (actionFilterPLT actionList) actionFilterConfig
-  return $ mkUnichainTabular algBORL initSt netInp actions actionFilter borlParams decay Nothing
+  let initVals = InitValues 15 0 0 0 0
+  return $ mkUnichainTabular algBORL initSt netInpTbl actions actionFilter borlParams decay (Just initVals)
 
 
 buildBORLTensorflow :: MonadBorl (BORL St)
