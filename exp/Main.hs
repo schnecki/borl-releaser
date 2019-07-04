@@ -59,7 +59,7 @@ main = do
               , Id $ Last $ Of "PsiV", Mean OverReplications (Last $ Of "PsiV")
               , Id $ Last $ Of "PsiW", Mean OverReplications (Last $ Of "PsiW")
               ]
-  evalRes <- genEvals res evals
+  evalRes <- genEvals runMonadBorl databaseSetup res evals
   -- print (view evalsResults evalRes)
   writeAndCompileLatex evalRes
 
