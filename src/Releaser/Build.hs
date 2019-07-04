@@ -163,7 +163,7 @@ decay t  p@(Parameters alp bet del ga eps exp rand zeta xi)
 
 netInpPre :: Bool -> St -> [[Double]]
 netInpPre useReduce (St sim _ _ plts) =
-  [ map (scaleValue (1, 7) . timeToDouble) (M.elems plts)
+  [ map ((if useReduce then scaleValue (1, 7) else id) . timeToDouble) (M.elems plts)
   , map reduce $ mkFromList (simOrdersOrderPool sim) -- TODO: split also by product type
   , map reduce $ map genericLength (sortByTimeUntilDue (-actFilMaximumPLT actionFilterConfig) 0 currentTime (simOrdersShipped sim))
   ]
