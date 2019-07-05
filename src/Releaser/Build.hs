@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs      #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Strict            #-}
 {-# LANGUAGE TypeFamilies      #-}
 
 
@@ -12,6 +13,9 @@ module Releaser.Build
     , buildSim
     , periodLength
     , ptTypes
+    , netInp
+    , modelBuilder
+    , actionConfig
     ) where
 
 
@@ -33,7 +37,7 @@ import           Grenade
 import qualified TensorFlow.Core                 as TF hiding (value)
 import qualified TensorFlow.GenOps.Core          as TF (relu', tanh')
 import qualified TensorFlow.Minimize             as TF
-
+import qualified TensorFlow.Session              as TF
 
 import           Experimenter                    hiding (sum)
 import           ML.BORL                         as B
@@ -260,15 +264,16 @@ buildBORLTable = do
   return $ mkUnichainTabular algBORL initSt netInpTbl actions actionFilter borlParams decay (Just initVals)
 
 
-buildBORLTensorflow :: MonadBorl (BORL St)
+buildBORLTensorflow :: (MonadBorl' m) => m (BORL St)
 buildBORLTensorflow = do
-  sim <- Simple buildSim
-  startOrds <- Simple $ generateOrders sim
+  sim <- liftSimple buildSim
+  startOrds <- liftSimple $ generateOrders sim
   let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
   let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
   let actionFilter = mkConfig (actionFilterPLT actionList) actionFilterConfig
   let alg = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) (DivideValuesAfterGrowth 1000 70000) True
-  mkUnichainTensorflowM alg initSt actions actionFilter borlParams decay (modelBuilder actions initSt) nnConfig Nothing
+  let initVals = InitValues 25 0 0 0 0
+  mkUnichainTensorflowM alg initSt actions actionFilter borlParams decay (modelBuilder actions initSt) nnConfig (Just initVals)
 
 ------------------------------------------------------------
 ------------------ ExperimentDef instance ------------------
@@ -276,14 +281,15 @@ buildBORLTensorflow = do
 
 instance ExperimentDef (BORL St) where
 
-  type ExpM (BORL St) = MonadBorl
+  type ExpM (BORL St) = TF.SessionT IO
+  -- type ExpM (BORL St) = IO
 
   type Serializable (BORL St) = BORLSerialisable StSerialisable
   serialisable = toSerialisableWith serializeSt
   deserialisable =
     unsafePerformIO $
-    runMonadBorl $ do
-      borl <- buildBORLTensorflow
+    runMonadBorlTF $ do
+      borl <- liftTensorflow buildBORLTensorflow
       let (St sim _ _ _) = borl ^. s
       let (_, actions) = mkConfig (actionsPLT (borl ^. s)) actionConfig
       return $
@@ -307,10 +313,10 @@ instance ExperimentDef (BORL St) where
 
 
   -- ^ Run a step of the environment and return new state and result.
-  -- runStep :: (MonadIO MonadBorl) => a -> InputValue a -> E.Period -> MonadBorl ([StepResult], a)
+  -- runStep :: (MonadBorl' m) => a -> InputValue a -> E.Period -> m ([StepResult], a)
   runStep borl incOrds _ = do
     borl' <- stepM (set (s.nextIncomingOrders) incOrds borl)
-
+    -- liftSimple $ putStrLn $ "Here: " <> show (borl ^. t)
     -- helpers
     let simT = timeToDouble $ simCurrentTime $ borl' ^. s.simulation
     let borlT = borl' ^. t
@@ -356,7 +362,7 @@ instance ExperimentDef (BORL St) where
         psiV = StepResult "PsiV" (Just $ fromIntegral borlT) (borl' ^. psis._2)
         psiW = StepResult "PsiW" (Just $ fromIntegral borlT) (borl' ^. psis._3)
 
-    return ([-- cost related measures
+    return $! ([-- cost related measures
               cSum, cEarn, cBoc, cWip, cFgi
              -- floor
             , curOp, curWip, curBo, curFgi, demand
@@ -415,8 +421,8 @@ instance Serialize Release where
     let fun | n == pltReleaseName = mkReleasePLT initialPLTS
             | n ==  uniqueReleaseName releaseImmediate = releaseImmediate
             | T.isPrefixOf bilName n = releaseBIL $ M.fromList bilArgs
-              where bilArgs = read (T.unpack $ T.drop (T.length bilName) n)
-                    bilName = T.takeWhile (/= '[') $ uniqueReleaseName (releaseBIL mempty)
+              where ~bilArgs = read (T.unpack $ T.drop (T.length bilName) n)
+                    ~bilName = T.takeWhile (/= '[') $ uniqueReleaseName (releaseBIL mempty)
     return fun
 
 

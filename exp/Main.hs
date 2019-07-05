@@ -1,14 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE Strict            #-}
+{-# LANGUAGE TupleSections     #-}
 module Main where
 
-import           Control.DeepSeq  (NFData, force)
+import           Control.DeepSeq        (NFData, force)
 import           Control.Lens
-import           Control.Monad    (unless, when)
-import           Data.Function    (on)
-import           Data.List        (find, sortBy)
-import qualified Data.Text        as T
-import           Data.Time.Clock  (diffUTCTime, getCurrentTime)
-import           System.IO        (hFlush, stdout)
+import           Control.Monad          (unless, when)
+import           Control.Monad.IO.Class
+import           Data.Function          (on)
+import           Data.List              (find, sortBy)
+import qualified Data.Text              as T
+import           Data.Time.Clock        (diffUTCTime, getCurrentTime)
+import           System.IO              (hFlush, stdout)
 import           Text.PrettyPrint
 
 import           Experimenter
@@ -18,13 +21,19 @@ import           SimSim
 import           Releaser.Build
 import           Releaser.Type
 
+import           Debug.Trace
+
+databaseSetup :: DatabaseSetup
+databaseSetup = DatabaseSetup "host=localhost dbname=experimenter user=schnecki password= port=5432" 10
+
 
 main :: IO ()
 main = do
-  rl <- buildBORLTable
-  let databaseSetup = DatabaseSetup "host=localhost dbname=experimenter user=schnecki password= port=5432" 10
-  (changed, res) <- runExperiments runMonadBorl databaseSetup expSetup () rl
-  putStrLn $ "Any change: " ++ show changed
+  -- rl <- buildBORLTable
+  -- let runner = runMonadBorlIO
+  rl <- runMonadBorlTF (buildBORLTensorflow >>= saveTensorflowModels)
+  (changed, res) <- runExperiments (\h -> runMonadBorlTF (restoreTensorflowModels rl >> h) ) databaseSetup expSetup () rl
+  liftSimple $ putStrLn $ "Any change: " ++ show changed
   let evals = [ Sum OverPeriods $ Of "EARN", Mean OverReplications (Stats $ Sum OverPeriods $ Of "EARN")
               , Sum OverPeriods $ Of "BOC" , Mean OverReplications (Stats $ Sum OverPeriods $ Of "BOC")
               , Sum OverPeriods $ Of "WIPC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "WIPC")
@@ -59,18 +68,17 @@ main = do
               , Id $ Last $ Of "PsiV", Mean OverReplications (Last $ Of "PsiV")
               , Id $ Last $ Of "PsiW", Mean OverReplications (Last $ Of "PsiW")
               ]
-  evalRes <- genEvals runMonadBorl databaseSetup res evals
-  -- print (view evalsResults evalRes)
+  evalRes <- genEvals (\h -> runMonadBorlTF (restoreTensorflowModels rl >> h)) databaseSetup res evals
+  print (view evalsResults evalRes)
   writeAndCompileLatex evalRes
-
 
 expSetup :: ExperimentSetup
 expSetup = ExperimentSetup
-  { _experimentBaseName         = "Table AggregatedOverProductTypes - OrderPool+Shipped"
+  { _experimentBaseName         = "TEST Table AggregatedOverProductTypes - OrderPool+Shipped"
   , _experimentRepetitions      =  1
-  , _preparationSteps           =  300000
+  , _preparationSteps           =  4000
   , _evaluationWarmUpSteps      =  1000
-  , _evaluationSteps            =  5000
+  , _evaluationSteps            =  500
   , _evaluationReplications     =  3
   , _maximumParallelEvaluations =  1
   }

@@ -18,6 +18,8 @@ import           GHC.Generics
 import           ML.BORL                    as B
 import           SimSim                     as S
 
+import           Debug.Trace
+
 
 mkConfig :: Reader r a -> r -> a
 mkConfig = runReader
@@ -62,24 +64,12 @@ type Releaser m a = StateT St m a
 
 
 serializeSt :: St -> StSerialisable
-serializeSt (St ql incOrders rewOrders plts) = StSerialisable (S.toSerialisable ql) incOrders rewOrders plts
+serializeSt (St ql incOrders rewOrders plts) =
+  trace ("serializeSt")
+  StSerialisable (S.toSerialisable ql) incOrders rewOrders plts
 
 deserializeSt :: Release -> Dispatch -> Shipment -> ProcessingTimes -> StSerialisable -> St
-deserializeSt rel disp ship procTimes (StSerialisable sim incOrders rewOrders plts) = St (S.fromSerialisable rel disp ship procTimes sim) incOrders rewOrders plts
-
--- deserializeSt ::
---      [Action SimSim]
---   -> ActionFilter SimSim
---   -> Decay
---   -> ProxyTableStateGeneraliser SimSim
---   -> ProxyNetInput SimSim
---   -> TensorflowModelBuilder
---   -> Release
---   -> Dispatch
---   -> Shipment
---   -> ProcessingTimes
---   -> StSerialisable
---   -> St
--- deserializeSt as aF decay gen inp builder rel disp ship procTimes (StSerialisable ql orders) = St (B.fromSerialisableWith (S.fromSerialisable rel disp ship procTimes) as aF decay gen inp builder ql) orders
-
+deserializeSt rel disp ship procTimes (StSerialisable sim incOrders rewOrders plts) =
+  trace ("deserializeSt")
+  St (S.fromSerialisable rel disp ship procTimes sim) incOrders rewOrders plts
 

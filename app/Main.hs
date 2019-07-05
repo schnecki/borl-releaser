@@ -5,8 +5,10 @@ module Main where
 import           Control.DeepSeq     (NFData, force)
 import           Control.Lens
 import           Control.Monad       (foldM, unless, when)
+import qualified Data.ByteString     as BS
 import           Data.Function       (on)
 import           Data.List           (find, sortBy)
+import           Data.Serialize      as S
 import qualified Data.Text           as T
 import           Data.Time.Clock     (diffUTCTime, getCurrentTime)
 import           System.IO           (hFlush, stdout)
@@ -15,21 +17,24 @@ import           Text.PrettyPrint
 import           ML.BORL
 import           SimSim
 
+import           Releaser.Action
 import           Releaser.Build
 import           Releaser.ReleasePLT
 import           Releaser.Type
 
 
 main :: IO ()
-main = runMonadBorl $ do
-  borl <- Simple buildBORLTable
-  -- borl <- buildBORLTensorflow
-  askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
+main =
+  -- runMonadBorlIO $ do
+  -- borl <- liftSimple buildBORLTable
+  runMonadBorlTF $ do
+    borl <- buildBORLTensorflow
+    askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
   where cmds = []
         usage = []
 
 
-askUser :: Bool -> [(String,String)] -> [(String, ActionIndexed St)] -> BORL St -> MonadBorl ()
+askUser :: (MonadBorl' m) => Bool -> [(String,String)] -> [(String, ActionIndexed St)] -> BORL St -> m ()
 askUser showHelp addUsage cmds ql = do
   let usage =
         sortBy (compare `on` fst) $
@@ -38,87 +43,87 @@ askUser showHelp addUsage cmds ql = do
         , ("q", "Exit program (unsaved state will be lost)")
         , ("r", "Run for X times")
         , ("m", "Multiply all state values by X")
-        , ("s", "Print simulation")
         -- , ("s" "Save to file save.dat (overwrites the file if it exists)")
         -- , ("l" "Load from file save.dat")
         , ("_", "Any other input starts another learning round\n")
         ] ++
         addUsage
-  Simple $ putStrLn ""
-  Simple $ when showHelp $ putStrLn $ unlines $ map (\(c, h) -> c ++ ": " ++ h) usage
-  Simple $ putStr "Enter value (h for help): " >> hFlush stdout
-  c <- Simple getLine
+  liftSimple $ putStrLn ""
+  when showHelp $ liftSimple $ putStrLn $ unlines $ map (\(c, h) -> c ++ ": " ++ h) usage
+  liftSimple $ putStr "Enter value (h for help): " >> hFlush stdout
+  c <- liftSimple getLine
   case c of
     "h" -> askUser True addUsage cmds ql
     "?" -> askUser True addUsage cmds ql
     "s" -> do
-      let (St sim _ _ _) = ql ^. s
-      Simple $ putStrLn (T.unpack $ prettySimSim sim) >> hFlush stdout
-      askUser False addUsage cmds ql
-    -- "s" -> do
-    --   saveQL ql "save.dat"
+      ser <- toSerialisableWith serializeSt ql
+      liftSimple $ BS.writeFile "savedModel" (S.runPut $ S.put ser)
+      askUser showHelp addUsage cmds ql
     --   askUser ql addUsage cmds
-    -- "l" -> do
-    --   ql' <- loadQL ql "save.dat"
-    --   print (prettyQLearner prettyState (text . show) ql')
-    --   askUser ql addUsage cmds'
+    "l" -> do
+      bs <- liftSimple $ BS.readFile "savedModel"
+      case S.runGet S.get bs of
+        Left err -> error err
+        Right ser -> do
+         borl <- liftTensorflow buildBORLTensorflow
+         let (St sim _ _ _) = borl ^. s
+         let (_, actions) = mkConfig (actionsPLT (borl ^. s)) actionConfig
+         ql' <- fromSerialisableWith
+             (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
+             actions
+             (borl ^. actionFilter)
+             (borl ^. decayFunction)
+             netInp
+             netInp
+             (modelBuilder actions (borl ^. s)) ser
+         askUser showHelp addUsage cmds ql'
     "r" -> do
-      Simple $ putStr "How many learning rounds should I execute: " >> hFlush stdout
-      l <- Simple getLine
+      liftSimple $ putStr "How many learning rounds should I execute: " >> hFlush stdout
+      l <- liftSimple getLine
       case reads l :: [(Integer, String)] of
-        [(nr, _)] -> mkTime (stepsM' ql nr) >>= askUser False addUsage cmds . force
-          where stepsM' borl nr = do
-                   !borl' <- foldM (\b _ -> stepsM ql nr >>= maybeDropTables) borl [1 .. min maxNr nr]
-                   if nr > maxNr
-                     then stepsM borl' (nr - maxNr)
-                     else return borl'
-                   where maxNr = 1000
-                maybeDropTables borl = return $
-                  if uniqueReleaseName (simRelease (borl^.s.simulation)) == pltReleaseName
-                  then borl
-                  else set (proxies.v.proxyTable) mempty $
-                       set (proxies.w.proxyTable) mempty $
-                       set (proxies.r0.proxyTable) mempty $
-                       set (proxies.r1.proxyTable) mempty $
-                       set (proxies.psiV.proxyTable) mempty borl
-
-
+        [(nr, _)] -> mkTime (stepsM ql nr) >>= askUser False addUsage cmds
         _ -> do
-          Simple $ putStr "Could not read your input :( You are supposed to enter an Integer.\n"
+          liftSimple $ putStr "Could not read your input :( You are supposed to enter an Integer.\n"
           askUser False addUsage cmds ql
     "p" -> do
-      Simple $ prettyBORL ql >>= print -- putStrLn . renderStyle wideStyle
+      liftSimple $ prettyBORL ql >>= print
       askUser False addUsage cmds ql
     "m" -> do
-      Simple $ putStr "Multiply by: " >> hFlush stdout
-      l <- Simple getLine
+      liftSimple $ putStr "Multiply by: " >> hFlush stdout
+      l <- liftSimple getLine
       case reads l :: [(Double, String)] of
         [(nr, _)] -> askUser False addUsage cmds (foldl (\q f -> over (proxies . f) (multiplyProxy nr) q) ql [psiV, v, w])
         _ -> do
-          Simple $ putStr "Could not read your input :( You are supposed to enter an Integer.\n"
+          liftSimple $ putStr "Could not read your input :( You are supposed to enter an Integer.\n"
           askUser False addUsage cmds ql
     "v" -> do
-      -- restoreTensorflowModels ql >>
-      prettyBORLTables True False False ql >>= Simple . putStrLn . renderStyle wideStyle
+      case find isTensorflow (allProxies $ ql ^. proxies) of
+        Nothing -> liftSimple $ prettyBORLTables True False False ql >>= print
+        Just _ -> liftTensorflow (prettyBORLTables True False False ql) >>= liftSimple . print
       askUser False addUsage cmds ql
     _ ->
       case find ((== c) . fst) cmds of
         Nothing ->
           unless
-            (c == "q") $ do ql' <- stepM ql
-                            prettyBORLTables True False True ql' >>= Simple . putStrLn . renderStyle wideStyle
-                            askUser False addUsage cmds ql'
-        Just (_, cmd) -> -- runMonadBorl (restoreTensorflowModels ql >>
-          stepExecute (ql, False, cmd) >>=
-          -- >>= saveTensorflowModels) >>=
-          askUser False addUsage cmds
+            (c == "q")
+            (stepM ql >>= \ql' ->
+               case find isTensorflow (allProxies $ ql ^. proxies) of
+                 Nothing -> prettyBORLTables True False False ql >>= liftSimple . print >> return ()
+                 Just _ -> do
+                   b <- liftTensorflow (prettyBORLTables True False True ql')
+                   liftSimple $ print b
+                   askUser False addUsage cmds ql')
+        Just (_, cmd) ->
+          case find isTensorflow (allProxies $ ql ^. proxies) of
+            Nothing -> liftSimple $ stepExecute (ql, False, cmd) >>= askUser False addUsage cmds
+            Just _ -> liftTensorflow (stepExecute (ql, False, cmd) >>= saveTensorflowModels) >>= askUser False addUsage cmds
 
 
-mkTime :: NFData t => MonadBorl t -> MonadBorl t
+mkTime :: (MonadBorl' m, NFData t) => m t -> m t
 mkTime a = do
-    start <- Simple getCurrentTime
+    start <- liftSimple getCurrentTime
     !val <- force <$> a
-    end   <- Simple getCurrentTime
-    Simple $ putStrLn ("Computation Time: " ++ show (diffUTCTime end start))
+    end   <- liftSimple getCurrentTime
+    liftSimple $ putStrLn ("Computation Time: " ++ show (diffUTCTime end start))
     return val
 
