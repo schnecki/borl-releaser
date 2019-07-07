@@ -50,6 +50,9 @@ import           Releaser.Demand
 import           Releaser.ReleasePLT
 import           Releaser.Type
 
+
+import           Debug.Trace
+
 periodLength :: Time
 periodLength = 1
 
@@ -142,25 +145,22 @@ borlParams = Parameters
 
 -- | Decay function of parameters.
 decay :: Decay
-decay t  p@(Parameters alp bet del ga eps exp rand zeta xi)
-  | t `mod` 300 == 0 =
-    Parameters
-      (max 0.03 $ slow * alp)
-      (max 0.015 $ slow * bet)
-      (max 0.015 $ slow * del)
-      (max 0.01 $ slow * ga)
-      (max 0.05 $ slow * eps) -- (0.5*bet)
-      (max 0.10 $ slower * exp)
-      rand
-      zeta -- zeta
-      -- (max 0.075 $ slower * xi)
-      (0.5*bet)
-  | otherwise = p
+decay t p@(Parameters alp bet del ga eps exp rand zeta xi) =
+  Parameters
+    (max 0.03 $ decay slow * alp)
+    (max 0.015 $ decay slow * bet)
+    (max 0.015 $ decay slow * del)
+    (max 0.01 $ decay slow * ga)
+    (max 0.05 $ decay slow * eps)
+    (max 0.10 $ decay slower * exp)
+    rand
+    zeta
+    (0.5 * bet)
   where
-    slower = 0.995
-    slow = 0.98
-    faster = 1.0 / 0.99
-    f = max 0.01
+    slower = 0.01
+    slow = 0.005
+    decaySteps = 200000 :: Double
+    decay rate = rate ** (fromIntegral t / decaySteps)
 
 
 -- SuperSimple: AggregatedOverProductTypes - OrderPool+Shipped
@@ -416,7 +416,7 @@ instance ExperimentDef (BORL St) where
 
 instance Serialize Release where
   put (Release _ n) = S.put $ T.unpack n
-  get = do
+  get = trace ("deserialize release") $ do
     n <- T.pack <$> S.get
     let fun | n == pltReleaseName = mkReleasePLT initialPLTS
             | n ==  uniqueReleaseName releaseImmediate = releaseImmediate

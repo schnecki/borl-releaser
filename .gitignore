@@ -13,3 +13,6 @@ emacs.desktop
 test/bil3/
 /results/
 /savedModel
+/episodeSteps
+/test/results/TEST_ANN_Table_AggregatedOverProductTypes_-_OrderPool+Shipped/main.aux
+/test/results/

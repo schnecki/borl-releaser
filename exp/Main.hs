@@ -1,6 +1,8 @@
+{-# LANGUAGE GADTs             #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
 {-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE TypeFamilies      #-}
 module Main where
 
 import           Control.DeepSeq        (NFData, force)
@@ -29,10 +31,13 @@ databaseSetup = DatabaseSetup "host=localhost dbname=experimenter user=schnecki 
 
 main :: IO ()
 main = do
-  -- rl <- buildBORLTable
-  -- let runner = runMonadBorlIO
-  rl <- runMonadBorlTF (buildBORLTensorflow >>= saveTensorflowModels)
-  (changed, res) <- runExperiments (\h -> runMonadBorlTF (restoreTensorflowModels rl >> h) ) databaseSetup expSetup () rl
+
+  -- run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
+  run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+
+run :: (ExperimentDef a, InputState a ~ ()) => (ExpM a (Bool, Experiments a) -> IO (Bool, Experiments a)) -> (ExpM a (Experiments a) -> IO (Experiments a)) -> ExpM a a -> IO ()
+run runner runner2 mkInitSt = do
+  (changed, res) <- runExperimentsM runner databaseSetup expSetup () mkInitSt
   liftSimple $ putStrLn $ "Any change: " ++ show changed
   let evals = [ Sum OverPeriods $ Of "EARN", Mean OverReplications (Stats $ Sum OverPeriods $ Of "EARN")
               , Sum OverPeriods $ Of "BOC" , Mean OverReplications (Stats $ Sum OverPeriods $ Of "BOC")
@@ -68,17 +73,17 @@ main = do
               , Id $ Last $ Of "PsiV", Mean OverReplications (Last $ Of "PsiV")
               , Id $ Last $ Of "PsiW", Mean OverReplications (Last $ Of "PsiW")
               ]
-  evalRes <- genEvals (\h -> runMonadBorlTF (restoreTensorflowModels rl >> h)) databaseSetup res evals
+  evalRes <- genEvals runner2 databaseSetup res evals
   print (view evalsResults evalRes)
   writeAndCompileLatex evalRes
 
 expSetup :: ExperimentSetup
 expSetup = ExperimentSetup
-  { _experimentBaseName         = "TEST Table AggregatedOverProductTypes - OrderPool+Shipped"
+  { _experimentBaseName         = "TEST ANN Table AggregatedOverProductTypes - OrderPool+Shipped"
   , _experimentRepetitions      =  1
-  , _preparationSteps           =  4000
-  , _evaluationWarmUpSteps      =  1000
-  , _evaluationSteps            =  500
+  , _preparationSteps           =  300
+  , _evaluationWarmUpSteps      =  100
+  , _evaluationSteps            =  100
   , _evaluationReplications     =  3
   , _maximumParallelEvaluations =  1
   }

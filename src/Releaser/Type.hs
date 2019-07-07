@@ -64,12 +64,7 @@ type Releaser m a = StateT St m a
 
 
 serializeSt :: St -> StSerialisable
-serializeSt (St ql incOrders rewOrders plts) =
-  trace ("serializeSt")
-  StSerialisable (S.toSerialisable ql) incOrders rewOrders plts
+serializeSt (St ql incOrders rewOrders plts) = StSerialisable (S.toSerialisable ql) incOrders rewOrders plts
 
 deserializeSt :: Release -> Dispatch -> Shipment -> ProcessingTimes -> StSerialisable -> St
-deserializeSt rel disp ship procTimes (StSerialisable sim incOrders rewOrders plts) =
-  trace ("deserializeSt")
-  St (S.fromSerialisable rel disp ship procTimes sim) incOrders rewOrders plts
-
+deserializeSt rel disp ship procTimes (StSerialisable sim incOrders rewOrders plts) = St (S.fromSerialisable rel disp ship procTimes sim) incOrders rewOrders plts
