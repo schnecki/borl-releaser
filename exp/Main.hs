@@ -1,29 +1,15 @@
 {-# LANGUAGE GADTs             #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
-{-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE TypeFamilies      #-}
 module Main where
 
-import           Control.DeepSeq        (NFData, force)
-import           Control.Lens
-import           Control.Monad          (unless, when)
-import           Control.Monad.IO.Class
-import           Data.Function          (on)
-import           Data.List              (find, sortBy)
-import qualified Data.Text              as T
-import           Data.Time.Clock        (diffUTCTime, getCurrentTime)
-import           System.IO              (hFlush, stdout)
-import           Text.PrettyPrint
 
 import           Experimenter
 import           ML.BORL
-import           SimSim
 
 import           Releaser.Build
-import           Releaser.Type
 
-import           Debug.Trace
 
 databaseSetup :: DatabaseSetup
 databaseSetup = DatabaseSetup "host=localhost dbname=experimenter2 user=schnecki password= port=5432" 10
@@ -74,18 +60,6 @@ run runner runner2 mkInitSt = do
               , Id $ Last $ Of "PsiW", Mean OverReplications (Last $ Of "PsiW")
               ]
   evalRes <- genEvals runner2 databaseSetup res evals
-  print (view evalsResults evalRes)
+  -- print (view evalsResults evalRes)
   writeAndCompileLatex evalRes
 
-expSetup :: ExperimentSetup
-expSetup = ExperimentSetup
-  { _experimentBaseName         =
-    -- "ANN AggregatedOverProductTypes - OrderPool+Shipped"
-    "TEST Table AggregatedOverProductTypes OrderPool+Shipped with constant processing times"
-  , _experimentRepetitions      =  1
-  , _preparationSteps           =  180000
-  , _evaluationWarmUpSteps      =  750
-  , _evaluationSteps            =  1000
-  , _evaluationReplications     =  3
-  , _maximumParallelEvaluations =  1
-  }

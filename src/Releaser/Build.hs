@@ -16,11 +16,12 @@ module Releaser.Build
     , netInp
     , modelBuilder
     , actionConfig
+    , expSetup
     ) where
-
 
 import           Control.Lens
 import           Control.Monad
+import           Control.Monad.IO.Class
 import           Data.Function                   (on)
 import           Data.List                       (find, foldl', genericLength, groupBy,
                                                   nub, sort, sortBy)
@@ -29,6 +30,7 @@ import           Data.Serialize                  as S
 import qualified Data.Text                       as T
 import           Statistics.Distribution
 import           Statistics.Distribution.Uniform
+import           System.Directory
 import           System.IO.Unsafe                (unsafePerformIO)
 import           System.Random.MWC
 import           Text.Printf
@@ -58,11 +60,16 @@ periodLength :: Time
 periodLength = 1
 
 
-buildSim :: GenIO -> SimSim
-buildSim g = newSimSim g routing procTimes periodLength
+buildSim :: IO SimSim
+buildSim =
+  newSimSimIO
+    routing
+    procTimesConst
+    periodLength
            -- releaseImmediate
-           (mkReleasePLT initialPLTS)
-           dispatchFirstComeFirstServe shipOnDueDate
+    (mkReleasePLT initialPLTS)
+    dispatchFirstComeFirstServe
+    shipOnDueDate
 
 initialPLTS :: M.Map ProductType Time
 initialPLTS = M.fromList $ zip ptTypes [1 ..]
@@ -105,7 +112,7 @@ testDemand :: IO ()
 testDemand = do
   let nr = 1000
   g <- createSystemRandom
-  let sim = buildSim g
+  sim <- buildSim
   xs <- replicateM nr (generateOrders sim)
   let len = fromIntegral $ length (concat xs)
   putStr "Avg order slack time: "
@@ -123,6 +130,19 @@ testDemand = do
 ------------------------------------------------------------
 --------------------------- BORL ---------------------------
 ------------------------------------------------------------
+
+
+instance Serialize Release where
+  put (Release _ n) = S.put $ T.unpack n
+  get = do
+    n <- T.pack <$> S.get
+    let fun | n == pltReleaseName = mkReleasePLT initialPLTS
+            | n ==  uniqueReleaseName releaseImmediate = releaseImmediate
+            | T.isPrefixOf bilName n = releaseBIL $ M.fromList bilArgs
+              where ~bilArgs = read (T.unpack $ T.drop (T.length bilName) n)
+                    ~bilName = T.takeWhile (/= '[') $ uniqueReleaseName (releaseBIL mempty)
+    return fun
+
 
 actionConfig :: ActionConfig
 actionConfig = ActionConfig
@@ -265,8 +285,7 @@ sortByTimeUntilDue min max currentTime = M.elems . foldl' sortByTimeUntilDue' st
 
 buildBORLTable :: IO (BORL St)
 buildBORLTable = do
-  g <- createSystemRandom
-  let sim = buildSim g
+  sim <- buildSim
   startOrds <- generateOrders sim
   let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
   let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
@@ -278,8 +297,7 @@ buildBORLTable = do
 
 buildBORLTensorflow :: (MonadBorl' m) => m (BORL St)
 buildBORLTensorflow = do
-  g <- liftSimple createSystemRandom
-  let sim = buildSim g
+  sim <- liftSimple buildSim
   startOrds <- liftSimple $ generateOrders sim
   let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
   let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
@@ -391,16 +409,15 @@ instance ExperimentDef (BORL St) where
 
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
-  parameters _ = [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORL, algVPsi -- , algDQN
-                                                                                                      ]) Nothing Nothing Nothing
+  parameters _ = [ -- ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORL, algVPsi -- , algDQN
+                   --                                                                                    ]) Nothing Nothing Nothing
                    -- ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [-- RewardShippedSimple,
                    --                                                                                                RewardPeriodEndSimple
                    --                                                                                                                   ]) Nothing Nothing Nothing
-                 , ParameterSetup "ReleaseAlgorithm" (\r -> over (s.simulation) (\sim -> sim { simRelease = r })) (simRelease . view (s.simulation))
+                  ParameterSetup "ReleaseAlgorithm" (\r -> over (s.simulation) (\sim -> sim { simRelease = r })) (simRelease . view (s.simulation))
                    (Just $ return . const [ -- mkReleasePLT initialPLTS
                                             releaseImmediate
-                                          , releaseImmediate
-                                          -- , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
+                                          , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
                                           -- , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
                                           -- , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
                                           -- , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
@@ -416,30 +433,69 @@ instance ExperimentDef (BORL St) where
   -- ^ This function defines how to find experiments that can be resumed. Note that the experiments name is always a
   -- comparison factor, that is, experiments with different names are unequal.
   equalExperiments (borl1, st1) (borl2, st2) =
-    -- st1 == st2 &&
+    st1 == st2 &&
     (-- borl1^.s.nextIncomingOrders,
     borl1^. s.rewardFunctionOrders,
     borl1 ^. s.plannedLeadTimes,
-    borl1 ^. t, borl1 ^. episodeNrStart, borl1 ^. B.parameters, borl1 ^. algorithm, borl1 ^. phase, borl1 ^. lastVValues, borl1 ^. lastRewards, borl1 ^. psis) ==
+    borl1 ^. t,
+    borl1 ^. episodeNrStart,
+    borl1 ^. B.parameters,
+    borl1 ^. algorithm,
+    borl1 ^. phase,
+    borl1 ^. lastVValues,
+    borl1 ^. lastRewards,
+    borl1 ^. psis) ==
     (-- borl2^.s.nextIncomingOrders,
     borl2^. s.rewardFunctionOrders,
     borl2 ^. s.plannedLeadTimes,
-    borl2 ^. t, borl2 ^. episodeNrStart, borl2 ^. B.parameters, borl2 ^. algorithm, borl2 ^. phase, borl2 ^. lastVValues, borl2 ^. lastRewards, borl2 ^. psis)
+    borl2 ^. t,
+    borl2 ^. episodeNrStart,
+    borl2 ^. B.parameters,
+    borl2 ^. algorithm,
+    borl2 ^. phase,
+    borl2 ^. lastVValues,
+    borl2 ^. lastRewards,
+    borl2 ^. psis)
 
-  beforeWarmUpHook g borl = return $ over (s . simulation) (setSimulationRandomGen g) $
-    set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
-    set (B.parameters . gamma) 0 $ set (B.parameters . zeta) 0 $ set (B.parameters . xi) 0 borl
+  -- HOOKS
+  beforePreparationHook _ _ g borl = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) borl
+
+  beforeWarmUpHook _ _ _ g borl =
+    mapMOf (s . simulation) (setSimulationRandomGen g) $
+      set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
+      set (B.parameters . gamma) 0 $ set (B.parameters . zeta) 0 $ set (B.parameters . xi) 0 borl
+
+  beforeEvaluationHook _ _ _ g borl = -- in case warm up phase is 0 periods
+    mapMOf (s . simulation) (setSimulationRandomGen g) $
+      set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
+      set (B.parameters . gamma) 0 $ set (B.parameters . zeta) 0 $ set (B.parameters . xi) 0 borl
+
+  afterPreparationHook _ expNr repetNr = liftIO $ copyFiles "prep_" expNr repetNr Nothing
+  afterWarmUpHook _ expNr repetNr repliNr = liftIO $ copyFiles "warmup_" expNr repetNr (Just repliNr)
+  afterEvaluationHook _ expNr repetNr repliNr = liftIO $ copyFiles "eval_" expNr repetNr (Just repliNr)
+
+copyFiles :: String -> ExperimentNumber -> RepetitionNumber -> Maybe ReplicationNumber -> IO ()
+copyFiles pre expNr repetNr mRepliNr = do
+  let dir = "results/" <> T.unpack (T.replace " " "_" $ expSetup ^. experimentBaseName) <> "/data/"
+  createDirectoryIfMissing True dir
+  mapM_ (\fn -> copyIfFileExists fn (dir <> pre <> fn <> "_exp_" <> show expNr <> "_rep_" <> show repetNr <> maybe "" (\x -> "_repl_" <> show x) mRepliNr)) ["reward", "stateValues"]
 
 
-instance Serialize Release where
-  put (Release _ n) = S.put $ T.unpack n
-  get = do
-    n <- T.pack <$> S.get
-    let fun | n == pltReleaseName = mkReleasePLT initialPLTS
-            | n ==  uniqueReleaseName releaseImmediate = releaseImmediate
-            | T.isPrefixOf bilName n = releaseBIL $ M.fromList bilArgs
-              where ~bilArgs = read (T.unpack $ T.drop (T.length bilName) n)
-                    ~bilName = T.takeWhile (/= '[') $ uniqueReleaseName (releaseBIL mempty)
-    return fun
+copyIfFileExists :: FilePath -> FilePath -> IO ()
+copyIfFileExists fn target = do
+  exists <- doesFileExist fn
+  when exists $ copyFileWithMetadata fn target
 
 
+expSetup :: ExperimentSetup
+expSetup = ExperimentSetup
+  { _experimentBaseName         =
+    -- "ANN AggregatedOverProductTypes - OrderPool+Shipped"
+    "TEST1 Table AggregatedOverProductTypes OrderPool+Shipped with constant processing times"
+  , _experimentRepetitions      =  1
+  , _preparationSteps           =  1000
+  , _evaluationWarmUpSteps      =  150
+  , _evaluationSteps            =  100
+  , _evaluationReplications     =  3
+  , _maximumParallelEvaluations =  1
+  }

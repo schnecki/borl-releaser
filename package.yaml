@@ -49,6 +49,8 @@ dependencies:
   - grenade
   - unliftio-core
   - bytestring
+  - transformers
+  - directory
 
 
 library:

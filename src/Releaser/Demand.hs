@@ -19,5 +19,7 @@ dueDateSlack :: Time
 dueDateSlack = Time 7
 
 generateOrders :: SimSim -> IO [Order]
-generateOrders sim = generateOrdersUniform sim 3 15 dueDateSlack
+generateOrders sim =
+  -- generateOrdersUniform sim 3 15 dueDateSlack
+  generateOrdersUniform sim 9 9 dueDateSlack
   -- generateOrdersFixedDueDateSlack sim interArrivalTimeDistribution productTypeDistribution dueDateSlack
