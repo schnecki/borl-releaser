@@ -30,6 +30,7 @@ import qualified Data.Text                       as T
 import           Statistics.Distribution
 import           Statistics.Distribution.Uniform
 import           System.IO.Unsafe                (unsafePerformIO)
+import           System.Random.MWC
 import           Text.Printf
 
 -- ANN modules
@@ -57,8 +58,8 @@ periodLength :: Time
 periodLength = 1
 
 
-buildSim :: IO SimSim
-buildSim = newSimSimIO routing procTimesConst periodLength
+buildSim :: GenIO -> SimSim
+buildSim g = newSimSim g routing procTimes periodLength
            -- releaseImmediate
            (mkReleasePLT initialPLTS)
            dispatchFirstComeFirstServe shipOnDueDate
@@ -103,7 +104,8 @@ ptTypes = sort $ nub $ map (fst . fst) routing
 testDemand :: IO ()
 testDemand = do
   let nr = 1000
-  sim <- buildSim
+  g <- createSystemRandom
+  let sim = buildSim g
   xs <- replicateM nr (generateOrders sim)
   let len = fromIntegral $ length (concat xs)
   putStr "Avg order slack time: "
@@ -158,16 +160,16 @@ decay t p@(Parameters alp bet del ga eps exp rand zeta xi) =
     (max 0.03 $ decay slow * alp)
     (max 0.015 $ decay slow * bet)
     (max 0.015 $ decay slow * del)
-    (max 0.01 $ decay slow * ga)
+    (max 0.015 $ decay slow * ga)
     (max 0.05 $ decay slow * eps)
-    (max 0.10 $ decay slower * exp)
+    (max 0.05 $ decay slower * exp)
     rand
     zeta
     (0.5 * bet)
   where
     slower = 0.01
     slow = 0.005
-    decaySteps = 100000 :: Double
+    decaySteps = 150000 :: Double
     decay rate = rate ** (fromIntegral t / decaySteps)
 
 
@@ -263,18 +265,21 @@ sortByTimeUntilDue min max currentTime = M.elems . foldl' sortByTimeUntilDue' st
 
 buildBORLTable :: IO (BORL St)
 buildBORLTable = do
-  sim <- buildSim
+  g <- createSystemRandom
+  let sim = buildSim g
   startOrds <- generateOrders sim
   let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
   let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
   let actionFilter = mkConfig (actionFilterPLT actionList) actionFilterConfig
-  let initVals = InitValues 25 0 0 0 0
-  return $ mkUnichainTabular algBORL initSt netInpTbl actions actionFilter borlParams decay (Just initVals)
+  let initVals = InitValues 0 0 0 0 0
+  let alg = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
+  return $ mkUnichainTabular alg initSt netInpTbl actions actionFilter borlParams decay (Just initVals)
 
 
 buildBORLTensorflow :: (MonadBorl' m) => m (BORL St)
 buildBORLTensorflow = do
-  sim <- liftSimple buildSim
+  g <- liftSimple createSystemRandom
+  let sim = buildSim g
   startOrds <- liftSimple $ generateOrders sim
   let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
   let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
@@ -289,8 +294,8 @@ buildBORLTensorflow = do
 
 instance ExperimentDef (BORL St) where
 
-  type ExpM (BORL St) = TF.SessionT IO
-  -- type ExpM (BORL St) = IO
+  -- type ExpM (BORL St) = TF.SessionT IO
+  type ExpM (BORL St) = IO
 
   type Serializable (BORL St) = BORLSerialisable StSerialisable
   serialisable = toSerialisableWith serializeSt
@@ -326,6 +331,8 @@ instance ExperimentDef (BORL St) where
     borl' <- stepM (set (s.nextIncomingOrders) incOrds borl)
     -- liftSimple $ putStrLn $ "Here: " <> show (borl ^. t)
     -- helpers
+    when (borl ^. t `mod` 10000 == 0) $ liftSimple $ prettyBORLHead True borl >>= print
+
     let simT = timeToDouble $ simCurrentTime $ borl' ^. s.simulation
     let borlT = borl' ^. t
 
@@ -384,12 +391,14 @@ instance ExperimentDef (BORL St) where
 
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
-  parameters _ = [ -- ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORL, algVPsi, algDQN]) Nothing Nothing Nothing
-                   ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [-- RewardShippedSimple,
-                                                                                                                  RewardPeriodEndSimple
-                                                                                                                                     ]) Nothing Nothing Nothing
+  parameters _ = [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORL, algVPsi -- , algDQN
+                                                                                                      ]) Nothing Nothing Nothing
+                   -- ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [-- RewardShippedSimple,
+                   --                                                                                                RewardPeriodEndSimple
+                   --                                                                                                                   ]) Nothing Nothing Nothing
                  , ParameterSetup "ReleaseAlgorithm" (\r -> over (s.simulation) (\sim -> sim { simRelease = r })) (simRelease . view (s.simulation))
-                   (Just $ return . const [ mkReleasePLT initialPLTS
+                   (Just $ return . const [ -- mkReleasePLT initialPLTS
+                                            releaseImmediate
                                           , releaseImmediate
                                           -- , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
                                           -- , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
@@ -417,14 +426,14 @@ instance ExperimentDef (BORL St) where
     borl2 ^. s.plannedLeadTimes,
     borl2 ^. t, borl2 ^. episodeNrStart, borl2 ^. B.parameters, borl2 ^. algorithm, borl2 ^. phase, borl2 ^. lastVValues, borl2 ^. lastRewards, borl2 ^. psis)
 
-  afterPreparationPhase borl =
+  beforeWarmUpHook g borl = return $ over (s . simulation) (setSimulationRandomGen g) $
     set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
     set (B.parameters . gamma) 0 $ set (B.parameters . zeta) 0 $ set (B.parameters . xi) 0 borl
 
 
 instance Serialize Release where
   put (Release _ n) = S.put $ T.unpack n
-  get = trace ("deserialize release") $ do
+  get = do
     n <- T.pack <$> S.get
     let fun | n == pltReleaseName = mkReleasePLT initialPLTS
             | n ==  uniqueReleaseName releaseImmediate = releaseImmediate

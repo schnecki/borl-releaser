@@ -26,14 +26,14 @@ import           Releaser.Type
 import           Debug.Trace
 
 databaseSetup :: DatabaseSetup
-databaseSetup = DatabaseSetup "host=localhost dbname=experimenter user=schnecki password= port=5432" 10
+databaseSetup = DatabaseSetup "host=localhost dbname=experimenter2 user=schnecki password= port=5432" 10
 
 
 main :: IO ()
 main = do
 
-  -- run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
-  run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+  run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
+  -- run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
 
 run :: (ExperimentDef a, InputState a ~ ()) => (ExpM a (Bool, Experiments a) -> IO (Bool, Experiments a)) -> (ExpM a (Experiments a) -> IO (Experiments a)) -> ExpM a a -> IO ()
 run runner runner2 mkInitSt = do
@@ -79,11 +79,13 @@ run runner runner2 mkInitSt = do
 
 expSetup :: ExperimentSetup
 expSetup = ExperimentSetup
-  { _experimentBaseName         = "ANN AggregatedOverProductTypes - OrderPool+Shipped"
+  { _experimentBaseName         =
+    -- "ANN AggregatedOverProductTypes - OrderPool+Shipped"
+    "TEST Table AggregatedOverProductTypes OrderPool+Shipped with constant processing times"
   , _experimentRepetitions      =  1
-  , _preparationSteps           =  300000
-  , _evaluationWarmUpSteps      =  1000
-  , _evaluationSteps            =  5000
+  , _preparationSteps           =  180000
+  , _evaluationWarmUpSteps      =  750
+  , _evaluationSteps            =  1000
   , _evaluationReplications     =  3
   , _maximumParallelEvaluations =  1
   }
