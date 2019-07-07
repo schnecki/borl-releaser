@@ -167,7 +167,7 @@ decay t p@(Parameters alp bet del ga eps exp rand zeta xi) =
   where
     slower = 0.01
     slow = 0.005
-    decaySteps = 200000 :: Double
+    decaySteps = 100000 :: Double
     decay rate = rate ** (fromIntegral t / decaySteps)
 
 

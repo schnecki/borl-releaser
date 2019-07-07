@@ -51,10 +51,10 @@ askUser showHelp addUsage cmds ql = do
         addUsage
   liftSimple $ putStrLn ""
   when showHelp $ liftSimple $ putStrLn $ unlines $ map (\(c, h) -> c ++ ": " ++ h) usage
-  liftSimple $ putStr "Enter value (h for help): " >> hFlush stdout
+  liftSimple $ putStr "Enter value (type help to display the usage information): " >> hFlush stdout
   c <- liftSimple getLine
   case c of
-    "h" -> askUser True addUsage cmds ql
+    "help" -> askUser True addUsage cmds ql
     "?" -> askUser True addUsage cmds ql
     "s" -> do
       ser <- toSerialisableWith serializeSt ql
@@ -64,6 +64,9 @@ askUser showHelp addUsage cmds ql = do
       let sim = ql ^. s.simulation
       liftSimple $ putStrLn $ T.unpack $ prettySimSim sim
       askUser showHelp addUsage cmds ql
+    "h" -> do
+      liftSimple $ prettyBORLHead True ql >>= print
+      askUser False addUsage cmds ql
     "l" -> do
       bs <- liftSimple $ BS.readFile "savedModel"
       case S.runGet S.get bs of
