@@ -25,10 +25,10 @@ import           Releaser.Type
 
 main :: IO ()
 main =
-  -- runMonadBorlIO $ do
-  -- borl <- liftSimple buildBORLTable
-  runMonadBorlTF $ do
-    borl <- buildBORLTensorflow
+  runMonadBorlIO $ do
+    borl <- liftSimple buildBORLTable
+  -- runMonadBorlTF $ do
+  --   borl <- buildBORLTensorflow
     askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
   where cmds = []
         usage = []
@@ -43,8 +43,9 @@ askUser showHelp addUsage cmds ql = do
         , ("q", "Exit program (unsaved state will be lost)")
         , ("r", "Run for X times")
         , ("m", "Multiply all state values by X")
-        -- , ("s" "Save to file save.dat (overwrites the file if it exists)")
-        -- , ("l" "Load from file save.dat")
+        , ("s", "Save to file savedModel (overwrites the file if it exists)")
+        , ("sim", "Print the simulation")
+        , ("l", "Load from file savedModel")
         , ("_", "Any other input starts another learning round\n")
         ] ++
         addUsage
@@ -59,7 +60,10 @@ askUser showHelp addUsage cmds ql = do
       ser <- toSerialisableWith serializeSt ql
       liftSimple $ BS.writeFile "savedModel" (S.runPut $ S.put ser)
       askUser showHelp addUsage cmds ql
-    --   askUser ql addUsage cmds
+    "sim" -> do
+      let sim = ql ^. s.simulation
+      liftSimple $ putStrLn $ T.unpack $ prettySimSim sim
+      askUser showHelp addUsage cmds ql
     "l" -> do
       bs <- liftSimple $ BS.readFile "savedModel"
       case S.runGet S.get bs of
@@ -108,7 +112,7 @@ askUser showHelp addUsage cmds ql = do
             (c == "q")
             (stepM ql >>= \ql' ->
                case find isTensorflow (allProxies $ ql ^. proxies) of
-                 Nothing -> prettyBORLTables True False False ql >>= liftSimple . print >> return ()
+                 Nothing -> prettyBORLTables True False False ql >>= liftSimple . print >> askUser False addUsage cmds ql'
                  Just _ -> do
                    b <- liftTensorflow (prettyBORLTables True False True ql')
                    liftSimple $ print b

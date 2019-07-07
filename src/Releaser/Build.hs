@@ -58,7 +58,7 @@ periodLength = 1
 
 
 buildSim :: IO SimSim
-buildSim = newSimSimIO routing procTimes periodLength
+buildSim = newSimSimIO routing procTimesConst periodLength
            -- releaseImmediate
            (mkReleasePLT initialPLTS)
            dispatchFirstComeFirstServe shipOnDueDate
@@ -72,6 +72,14 @@ procTimes = [(Machine 1,[(Product 1, fmap timeFromDouble . genContVar (uniformDi
             ,(Machine 2,[(Product 1, fmap timeFromDouble . genContVar (uniformDistr (130/960) (170/960)))])
             ,(Machine 3,[(Product 2, fmap timeFromDouble . genContVar (uniformDistr (180/960) (200/960)))])
             ]
+
+procTimesConst :: ProcTimes
+procTimesConst =
+  [ (Machine 1, [(Product 1, return . const (timeFromDouble (100 / 960))), (Product 2, return . const (timeFromDouble (100 / 960)))])
+  , (Machine 2, [(Product 1, return . const (timeFromDouble (150 / 960)))])
+  , (Machine 3, [(Product 2, return . const (timeFromDouble (190 / 960)))])
+  ]
+
 
 routing :: Routes
 routing =

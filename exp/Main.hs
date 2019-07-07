@@ -79,11 +79,11 @@ run runner runner2 mkInitSt = do
 
 expSetup :: ExperimentSetup
 expSetup = ExperimentSetup
-  { _experimentBaseName         = "TEST ANN Table AggregatedOverProductTypes - OrderPool+Shipped"
+  { _experimentBaseName         = "ANN AggregatedOverProductTypes - OrderPool+Shipped"
   , _experimentRepetitions      =  1
-  , _preparationSteps           =  300
-  , _evaluationWarmUpSteps      =  100
-  , _evaluationSteps            =  100
+  , _preparationSteps           =  300000
+  , _evaluationWarmUpSteps      =  1000
+  , _evaluationSteps            =  5000
   , _evaluationReplications     =  3
   , _maximumParallelEvaluations =  1
   }
