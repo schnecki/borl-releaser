@@ -12,7 +12,7 @@ import           Releaser.Build
 
 
 databaseSetup :: DatabaseSetup
-databaseSetup = DatabaseSetup "host=localhost dbname=experimenter user=schnecki password= port=5432" 10
+databaseSetup = DatabaseSetup "host=c437-pc141 dbname=experimenter user=experimenter password=experimenter port=5432" 10
 
 
 main :: IO ()
