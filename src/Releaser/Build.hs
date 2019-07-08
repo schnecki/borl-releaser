@@ -65,7 +65,8 @@ buildSim :: IO SimSim
 buildSim =
   newSimSimIO
     routing
-    procTimesConst
+    -- procTimesConst
+    procTimes
     periodLength
            -- releaseImmediate
     (mkReleasePLT initialPLTS)
@@ -223,13 +224,13 @@ nnConfig :: NNConfig St
 nnConfig =
   NNConfig
     { _toNetInp = netInp
-    , _replayMemoryMaxSize = 5000
+    , _replayMemoryMaxSize = 40000
     , _trainBatchSize = 128
     , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
     , _prettyPrintElems = ppSts
     , _scaleParameters = scalingByMaxAbsReward False 20
     , _updateTargetInterval = 10000
-    , _trainMSEMax = Just $ 1 / 100 * 3
+    , _trainMSEMax = Just 0.03
     }
   where
     len =
@@ -313,12 +314,12 @@ buildBORLTensorflow = do
 
 instance ExperimentDef (BORL St) where
 
-  -- type ExpM (BORL St) = TF.SessionT IO
-  type ExpM (BORL St) = IO
+  type ExpM (BORL St) = TF.SessionT IO
+  -- type ExpM (BORL St) = IO
 
   type Serializable (BORL St) = BORLSerialisable StSerialisable
   serialisable = toSerialisableWith serializeSt
-  deserialisable =
+  deserialisable ser =
     unsafePerformIO $
     runMonadBorlTF $ do
       borl <- liftTensorflow buildBORLTensorflow
@@ -333,6 +334,7 @@ instance ExperimentDef (BORL St) where
           netInp
           netInp
           (modelBuilder actions (borl ^. s))
+          ser
   type InputValue (BORL St) = [Order]
   type InputState (BORL St) = ()
 
@@ -390,13 +392,19 @@ instance ExperimentDef (BORL St) where
 
     -- BORL' related measures
     let avgRew = StepResult "AvgReward" (Just $ fromIntegral borlT) (borl' ^?! proxies.rho.proxyScalar)
+        avgRewMin = StepResult "MinAvgReward" (Just $ fromIntegral borlT) (borl' ^?! proxies.rhoMinimum.proxyScalar)
         pltP1 = StepResult "PLT P1" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 1) (borl' ^. s.plannedLeadTimes))
         pltP2 = StepResult "PLT P2" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 2) (borl' ^. s.plannedLeadTimes))
         psiRho = StepResult "PsiRho" (Just $ fromIntegral borlT) (borl' ^. psis._1)
         psiV = StepResult "PsiV" (Just $ fromIntegral borlT) (borl' ^. psis._2)
         psiW = StepResult "PsiW" (Just $ fromIntegral borlT) (borl' ^. psis._3)
+        vAvg = StepResult "VAvg" (Just $ fromIntegral borlT) (avg $ borl' ^. lastRewards)
+        reward = StepResult "Reward" (Just $ fromIntegral borlT) (head $ borl' ^. lastRewards)
+        avgReward = StepResult "Reward" (Just $ fromIntegral borlT) (head $ borl' ^. lastRewards)
+        avg xs = sum xs / fromIntegral (length xs)
 
-    return $! ([-- cost related measures
+
+    return ([-- cost related measures
               cSum, cEarn, cBoc, cWip, cFgi
              -- floor
             , curOp, curWip, curBo, curFgi, demand
@@ -404,13 +412,15 @@ instance ExperimentDef (BORL St) where
             , tFtMeanFloorAndFgi, tFtStdDevFloorAndFgi, tTardPctFloorAndFgi, tTardMeanFloorAndFgi, tTardStdDevFloorAndFgi
             , tFtMeanFloor, tFtStdDevFloor, tTardPctFloor, tTardMeanFloor, tTardStdDevFloor
              -- BORL related measures
-            , avgRew, pltP1, pltP2, psiRho, psiV, psiW
+            , avgRew, avgRewMin, pltP1, pltP2, psiRho, psiV, psiW, vAvg, reward, avgReward
             ], borl')
 
 
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
-  parameters _ = [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORL, algVPsi, algDQN
+  parameters _ = [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [ algBORL
+                                                                                                      , algVPsi
+                                                                                                      , algDQN
                                                                                                       ]) Nothing Nothing Nothing
                    -- ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [-- RewardShippedSimple,
                    --                                                                                                RewardPeriodEndSimple
@@ -430,13 +440,12 @@ instance ExperimentDef (BORL St) where
                  (Just (\x -> if uniqueReleaseName x == pltReleaseName then FullFactory else SingleInstance)) -- only evaluate once if ImRe or BIL
 
                  ]
-    where algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) (DivideValuesAfterGrowth 1000 70000) True
+    where algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
 
 
   -- ^ This function defines how to find experiments that can be resumed. Note that the experiments name is always a
   -- comparison factor, that is, experiments with different names are unequal.
-  equalExperiments (borl1, st1) (borl2, st2) =
-    st1 == st2 &&
+  equalExperiments (borl1, _) (borl2, _) =
     (-- borl1^.s.nextIncomingOrders,
     borl1^. s.rewardFunctionOrders,
     borl1 ^. s.plannedLeadTimes,
@@ -474,7 +483,7 @@ instance ExperimentDef (BORL St) where
       set (B.parameters . gamma) 0 $ set (B.parameters . zeta) 0 $ set (B.parameters . xi) 0 borl
 
   beforeEvaluationHook _ _ _ g borl = -- in case warm up phase is 0 periods
-    mapMOf (s . simulation) (setSimulationRandomGen g) $
+    liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $
       set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
       set (B.parameters . gamma) 0 $ set (B.parameters . zeta) 0 $ set (B.parameters . xi) 0 borl
 
@@ -498,11 +507,9 @@ copyIfFileExists fn target = do
 
 expSetup :: ExperimentSetup
 expSetup = ExperimentSetup
-  { _experimentBaseName         =
-    -- "ANN AggregatedOverProductTypes - OrderPool+Shipped"
-    "Table AggregatedOverProductTypes OrderPool+Shipped (const. demand + const. processing times)"
+  { _experimentBaseName         = "ANN AggregatedOverProductTypes OrderPool+Shipped w. exp procTimes, unif demand"
   , _experimentRepetitions      =  1
-  , _preparationSteps           =  110000
+  , _preparationSteps           =  300000
   , _evaluationWarmUpSteps      =  1000
   , _evaluationSteps            =  5000
   , _evaluationReplications     =  3
