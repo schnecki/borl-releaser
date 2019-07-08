@@ -417,12 +417,14 @@ instance ExperimentDef (BORL St) where
 
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
-  parameters _ = [ -- ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORL, algVPsi -- , algDQN
-                   --                                                                                    ]) Nothing Nothing Nothing
+  parameters _ = [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [ algBORL
+                                                                                                      , algVPsi
+                                                                                                      , algDQN
+                                                                                                      ]) Nothing Nothing Nothing
                    -- ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [-- RewardShippedSimple,
                    --                                                                                                RewardPeriodEndSimple
                    --                                                                                                                   ]) Nothing Nothing Nothing
-                  ParameterSetup "ReleaseAlgorithm" (\r -> over (s.simulation) (\sim -> sim { simRelease = r })) (simRelease . view (s.simulation))
+                 , ParameterSetup "ReleaseAlgorithm" (\r -> over (s.simulation) (\sim -> sim { simRelease = r })) (simRelease . view (s.simulation))
                    (Just $ return . const [ mkReleasePLT initialPLTS
                                           , releaseImmediate
                                           , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
@@ -435,7 +437,7 @@ instance ExperimentDef (BORL St) where
                  (Just (\x -> if uniqueReleaseName x == pltReleaseName then FullFactory else SingleInstance)) -- only evaluate once if ImRe or BIL
 
                  ]
-    where algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) (DivideValuesAfterGrowth 1000 70000) True
+    where algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
 
 
   -- ^ This function defines how to find experiments that can be resumed. Note that the experiments name is always a
