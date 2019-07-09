@@ -470,20 +470,20 @@ instance ExperimentDef (BORL St) where
     borl2 ^. psis)
 
   -- HOOKS
-  beforePreparationHook _ _ g borl = liftIO $ do
+  beforePreparationHook _ _ g borl = liftSimple $ do
     let dir = "results/" <> T.unpack (T.replace " " "_" $ expSetup ^. experimentBaseName) <> "/data/"
     createDirectoryIfMissing True dir
     writeFile (dir ++ "plot.sh") gnuplot
     mapMOf (s . simulation) (setSimulationRandomGen g) borl
 
-  beforeWarmUpHook expNr repetNr repliNr g borl = do
-    liftIO $ when (repliNr == 1) $ copyFiles "prep_" expNr repetNr Nothing -- afterPreparationHook seems not to be executed. Why? ***TODO***
+  beforeWarmUpHook expNr repetNr repliNr g borl = liftSimple $ do
+    when (repliNr == 1) $ copyFiles "prep_" expNr repetNr Nothing -- afterPreparationHook seems not to be executed. Why? ***TODO***
     mapMOf (s . simulation) (setSimulationRandomGen g) $
       set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
       set (B.parameters . gamma) 0 $ set (B.parameters . zeta) 0 $ set (B.parameters . xi) 0 borl
 
   beforeEvaluationHook _ _ _ g borl = -- in case warm up phase is 0 periods
-    liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $
+    liftSimple $ mapMOf (s . simulation) (setSimulationRandomGen g) $
       set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
       set (B.parameters . gamma) 0 $ set (B.parameters . zeta) 0 $ set (B.parameters . xi) 0 borl
 
