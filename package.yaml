@@ -51,6 +51,7 @@ dependencies:
   - bytestring
   - transformers
   - directory
+  - hostname
 
 
 library:
