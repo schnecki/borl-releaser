@@ -8,11 +8,15 @@ module Main where
 import           Experimenter
 import           ML.BORL
 
+import           Network.HostName
 import           Releaser.Build
 
-
-databaseSetup :: DatabaseSetup
-databaseSetup = DatabaseSetup "host=c437-pc141 dbname=experimenter user=experimenter password=experimenter port=5432" 10
+databaseSetup :: IO DatabaseSetup
+databaseSetup = do
+  hostName <- liftIO getHostName
+  case hostName of
+    "schnecki-zenbook" -> DatabaseSetup "host=localhost dbname=experimenter user=schnecki password= port=5432" 10
+    _ -> DatabaseSetup "host=c437-pc141 dbname=experimenter user=experimenter password=experimenter port=5432" 10
 
 
 main :: IO ()
@@ -23,7 +27,8 @@ main = do
 
 run :: (ExperimentDef a, InputState a ~ ()) => (ExpM a (Bool, Experiments a) -> IO (Bool, Experiments a)) -> (ExpM a (Experiments a) -> IO (Experiments a)) -> ExpM a a -> IO ()
 run runner runner2 mkInitSt = do
-  (changed, res) <- runExperimentsM runner databaseSetup expSetup () mkInitSt
+  dbSetup <- databaseSetup
+  (changed, res) <- runExperimentsM runner dbSetup expSetup () mkInitSt
   liftSimple $ putStrLn $ "Any change: " ++ show changed
   let evals = [ Sum OverPeriods $ Of "EARN", Mean OverReplications (Stats $ Sum OverPeriods $ Of "EARN")
               , Sum OverPeriods $ Of "BOC" , Mean OverReplications (Stats $ Sum OverPeriods $ Of "BOC")

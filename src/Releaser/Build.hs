@@ -52,6 +52,7 @@ import           Releaser.Costs
 import           Releaser.Demand
 import           Releaser.ReleasePLT
 import           Releaser.Type
+import           Releaser.Util
 
 
 import           Debug.Trace
@@ -417,7 +418,7 @@ instance ExperimentDef (BORL St) where
 
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
-  parameters _ = [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [ algBORL
+  parameters _ = [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [ algBORLNoScale
                                                                                                       , algVPsi
                                                                                                       , algDQN
                                                                                                       ]) Nothing Nothing Nothing
@@ -427,10 +428,12 @@ instance ExperimentDef (BORL St) where
                  , ParameterSetup "ReleaseAlgorithm" (\r -> over (s.simulation) (\sim -> sim { simRelease = r })) (simRelease . view (s.simulation))
                    (Just $ return . const [ mkReleasePLT initialPLTS
                                           , releaseImmediate
+                                          , releaseBIL (M.fromList [(Product 1, 6), (Product 2, 6)])
                                           , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
                                           , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
                                           , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
                                           , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
+                                          , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
                                           ])
                  Nothing
                  (Just (\x -> uniqueReleaseName x /= pltReleaseName)) -- drop preparation phase for all release algorithms but the BORL releaser
@@ -438,6 +441,7 @@ instance ExperimentDef (BORL St) where
 
                  ]
     where algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
+          algBORLNoScale = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal False
 
 
   -- ^ This function defines how to find experiments that can be resumed. Note that the experiments name is always a
@@ -467,10 +471,15 @@ instance ExperimentDef (BORL St) where
     borl2 ^. psis)
 
   -- HOOKS
-  beforePreparationHook _ _ g borl = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) borl
+  beforePreparationHook _ _ g borl = liftIO $ do
+    let dir = "results/" <> T.unpack (T.replace " " "_" $ expSetup ^. experimentBaseName) <> "/data/"
+    createDirectoryIfMissing True dir
+    writeFile (dir ++ "plot.sh") gnuplot
+    mapMOf (s . simulation) (setSimulationRandomGen g) borl
 
-  beforeWarmUpHook _ _ _ g borl =
-    liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $
+  beforeWarmUpHook expNr repetNr repliNr g borl = do
+    liftIO $ when (repliNr == 1) $ copyFiles "prep_" expNr repetNr Nothing -- afterPreparationHook seems not to be executed. Why? ***TODO***
+    mapMOf (s . simulation) (setSimulationRandomGen g) $
       set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
       set (B.parameters . gamma) 0 $ set (B.parameters . zeta) 0 $ set (B.parameters . xi) 0 borl
 
@@ -487,6 +496,7 @@ copyFiles :: String -> ExperimentNumber -> RepetitionNumber -> Maybe Replication
 copyFiles pre expNr repetNr mRepliNr = do
   let dir = "results/" <> T.unpack (T.replace " " "_" $ expSetup ^. experimentBaseName) <> "/data/"
   createDirectoryIfMissing True dir
+
   mapM_ (\fn -> copyIfFileExists fn (dir <> pre <> fn <> "_exp_" <> show expNr <> "_rep_" <> show repetNr <> maybe "" (\x -> "_repl_" <> show x) mRepliNr)) ["reward", "stateValues"]
 
 
@@ -506,3 +516,5 @@ expSetup = ExperimentSetup
   , _evaluationReplications     =  3
   , _maximumParallelEvaluations =  1
   }
+
+
