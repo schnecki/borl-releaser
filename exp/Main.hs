@@ -13,8 +13,8 @@ import           Releaser.Build
 
 databaseSetup :: IO DatabaseSetup
 databaseSetup = do
-  hostName <- liftIO getHostName
-  case hostName of
+  hostName <- getHostName
+  return $ case hostName of
     "schnecki-zenbook" -> DatabaseSetup "host=localhost dbname=experimenter user=schnecki password= port=5432" 10
     _ -> DatabaseSetup "host=c437-pc141 dbname=experimenter user=experimenter password=experimenter port=5432" 10
 
@@ -64,7 +64,7 @@ run runner runner2 mkInitSt = do
               , Id $ Last $ Of "PsiV", Mean OverReplications (Last $ Of "PsiV")
               , Id $ Last $ Of "PsiW", Mean OverReplications (Last $ Of "PsiW")
               ]
-  evalRes <- genEvals runner2 databaseSetup res evals
+  evalRes <- genEvals runner2 dbSetup res evals
   -- print (view evalsResults evalRes)
   writeAndCompileLatex evalRes
 
