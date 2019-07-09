@@ -303,7 +303,7 @@ buildBORLTensorflow = do
   let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
   let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
   let actionFilter = mkConfig (actionFilterPLT actionList) actionFilterConfig
-  let alg = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) (DivideValuesAfterGrowth 1000 70000) True
+  let alg = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
   let initVals = InitValues 25 0 0 0 0
   mkUnichainTensorflowM alg initSt actions actionFilter borlParams decay (modelBuilder actions initSt) nnConfig (Just initVals)
 
@@ -417,7 +417,7 @@ instance ExperimentDef (BORL St) where
 
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
-  parameters _ = [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [ algBORL
+  parameters _ = [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [ algBORLNoScale
                                                                                                       , algVPsi
                                                                                                       , algDQN
                                                                                                       ]) Nothing Nothing Nothing
@@ -438,6 +438,7 @@ instance ExperimentDef (BORL St) where
 
                  ]
     where algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
+          algBORLNoScale = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal False
 
 
   -- ^ This function defines how to find experiments that can be resumed. Note that the experiments name is always a
