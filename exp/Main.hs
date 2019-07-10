@@ -20,7 +20,7 @@ databaseSetting :: IO DatabaseSetting
 databaseSetting = do
   hostName <- getHostName
   return $ case hostName of
-    "schnecki-zenbook" -> DatabaseSetting "host=schnecki-zenbook dbname=experimenter user=schnecki password= port=5432" 10
+    "schnecki-zenbook" -> DatabaseSetting "host=schnecki-zenbook dbname=experimenter user=experimenter password=experimenter port=5432" 10
     _ -> DatabaseSetting "host=c437-pc141 dbname=experimenter user=experimenter password=experimenter port=5432" 10
 
 expSetting :: BORL St -> ExperimentSetting
