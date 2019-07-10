@@ -20,7 +20,7 @@ dueDateSlack :: Time
 dueDateSlack = Time 7
 
 demandUniformIn3To15FixedDds :: ConfigDemand
-demandUniformIn3To15FixedDds = ConfigDemand ("U(3,9) with DDS=" <> tshow dueDateSlack) (\sim -> generateOrdersUniform sim 3 15 dueDateSlack)
+demandUniformIn3To15FixedDds = ConfigDemand ("U(3,15) with DDS=" <> tshow dueDateSlack) (\sim -> generateOrdersUniform sim 3 15 dueDateSlack)
 
 demandConst9FixedDds :: ConfigDemand
 demandConst9FixedDds = ConfigDemand ("Const(9) with DDS=" <> tshow dueDateSlack) (\sim -> generateOrdersUniform sim 9 9 dueDateSlack)
