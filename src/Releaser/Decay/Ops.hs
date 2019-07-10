@@ -13,18 +13,17 @@ decayExpXiIsBetaHalf = ConfigDecay "Exponential Decay with xi=0.5*beta"  decayEx
   where
     decayExp t p@(Parameters alp bet del ga eps exp rand zeta xi) =
       Parameters
-        (max 0.03 $ decay slow * alp)
-        (max 0.015 $ decay slow * bet)
-        (max 0.015 $ decay slow * del)
-        (max 0.015 $ decay slow * ga)
-        (max 0.05 $ decay slow * eps)
-        (max 0.05 $ decay slower * exp)
+        (max 0.03 $ decay rate * alp)
+        (max 0.015 $ decay rate * bet)
+        (max 0.015 $ decay rate * del)
+        (max 0.015 $ decay rate * ga)
+        (max 0.1 $ decay rate * eps)
+        (max 0.1 $ decay rate * exp)
         rand
         zeta
-        (0.5 * bet)
+        (max 0.015 $ 0.5 * bet)
       where
-        slower = 0.01
-        slow = 0.005
-        decaySteps = 150000 :: Double
+        rate = 0.05             -- will be reached after `decaySteps` rounds
+        decaySteps = 750000 :: Double
         decay rate = rate ** (fromIntegral t / decaySteps)
 
