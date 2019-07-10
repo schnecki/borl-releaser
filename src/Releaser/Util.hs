@@ -2,6 +2,7 @@
 
 module Releaser.Util where
 
+import qualified Data.Text as T
 
 gnuplot :: String
 gnuplot = "FILES=\"\"                                             \n" ++
@@ -27,3 +28,6 @@ gnuplot = "FILES=\"\"                                             \n" ++
           "    gnuplot -e \"$CMD\" &                              \n"++
           "done                                                   \n"
 
+
+tshow :: (Show a) => a -> T.Text
+tshow = T.pack . show

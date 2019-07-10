@@ -2,44 +2,40 @@
 {-# LANGUAGE ViewPatterns      #-}
 
 
-module Releaser.Action
+module Releaser.Action.ActionPlt
     ( actionsPLT
     , ActionConfig (..)
     ) where
 
-import           ClassyPrelude              (tshow, when)
+import           ClassyPrelude               (when)
 import           Control.DeepSeq
 import           Control.Monad.Trans.Reader
-import           Data.Foldable              (toList)
-import           Data.List                  (nub)
-import qualified Data.Map.Strict            as M
-import           Data.Maybe                 (fromMaybe)
-import qualified Data.Text                  as T
+import           Data.Foldable               (toList)
+import           Data.List                   (nub)
+import qualified Data.Map.Strict             as M
+import           Data.Maybe                  (fromMaybe)
+import qualified Data.Text                   as T
 import           Text.Printf
 
 import           ML.BORL
-import           SimSim
+import           SimSim                      hiding (productTypes)
 
-import           Releaser.Costs
-import           Releaser.Demand
-import           Releaser.ReleasePLT
+import           Releaser.Action.Type
+import           Releaser.Costs.Type
+import           Releaser.Release.ReleasePlt
+import           Releaser.SettingsCosts
+import           Releaser.SettingsDemand
+import           Releaser.SettingsPeriod
+import           Releaser.SettingsRouting
 import           Releaser.Type
-
-data ActionConfig = ActionConfig
-  { actLowerActionBound :: Integer
-  , actUpperActionBound :: Integer
-  , actPeriodLength     :: Time
-  , actProductTypes     :: [ProductType] -- ^ Product types must be sorted!
-  }
 
 
 actionsPLT :: St -> Reader ActionConfig (ListOfActions, [Action St])
 actionsPLT (St sim _ _ _) = do
-  lowerBound <- asks actLowerActionBound
-  upperBound <- asks actUpperActionBound
-  perLen <- asks actPeriodLength
+  lowerBound <- asks configActLower
+  upperBound <- asks configActUpper
   let actionList =
-        map (map ((* perLen) . fromInteger)) $
+        map (map ((* periodLength) . fromInteger)) $
         foldl (combs [lowerBound,lowerBound+1,upperBound]) [] [1..length pts]
   acts <- mapM mkAction actionList
   return (actionList, acts)
@@ -59,18 +55,15 @@ mkAction act = do
   where printInt :: Time -> String
         printInt = printf "%.2f" . timeToDouble
 
-
 action :: [Time] -> Reader ActionConfig (St -> IO (Reward, St, EpisodeEnd))
-action pltChange = do
-  perLen <- asks actPeriodLength
-  prodTypes <- asks actProductTypes
+action pltChange =
   return $ \(St sim incomingOrders rewardFun plts) -> do
-    let pltsChangeMap = M.fromList $ zip prodTypes pltChange
+    let pltsChangeMap = M.fromList $ zip productTypes pltChange
         pltsNew = M.unionWith (+) plts pltsChangeMap
     let simReleaseSet
           | uniqueReleaseName (simRelease sim) == pltReleaseName = sim {simRelease = mkReleasePLT pltsNew}
           | otherwise = sim
-    sim' <- simulateUntil (simCurrentTime sim + perLen) simReleaseSet incomingOrders
+    sim' <- simulateUntil (simCurrentTime sim + periodLength) simReleaseSet incomingOrders
     let (reward, rewardFun') = mkReward rewardFun sim sim'
     newIncomingOrders <- generateOrders sim'
     writeFiles sim sim'

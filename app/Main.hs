@@ -2,33 +2,33 @@
 {-# LANGUAGE Strict       #-}
 module Main where
 
-import           Control.DeepSeq     (NFData, force)
+import           Control.DeepSeq             (NFData, force)
 import           Control.Lens
-import           Control.Monad       (foldM, unless, when)
-import qualified Data.ByteString     as BS
-import           Data.Function       (on)
-import           Data.List           (find, sortBy)
-import           Data.Serialize      as S
-import qualified Data.Text           as T
-import           Data.Time.Clock     (diffUTCTime, getCurrentTime)
-import           System.IO           (hFlush, stdout)
+import           Control.Monad               (foldM, unless, when)
+import qualified Data.ByteString             as BS
+import           Data.Function               (on)
+import           Data.List                   (find, sortBy)
+import           Data.Serialize              as S
+import qualified Data.Text                   as T
+import           Data.Time.Clock             (diffUTCTime, getCurrentTime)
+import           System.IO                   (hFlush, stdout)
 import           Text.PrettyPrint
 
 import           ML.BORL
 import           SimSim
 
-import           Releaser.Action
 import           Releaser.Build
-import           Releaser.ReleasePLT
+import           Releaser.Release.ReleasePlt
+import           Releaser.SettingsAction
 import           Releaser.Type
 
 
 main :: IO ()
 main =
-  runMonadBorlIO $ do
-    borl <- liftSimple buildBORLTable
-  -- runMonadBorlTF $ do
-  --   borl <- buildBORLTensorflow
+  -- runMonadBorlIO $ do
+  --   borl <- liftSimple buildBORLTable
+  runMonadBorlTF $ do
+    borl <- buildBORLTensorflow
     askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
   where cmds = []
         usage = []
@@ -74,7 +74,7 @@ askUser showHelp addUsage cmds ql = do
         Right ser -> do
          borl <- liftTensorflow buildBORLTensorflow
          let (St sim _ _ _) = borl ^. s
-         let (_, actions) = mkConfig (actionsPLT (borl ^. s)) actionConfig
+         let (_, actions) = mkConfig (action (borl ^. s)) actionConfig
          ql' <- fromSerialisableWith
              (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
              actions

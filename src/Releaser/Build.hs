@@ -11,60 +11,67 @@ module Releaser.Build
     ( buildBORLTable
     , buildBORLTensorflow
     , buildSim
-    , periodLength
-    , ptTypes
+    , nnConfig
     , netInp
     , modelBuilder
     , actionConfig
-    , expSetup
+    , experimentName
     ) where
 
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.IO.Class
-import           Data.Function                   (on)
-import           Data.List                       (find, foldl', genericLength, groupBy,
-                                                  nub, sort, sortBy)
-import qualified Data.Map                        as M
-import           Data.Serialize                  as S
-import qualified Data.Text                       as T
+import           Data.Function                     (on)
+import           Data.List                         (find, foldl', genericLength, groupBy,
+                                                    nub, sort, sortBy)
+import qualified Data.Map                          as M
+import           Data.Serialize                    as S
+import qualified Data.Text                         as T
 import           Statistics.Distribution
 import           Statistics.Distribution.Uniform
 import           System.Directory
-import           System.IO.Unsafe                (unsafePerformIO)
+import           System.IO.Unsafe                  (unsafePerformIO)
 import           System.Random.MWC
 import           Text.Printf
 
 -- ANN modules
 import           Grenade
-import qualified TensorFlow.Core                 as TF hiding (value)
-import qualified TensorFlow.GenOps.Core          as TF (relu', tanh')
-import qualified TensorFlow.Minimize             as TF
-import qualified TensorFlow.Session              as TF
+import qualified TensorFlow.Core                   as TF hiding (value)
+import qualified TensorFlow.GenOps.Core            as TF (relu', tanh')
+import qualified TensorFlow.Minimize               as TF
+import qualified TensorFlow.Session                as TF
 
-import           Experimenter                    hiding (sum)
-import           ML.BORL                         as B
-import           SimSim
+import           Experimenter                      hiding (sum)
+import           ML.BORL                           as B hiding (actionFilter,
+                                                         featureExtractor)
+import qualified ML.BORL                           as B
+import           SimSim                            hiding (productTypes)
 
-import           Releaser.Action
-import           Releaser.ActionFilter
-import           Releaser.Costs
-import           Releaser.Demand
-import           Releaser.ReleasePLT
+import           Releaser.ActionFilter.Type
+import           Releaser.Costs.Type
+import           Releaser.Decay.Type
+import           Releaser.FeatureExtractor.Type
+import           Releaser.Release.ReleasePlt
+import           Releaser.Routing.Type
+import           Releaser.SettingsAction
+import           Releaser.SettingsActionFilter
+import           Releaser.SettingsCosts
+import           Releaser.SettingsDecay
+import           Releaser.SettingsDemand
+import           Releaser.SettingsFeatureExtractor
+import           Releaser.SettingsPeriod
+import           Releaser.SettingsRouting
 import           Releaser.Type
 import           Releaser.Util
 
 
 import           Debug.Trace
 
-periodLength :: Time
-periodLength = 1
-
 
 buildSim :: IO SimSim
 buildSim =
   newSimSimIO
-    routing
+    (configRoutingRoutes routing)
     -- procTimesConst
     procTimes
     periodLength
@@ -74,7 +81,7 @@ buildSim =
     shipOnDueDate
 
 initialPLTS :: M.Map ProductType Time
-initialPLTS = M.fromList $ zip ptTypes [1 ..]
+initialPLTS = M.fromList $ zip productTypes [1 ..]
 
 procTimes :: ProcTimes
 procTimes = [(Machine 1,[(Product 1, fmap timeFromDouble . genContVar (uniformDistr (70/960) (130/960)))
@@ -91,43 +98,24 @@ procTimesConst =
   ]
 
 
-routing :: Routes
-routing =
-  [ (Product 1, OrderPool) --> Queue 1   -- source -> 1 -> 2 -> sink
-  , (Product 1, Queue 1)   --> Machine 1 -- note: route to sink is not necessary
-  , (Product 1, Machine 1) --> Queue 2
-  , (Product 1, Queue 2)   --> Machine 2
-  , (Product 1, Machine 2) --> FGI
-
-  , (Product 2, OrderPool) --> Queue 1   -- source -> 2 -> 1 -> sink
-  , (Product 2, Queue 1)   --> Machine 1 -- note: route to sink is not necessary
-  , (Product 2, Machine 1) --> Queue 3
-  , (Product 2, Queue 3)   --> Machine 3
-  , (Product 2, Machine 3) --> FGI
-  ]
-
-ptTypes :: [ProductType]
-ptTypes = sort $ nub $ map (fst . fst) routing
-
-
-testDemand :: IO ()
-testDemand = do
-  let nr = 1000
-  g <- createSystemRandom
-  sim <- buildSim
-  xs <- replicateM nr (generateOrders sim)
-  let len = fromIntegral $ length (concat xs)
-  putStr "Avg order slack time: "
-  print $ timeToDouble (sum $ map orderSlackTime (concat xs)) / len
-  putStr "Avg order arrival date: "
-  print $ timeToDouble (sum $ map arrivalDate (concat xs)) / len
-  putStr "Avg number of order per period: "
-  print $ fromIntegral (sum (map length xs)) / fromIntegral nr
-  putStr "Avg order due date: "
-  print $ timeToDouble (sum $ map dueDate (concat xs)) / len
-  putStr "Avg number of order per product type"
-  print $ map length $ groupBy ((==) `on` productType) $ sortBy (compare `on` productType) (concat xs)
-  print $ map (productType . head) $ groupBy ((==) `on` productType) $ sortBy (compare `on` productType) (concat xs)
+-- testDemand :: IO ()
+-- testDemand = do
+--   let nr = 1000
+--   g <- createSystemRandom
+--   sim <- buildSim
+--   xs <- replicateM nr (generateOrders sim)
+--   let len = fromIntegral $ length (concat xs)
+--   putStr "Avg order slack time: "
+--   print $ timeToDouble (sum $ map orderSlackTime (concat xs)) / len
+--   putStr "Avg order arrival date: "
+--   print $ timeToDouble (sum $ map arrivalDate (concat xs)) / len
+--   putStr "Avg number of order per period: "
+--   print $ fromIntegral (sum (map length xs)) / fromIntegral nr
+--   putStr "Avg order due date: "
+--   print $ timeToDouble (sum $ map dueDate (concat xs)) / len
+--   putStr "Avg number of order per product type"
+--   print $ map length $ groupBy ((==) `on` productType) $ sortBy (compare `on` productType) (concat xs)
+--   print $ map (productType . head) $ groupBy ((==) `on` productType) $ sortBy (compare `on` productType) (concat xs)
 
 ------------------------------------------------------------
 --------------------------- BORL ---------------------------
@@ -146,21 +134,6 @@ instance Serialize Release where
     return fun
 
 
-actionConfig :: ActionConfig
-actionConfig = ActionConfig
-  { actLowerActionBound = -1
-  , actUpperActionBound = 1
-  , actPeriodLength     = periodLength
-  , actProductTypes     = ptTypes
-  }
-
-actionFilterConfig :: ActionFilterPLTConfig
-actionFilterConfig = ActionFilterPLTConfig
-  { actFilMinimumPLT   = 1
-  , actFilMaximumPLT   = 7
-  , actFilPeriodLength = periodLength
-  }
-
 -- | BORL Parameters.
 borlParams :: Parameters
 borlParams = Parameters
@@ -175,56 +148,25 @@ borlParams = Parameters
   , _xi               = 0.2
   }
 
--- | Decay function of parameters.
-decay :: Decay
-decay t p@(Parameters alp bet del ga eps exp rand zeta xi) =
-  Parameters
-    (max 0.03 $ decay slow * alp)
-    (max 0.015 $ decay slow * bet)
-    (max 0.015 $ decay slow * del)
-    (max 0.015 $ decay slow * ga)
-    (max 0.05 $ decay slow * eps)
-    (max 0.05 $ decay slower * exp)
-    rand
-    zeta
-    (0.5 * bet)
-  where
-    slower = 0.01
-    slow = 0.005
-    decaySteps = 150000 :: Double
-    decay rate = rate ** (fromIntegral t / decaySteps)
 
+instance Show St where
+  show st = show (extractFeatures False st)
 
--- SuperSimple: AggregatedOverProductTypes - OrderPool+Shipped
-
-netInpPre :: Bool -> St -> [[Double]]
-netInpPre useReduce (St sim _ _ plts) =
-  [ map ((if useReduce then scaleValue (1, 7) else id) . timeToDouble) (M.elems plts)
-  , map reduce $ mkFromList (simOrdersOrderPool sim) -- TODO: split also by product type
-  , map reduce $ map genericLength (sortByTimeUntilDue (-actFilMaximumPLT actionFilterConfig) 0 currentTime (simOrdersShipped sim))
-  ]
-  where
-    currentTime = simCurrentTime sim
-    mkFromList xs = map genericLength (sortByTimeUntilDue (actFilMinimumPLT actionFilterConfig) (actFilMaximumPLT actionFilterConfig) currentTime xs)
-    reduce x | useReduce = scaleValue (0, 12) x
-             | otherwise = x
 
 netInp :: St -> [Double]
-netInp = concat . netInpPre True
+netInp = extractionToList . extractFeatures True
 
 netInpTbl :: St -> [Double]
-netInpTbl st =
-  case netInpPre False st of
-    [plts, opOrds, shipOrds] -> plts ++ map reduce (opOrds ++ shipOrds)
+netInpTbl st = case extractFeatures False st of
+  Extraction plts op shipped -> plts ++ map reduce (concat $ op ++ shipped)
   where
     reduce x = 7 * fromIntegral (ceiling (x / 7))
 
 
-nnConfig :: NNConfig St
+nnConfig :: NNConfig
 nnConfig =
   NNConfig
-    { _toNetInp = netInp
-    , _replayMemoryMaxSize = 40000
+    { _replayMemoryMaxSize = 30000
     , _trainBatchSize = 128
     , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
     , _prettyPrintElems = ppSts
@@ -233,9 +175,7 @@ nnConfig =
     , _trainMSEMax = Just 0.03
     }
   where
-    len =
-      length ptTypes + 1 + length [actFilMinimumPLT actionFilterConfig .. actFilMaximumPLT actionFilterConfig] + 1 +
-      length [-actFilMaximumPLT actionFilterConfig .. 0]
+    len = length productTypes + 1 + length [configActFilterMin actionFilterConfig .. configActFilterMax actionFilterConfig] + 1 + length [-configActFilterMax actionFilterConfig .. 0]
     (lows, highs) = (replicate len (-1), replicate len 1)
     vals = zipWith (\lo hi -> map rnd [lo,lo + (hi - lo) / 3 .. hi]) lows highs
     valsRev = zipWith (\lo hi -> map rnd [hi,hi - (hi - lo) / 3 .. lo]) lows highs
@@ -256,57 +196,40 @@ modelBuilder actions initState =
   trainingByAdam1DWith TF.AdamConfig {TF.adamLearningRate = 0.001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
 
 
-type PeriodMin = Integer
-type PeriodMax = Integer
-
-instance Show St where
-  show st = filter (/= '"') $ show $ map (map printFloat) $ netInpPre False st
-    where
-    printFloat :: Double -> String
-    printFloat = printf "%2.0f"
-
-
--- testSort :: IO ()
--- testSort = do
---   let xs = sortByTimeUntilDue 1 7 7 [newOrder (Product 1) 0 7,
---                                      newOrder (Product 1) 0 7
---                                     ]
---   print $ map (map orderId) xs
-
-sortByTimeUntilDue :: PeriodMin -> PeriodMax -> CurrentTime -> [Order] -> [[Order]]
-sortByTimeUntilDue min max currentTime = M.elems . foldl' sortByTimeUntilDue' startMap
-  where
-    def = fromIntegral min - periodLength
-    -- startMap = M.fromList $ (map (\pt -> (pt,[])) (def : ptTypes) )
-    lookup = [fromIntegral min * periodLength,fromIntegral min * periodLength + periodLength .. fromIntegral max * periodLength]
-    startMap = M.fromList $ zip (def : lookup) (repeat [])
-    sortByTimeUntilDue' m order =
-      case find (== (dueDate order - currentTime)) lookup of
-        Nothing -> M.insertWith (++) def [order] m
-        Just k  -> M.insertWith (++) k [order] m
-
 buildBORLTable :: IO (BORL St)
 buildBORLTable = do
   sim <- buildSim
   startOrds <- generateOrders sim
-  let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
-  let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
-  let actionFilter = mkConfig (actionFilterPLT actionList) actionFilterConfig
-  let initVals = InitValues 0 0 0 0 0
+  let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip productTypes (map Time [1,1 ..]))
+  let (actionList, actions) = mkConfig (action initSt) actionConfig
+  let actFilter = mkConfig (actionFilter actionList) actionFilterConfig
   let alg = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
-  return $ mkUnichainTabular alg initSt netInpTbl actions actionFilter borlParams decay (Just initVals)
+  return $ mkUnichainTabular alg initSt netInpTbl actions actFilter borlParams (configDecay decay) (Just initVals)
 
+initVals :: InitValues
+initVals = InitValues 0 0 0 0 0
 
 buildBORLTensorflow :: (MonadBorl' m) => m (BORL St)
 buildBORLTensorflow = do
   sim <- liftSimple buildSim
   startOrds <- liftSimple $ generateOrders sim
-  let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip (productTypes sim) (map Time [1,1..]))
-  let (actionList, actions) = mkConfig (actionsPLT initSt) actionConfig
-  let actionFilter = mkConfig (actionFilterPLT actionList) actionFilterConfig
+  let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip productTypes (map Time [1,1 ..]))
+  let (actionList, actions) = mkConfig (action initSt) actionConfig
+  let actFilter = mkConfig (actionFilter actionList) actionFilterConfig
   let alg = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
-  let initVals = InitValues 25 0 0 0 0
-  mkUnichainTensorflowM alg initSt actions actionFilter borlParams decay (modelBuilder actions initSt) nnConfig (Just initVals)
+  mkUnichainTensorflowM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
+
+copyFiles :: String -> ExperimentNumber -> RepetitionNumber -> Maybe ReplicationNumber -> IO ()
+copyFiles pre expNr repetNr mRepliNr = do
+  let dir = "results/" <> T.unpack (T.replace " " "_" experimentName) <> "/data/"
+  createDirectoryIfMissing True dir
+  mapM_ (\fn -> copyIfFileExists fn (dir <> pre <> fn <> "_exp_" <> show expNr <> "_rep_" <> show repetNr <> maybe "" (\x -> "_repl_" <> show x) mRepliNr)) ["reward", "stateValues"]
+
+copyIfFileExists :: FilePath -> FilePath -> IO ()
+copyIfFileExists fn target = do
+  exists <- doesFileExist fn
+  when exists $ copyFileWithMetadata fn target
+
 
 ------------------------------------------------------------
 ------------------ ExperimentDef instance ------------------
@@ -324,12 +247,12 @@ instance ExperimentDef (BORL St) where
     runMonadBorlTF $ do
       borl <- liftTensorflow buildBORLTensorflow
       let (St sim _ _ _) = borl ^. s
-      let (_, actions) = mkConfig (actionsPLT (borl ^. s)) actionConfig
+      let (_, actions) = mkConfig (action (borl ^. s)) actionConfig
       return $
         fromSerialisableWith
           (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
           actions
-          (borl ^. actionFilter)
+          (borl ^. B.actionFilter)
           (borl ^. decayFunction)
           netInp
           netInp
@@ -444,35 +367,9 @@ instance ExperimentDef (BORL St) where
           algBORLNoScale = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal False
 
 
-  -- ^ This function defines how to find experiments that can be resumed. Note that the experiments name is always a
-  -- comparison factor, that is, experiments with different names are unequal.
-  equalExperiments (borl1, _) (borl2, _) =
-    (-- borl1^.s.nextIncomingOrders,
-    borl1^. s.rewardFunctionOrders,
-    borl1 ^. s.plannedLeadTimes,
-    borl1 ^. t,
-    borl1 ^. episodeNrStart,
-    borl1 ^. B.parameters,
-    borl1 ^. algorithm,
-    borl1 ^. phase,
-    borl1 ^. lastVValues,
-    borl1 ^. lastRewards,
-    borl1 ^. psis) ==
-    (-- borl2^.s.nextIncomingOrders,
-    borl2^. s.rewardFunctionOrders,
-    borl2 ^. s.plannedLeadTimes,
-    borl2 ^. t,
-    borl2 ^. episodeNrStart,
-    borl2 ^. B.parameters,
-    borl2 ^. algorithm,
-    borl2 ^. phase,
-    borl2 ^. lastVValues,
-    borl2 ^. lastRewards,
-    borl2 ^. psis)
-
   -- HOOKS
   beforePreparationHook _ _ g borl = liftSimple $ do
-    let dir = "results/" <> T.unpack (T.replace " " "_" $ expSetup ^. experimentBaseName) <> "/data/"
+    let dir = "results/" <> T.unpack (T.replace " " "_" experimentName) <> "/data/"
     createDirectoryIfMissing True dir
     writeFile (dir ++ "plot.sh") gnuplot
     mapMOf (s . simulation) (setSimulationRandomGen g) borl
@@ -492,29 +389,7 @@ instance ExperimentDef (BORL St) where
   afterWarmUpHook _ expNr repetNr repliNr = liftIO $ copyFiles "warmup_" expNr repetNr (Just repliNr)
   afterEvaluationHook _ expNr repetNr repliNr = liftIO $ copyFiles "eval_" expNr repetNr (Just repliNr)
 
-copyFiles :: String -> ExperimentNumber -> RepetitionNumber -> Maybe ReplicationNumber -> IO ()
-copyFiles pre expNr repetNr mRepliNr = do
-  let dir = "results/" <> T.unpack (T.replace " " "_" $ expSetup ^. experimentBaseName) <> "/data/"
-  createDirectoryIfMissing True dir
 
-  mapM_ (\fn -> copyIfFileExists fn (dir <> pre <> fn <> "_exp_" <> show expNr <> "_rep_" <> show repetNr <> maybe "" (\x -> "_repl_" <> show x) mRepliNr)) ["reward", "stateValues"]
-
-
-copyIfFileExists :: FilePath -> FilePath -> IO ()
-copyIfFileExists fn target = do
-  exists <- doesFileExist fn
-  when exists $ copyFileWithMetadata fn target
-
-
-expSetup :: ExperimentSetup
-expSetup = ExperimentSetup
-  { _experimentBaseName         = "ANN AggregatedOverProductTypes OrderPool+Shipped w. exp procTimes, unif demand"
-  , _experimentRepetitions      =  1
-  , _preparationSteps           =  300000
-  , _evaluationWarmUpSteps      =  1000
-  , _evaluationSteps            =  5000
-  , _evaluationReplications     =  3
-  , _maximumParallelEvaluations =  1
-  }
-
+experimentName :: T.Text
+experimentName = "ANN AggregatedOverProductTypes OrderPool+Shipped w. exp procTimes, unif demand"
 

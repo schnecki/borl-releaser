@@ -94,6 +94,21 @@ executables:
     dependencies:
     - borl-releaser
 
+  # exp-prof:
+  #   main:                Main.hs
+  #   source-dirs:         exp
+  #   ghc-options:
+  #   - -threaded
+  #   - -O2
+  #   - -rtsopts
+  #   - -with-rtsopts=-N
+  #   - -auto-all
+  #   - -caf-all
+  #   - -fforce-recomp
+  #   - -prof
+  #   dependencies:
+  #     - borl-releaser
+
 
 tests:
   borl-releaser-test:

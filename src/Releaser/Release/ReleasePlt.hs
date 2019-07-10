@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Releaser.ReleasePLT
+module Releaser.Release.ReleasePlt
     ( mkReleasePLT
     , pltReleaseName
     ) where

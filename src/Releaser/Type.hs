@@ -35,6 +35,7 @@ data RewardFunction
   -- TODO: need future reward in BORL! | RewardByReleasedPeriod (M.Map Period [OrderId]) -- ^ The costs are caluclated by all orders released at each period.
   deriving (Generic, Serialize, NFData, Show, Eq, Ord)
 
+
 type PLTs = M.Map ProductType Time
 
 

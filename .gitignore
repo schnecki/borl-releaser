@@ -17,3 +17,4 @@ test/bil3/
 /test/results/TEST_ANN_Table_AggregatedOverProductTypes_-_OrderPool+Shipped/main.aux
 /test/results/
 /test/savedModel
+/stack.yaml.lock

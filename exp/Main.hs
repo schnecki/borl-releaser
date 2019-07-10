@@ -5,19 +5,57 @@
 module Main where
 
 
-import           Experimenter
-import           ML.BORL
-
+import           Control.Lens
 import           Network.HostName
 import           Releaser.Build
+import           Releaser.Type
 
-databaseSetup :: IO DatabaseSetup
-databaseSetup = do
+import           Experimenter
+import           ML.BORL                           hiding (featureExtractor)
+
+import           Releaser.SettingsAction
+import           Releaser.SettingsActionFilter
+import           Releaser.SettingsCosts
+import           Releaser.SettingsDecay
+import           Releaser.SettingsDemand
+import           Releaser.SettingsFeatureExtractor
+import           Releaser.SettingsRouting
+
+
+databaseSetting :: IO DatabaseSetting
+databaseSetting = do
   hostName <- getHostName
   return $ case hostName of
-    "schnecki-zenbook" -> DatabaseSetup "host=localhost dbname=experimenter user=schnecki password= port=5432" 10
-    _ -> DatabaseSetup "host=c437-pc141 dbname=experimenter user=experimenter password=experimenter port=5432" 10
+    "schnecki-zenbook" -> DatabaseSetting "host=localhost dbname=experimenter user=schnecki password= port=5432" 10
+    _ -> DatabaseSetting "host=c437-pc141 dbname=experimenter user=experimenter password=experimenter port=5432" 10
 
+expSetting :: BORL St -> ExperimentSetting
+expSetting borl =
+  ExperimentSetting
+    { _experimentBaseName = experimentName
+    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf] ++ concat [[replMem, batches, scaling, updateTarget] | isNNFlag]
+    , _experimentRepetitions = 1
+    , _preparationSteps = 300000
+    , _evaluationWarmUpSteps = 1000
+    , _evaluationSteps = 5000
+    , _evaluationReplications = 1
+    , _maximumParallelEvaluations = 1
+    }
+  where
+    isNNFlag = isNeuralNetwork (borl ^. proxies . v)
+    isNN = ExperimentInfoParameter "Is Neural Network" isNNFlag
+    isTf = ExperimentInfoParameter "Is Tensorflow Network" (isTensorflow (borl ^. proxies . v))
+    replMem = ExperimentInfoParameter "Replay Memory Size" (nnConfig ^. replayMemoryMaxSize)
+    batches = ExperimentInfoParameter "Training Batch Size" (nnConfig ^. trainBatchSize)
+    scaling = ExperimentInfoParameter "Scaling Setup" (nnConfig ^. scaleParameters)
+    updateTarget = ExperimentInfoParameter "Target Network Update Interval" (nnConfig ^. updateTargetInterval)
+    dec = ExperimentInfoParameter "Decay" (configDecayName decay)
+    actBounds = ExperimentInfoParameter "Action Bounds" (configActLower actionConfig, configActUpper actionConfig)
+    pltBounds = ExperimentInfoParameter "Action Filter (Min/Max PLT)" (configActFilterMin actionFilterConfig, configActFilterMax actionFilterConfig)
+    csts = ExperimentInfoParameter "Costs" costConfig
+    dem = ExperimentInfoParameter "Demand" (configDemandName demand)
+    ftExtr = ExperimentInfoParameter "Feature Extractor (State Representation)" (configFeatureExtractorName $ featureExtractor True)
+    rout = ExperimentInfoParameter "Routing (Simulation Setup)" (configRoutingName routing)
 
 main :: IO ()
 main = do
@@ -25,10 +63,10 @@ main = do
   -- run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
   run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
 
-run :: (ExperimentDef a, InputState a ~ ()) => (ExpM a (Bool, Experiments a) -> IO (Bool, Experiments a)) -> (ExpM a (Experiments a) -> IO (Experiments a)) -> ExpM a a -> IO ()
+run :: (ExperimentDef a, a ~ BORL St, InputState a ~ ()) => (ExpM a (Bool, Experiments a) -> IO (Bool, Experiments a)) -> (ExpM a (Experiments a) -> IO (Experiments a)) -> ExpM a a -> IO ()
 run runner runner2 mkInitSt = do
-  dbSetup <- databaseSetup
-  (changed, res) <- runExperimentsM runner dbSetup expSetup () mkInitSt
+  dbSetting <- databaseSetting
+  (changed, res) <- runExperimentsM runner dbSetting expSetting () mkInitSt
   liftSimple $ putStrLn $ "Any change: " ++ show changed
   let evals = [ Sum OverPeriods $ Of "EARN", Mean OverReplications (Stats $ Sum OverPeriods $ Of "EARN")
               , Sum OverPeriods $ Of "BOC" , Mean OverReplications (Stats $ Sum OverPeriods $ Of "BOC")
@@ -64,7 +102,7 @@ run runner runner2 mkInitSt = do
               , Id $ Last $ Of "PsiV", Mean OverReplications (Last $ Of "PsiV")
               , Id $ Last $ Of "PsiW", Mean OverReplications (Last $ Of "PsiW")
               ]
-  evalRes <- genEvals runner2 dbSetup res evals
+  evalRes <- genEvals runner2 dbSetting res evals
   -- print (view evalsResults evalRes)
   writeAndCompileLatex evalRes
 
