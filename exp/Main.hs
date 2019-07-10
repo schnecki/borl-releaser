@@ -57,8 +57,8 @@ expSetting borl =
 main :: IO ()
 main = do
 
-  -- run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
-  run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+  run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
+  -- run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
 
 run :: (ExperimentDef a, a ~ BORL St, InputState a ~ ()) => (ExpM a (Bool, Experiments a) -> IO (Bool, Experiments a)) -> (ExpM a (Experiments a) -> IO (Experiments a)) -> ExpM a a -> IO ()
 run runner runner2 mkInitSt = do
