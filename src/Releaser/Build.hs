@@ -138,11 +138,11 @@ instance Serialize Release where
 borlParams :: Parameters
 borlParams = Parameters
   { _alpha            = 0.5
-  , _beta             = 0.05
-  , _delta            = 0.04
-  , _gamma            = 0.30
-  , _epsilon          = 0.075
-  , _exploration      = 0.8
+  , _beta             = 0.15
+  , _delta            = 0.14
+  , _gamma            = 0.90
+  , _epsilon          = 0.5
+  , _exploration      = 1.0
   , _learnRandomAbove = 0.0
   , _zeta             = 1.0
   , _xi               = 0.2
