@@ -158,7 +158,7 @@ netInp = extractionToList . extractFeatures True
 
 netInpTbl :: St -> [Double]
 netInpTbl st = case extractFeatures False st of
-  Extraction plts op shipped -> plts ++ map reduce (concat $ op ++ shipped)
+  Extraction plts op que fgi shipped -> plts ++ map reduce (concat $ op ++ concat que ++ fgi ++ shipped)
   where
     reduce x = 7 * fromIntegral (ceiling (x / 7))
 
@@ -273,7 +273,7 @@ instance ExperimentDef (BORL St) where
   -- runStep :: (MonadBorl' m) => a -> InputValue a -> E.Period -> m ([StepResult], a)
   runStep borl incOrds _ = do
     borl' <- stepM (set (s.nextIncomingOrders) incOrds borl)
-    -- liftSimple $ putStrLn $ "Here: " <> show (borl ^. t)
+
     -- helpers
     when (borl ^. t `mod` 10000 == 0) $ liftSimple $ prettyBORLHead True borl >>= print
 
@@ -345,9 +345,10 @@ instance ExperimentDef (BORL St) where
                                                                                                       , algVPsi
                                                                                                       , algDQN
                                                                                                       ]) Nothing Nothing Nothing
-                   -- ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [-- RewardShippedSimple,
-                   --                                                                                                RewardPeriodEndSimple
-                   --                                                                                                                   ]) Nothing Nothing Nothing
+                 , ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [
+                                                                                                                  RewardPeriodEndSimple
+                                                                                                                  -- , RewardShippedSimple
+                                                                                                                                     ]) Nothing Nothing Nothing
                  , ParameterSetup "ReleaseAlgorithm" (\r -> over (s.simulation) (\sim -> sim { simRelease = r })) (simRelease . view (s.simulation))
                    (Just $ return . const [ mkReleasePLT initialPLTS
                                           , releaseImmediate

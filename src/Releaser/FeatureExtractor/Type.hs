@@ -16,20 +16,23 @@ import           Releaser.Type
 data Extraction = Extraction
   { extPlts      :: [Double]
   , extOrderPool :: [[Double]]
-  , extShipped   :: [[Double]]
+  , extQueues    :: [[[Double]]] -- ^ Queue, ProductType, Period
+  -- , extMachines  :: [Double]
+  , extFgi       :: [[Double]]  -- ^ ProductType, Period
+  , extShipped   :: [[Double]]  -- ^ ProductType, Period
   }
 
 instance Show Extraction where
-  show (Extraction plts op shipped) =
-    filter (/= '"') $ show $ map printFloat plts ++
-    map (show . map printFloat) op ++ map (show . map printFloat) shipped
+  show (Extraction plts op que fgi shipped) =
+    filter (/= '"') $
+    show $ map printFloat plts ++ map (show . map printFloat) op ++ map (show . map (map printFloat)) que ++ map (show . map printFloat) fgi ++ map (show . map printFloat) shipped
     where
       printFloat :: Double -> String
       printFloat = printf "%2.0f"
 
 
 extractionToList :: Extraction -> [Double]
-extractionToList (Extraction plts op shipped) = plts ++ concat op ++ concat shipped
+extractionToList (Extraction plts op que fgi shipped) = plts ++ concat op ++ concat (concat que) ++ concat fgi ++ concat shipped
 
 
 data ConfigFeatureExtractor = ConfigFeatureExtractor

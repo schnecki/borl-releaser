@@ -11,15 +11,9 @@ import           Releaser.Build
 import           Releaser.Type
 
 import           Experimenter
-import           ML.BORL                           hiding (featureExtractor)
+import           ML.BORL           hiding (featureExtractor)
 
-import           Releaser.SettingsAction
-import           Releaser.SettingsActionFilter
-import           Releaser.SettingsCosts
-import           Releaser.SettingsDecay
-import           Releaser.SettingsDemand
-import           Releaser.SettingsFeatureExtractor
-import           Releaser.SettingsRouting
+import           Releaser.Settings
 
 
 databaseSetting :: IO DatabaseSetting
@@ -38,7 +32,7 @@ expSetting borl =
     , _preparationSteps = 300000
     , _evaluationWarmUpSteps = 1000
     , _evaluationSteps = 5000
-    , _evaluationReplications = 1
+    , _evaluationReplications = 3
     , _maximumParallelEvaluations = 1
     }
   where
@@ -56,6 +50,7 @@ expSetting borl =
     dem = ExperimentInfoParameter "Demand" (configDemandName demand)
     ftExtr = ExperimentInfoParameter "Feature Extractor (State Representation)" (configFeatureExtractorName $ featureExtractor True)
     rout = ExperimentInfoParameter "Routing (Simulation Setup)" (configRoutingName routing)
+
 
 main :: IO ()
 main = do
