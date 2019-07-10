@@ -24,7 +24,7 @@ data Extraction = Extraction
 
 instance Show Extraction where
   show (Extraction plts op que fgi shipped) =
-    filter (/= '"') $
+    filter (\x -> x /= '"' && x /= '\\') $
     show $ map printFloat plts ++ map (show . map printFloat) op ++ map (show . map (map printFloat)) que ++ map (show . map printFloat) fgi ++ map (show . map printFloat) shipped
     where
       printFloat :: Double -> String

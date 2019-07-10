@@ -169,28 +169,15 @@ nnConfig =
     { _replayMemoryMaxSize = 30000
     , _trainBatchSize = 128
     , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
-    , _prettyPrintElems = ppSts
+    , _prettyPrintElems = []    -- is set just before printing
     , _scaleParameters = scalingByMaxAbsReward False 20
     , _updateTargetInterval = 10000
     , _trainMSEMax = Just 0.03
     }
-  where
-    len = length productTypes + 1 + length [configActFilterMin actionFilterConfig .. configActFilterMax actionFilterConfig] + 1 + length [-configActFilterMax actionFilterConfig .. 0]
-    (lows, highs) = (replicate len (-1), replicate len 1)
-    vals = zipWith (\lo hi -> map rnd [lo,lo + (hi - lo) / 3 .. hi]) lows highs
-    valsRev = zipWith (\lo hi -> map rnd [hi,hi - (hi - lo) / 3 .. lo]) lows highs
-    rnd x = fromIntegral (round (100 * x)) / 100
-    ppSts = take 300 (combinations vals) ++ take 300 (combinations valsRev)
-    combinations :: [[a]] -> [[a]]
-    combinations [] = []
-    combinations [xs] = map return xs
-    combinations (xs:xss) = concatMap (\x -> map (x :) ys) xs
-      where
-        ys = combinations xss
-
 
 modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> m TensorflowModel
 modelBuilder actions initState =
+  trace ("len : " ++ show (length (netInp initState)))
   buildModel $
   inputLayer1D (genericLength (netInp initState)) >> fullyConnected1D 89 TF.relu' >> fullyConnected1D 20 TF.relu' >> fullyConnected1D (genericLength actions) TF.tanh' >>
   trainingByAdam1DWith TF.AdamConfig {TF.adamLearningRate = 0.001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}

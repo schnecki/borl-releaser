@@ -16,4 +16,4 @@ featureExtractor = featExtractorFullWoMachines
 
 
 extractFeatures :: ReduceValues -> St -> Extraction
-extractFeatures = configFeatureExtractor . featExtractorSimple
+extractFeatures = configFeatureExtractor . featureExtractor

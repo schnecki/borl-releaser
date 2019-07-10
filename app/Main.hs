@@ -15,11 +15,11 @@ import           System.IO                   (hFlush, stdout)
 import           Text.PrettyPrint
 
 import           ML.BORL
-import           SimSim
+import           SimSim                      hiding (productTypes)
 
 import           Releaser.Build
 import           Releaser.Release.ReleasePlt
-import           Releaser.SettingsAction
+import           Releaser.Settings           hiding (actionFilter)
 import           Releaser.Type
 
 
@@ -93,7 +93,8 @@ askUser showHelp addUsage cmds ql = do
           liftSimple $ putStr "Could not read your input :( You are supposed to enter an Integer.\n"
           askUser False addUsage cmds ql
     "p" -> do
-      liftSimple $ prettyBORL ql >>= print
+      let ppElems = mkPrettyPrintElems (ql ^. s)
+      liftSimple $ prettyBORL (setPrettyPrintElems ppElems ql) >>= print
       askUser False addUsage cmds ql
     "m" -> do
       liftSimple $ putStr "Multiply by: " >> hFlush stdout
@@ -134,3 +135,27 @@ mkTime a = do
     liftSimple $ putStrLn ("Computation Time: " ++ show (diffUTCTime end start))
     return val
 
+mkPrettyPrintElems :: St -> [[Double]]
+mkPrettyPrintElems st = zipWith (++) plts (replicate (length plts) base)
+  where
+    base = drop (length productTypes) (netInp st)
+    minVal = configActFilterMin actionFilterConfig
+    maxVal = configActFilterMax actionFilterConfig
+    actList = map (scaleValue (fromIntegral minVal, fromIntegral maxVal) . fromIntegral) [minVal .. maxVal]
+    plts = [[x, y] | x <- actList, y <- actList]
+
+
+  -- where
+    -- len = length productTypes + 1 + length [configActFilterMin actionFilterConfig .. configActFilterMax actionFilterConfig] + 1 + length [-configActFilterMax actionFilterConfig .. 0]
+    -- (lows, highs) = (replicate len (-1), replicate len 1)
+    -- -- curInput = netInp $  St sim [] RewardPeriodEndSimple (M.fromList $ zip productTypes (map Time [1,1 ..]))
+    -- vals = zipWith (\lo hi -> map rnd [lo,lo + (hi - lo) / 3 .. hi]) lows highs
+    -- valsRev = zipWith (\lo hi -> map rnd [hi,hi - (hi - lo) / 3 .. lo]) lows highs
+    -- rnd x = fromIntegral (round (100 * x)) / 100
+    -- ppSts = take 300 (combinations vals) ++ take 300 (combinations valsRev)
+    -- combinations :: [[a]] -> [[a]]
+    -- combinations [] = []
+    -- combinations [xs] = map return xs
+    -- combinations (xs:xss) = concatMap (\x -> map (x :) ys) xs
+    --   where
+    --     ys = combinations xss

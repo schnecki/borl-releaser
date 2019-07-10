@@ -14,7 +14,7 @@ import qualified Data.Map                       as M
 
 
 import           ML.BORL                        hiding (FeatureExtractor)
-import           SimSim                         hiding (productTypes)
+import           SimSim                         hiding (productTypes, queues)
 
 import           Releaser.ActionFilter.Type
 import           Releaser.FeatureExtractor.Type
@@ -22,6 +22,8 @@ import           Releaser.SettingsActionFilter
 import           Releaser.SettingsPeriod
 import           Releaser.SettingsRouting
 import           Releaser.Type
+
+import           Debug.Trace
 
 type ReduceValues = Bool
 
@@ -55,14 +57,13 @@ featExtractorFullWoMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-F
       Extraction
         (map (doIf useReduce (scaleValue (1, 7)) . timeToDouble) (M.elems plts))
         (foreachPt (map reduce . mkFromList) (simOrdersOrderPool sim))
-        (map (foreachPt (map reduce . mkFromList)) (M.elems (simOrdersQueue sim)))
+        (M.elems $ fmap (\(xs) -> foreachPt (map reduce . mkFromList) xs) (simOrdersQueue sim))
         (foreachPt (map reduce . mkFromList) (simOrdersFgi sim))
         (foreachPt (map (reduce . genericLength) . sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime) (simOrdersShipped sim))
       where currentTime = simCurrentTime sim
             mkFromList xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) currentTime xs)
             reduce x | useReduce = scaleValue (0, 12) x
                      | otherwise = x
-
             foreachPt f xs = map (\pt -> f (filter ((==pt) . productType) xs)) productTypes
 
 
