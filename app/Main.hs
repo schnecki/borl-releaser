@@ -25,10 +25,10 @@ import           Releaser.Type
 
 main :: IO ()
 main =
-  -- runMonadBorlIO $ do
-  --   borl <- liftSimple buildBORLTable
-  runMonadBorlTF $ do
-    borl <- buildBORLTensorflow
+  runMonadBorlIO $ do
+    borl <- liftSimple buildBORLTable
+  -- runMonadBorlTF $ do
+  --   borl <- buildBORLTensorflow
     askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
   where cmds = []
         usage = []
@@ -115,14 +115,14 @@ askUser showHelp addUsage cmds ql = do
           unless
             (c == "q")
             (stepM ql >>= \ql' ->
-               case find isTensorflow (allProxies $ ql ^. proxies) of
-                 Nothing -> prettyBORLTables True False False ql >>= liftSimple . print >> askUser False addUsage cmds ql'
+               case find isTensorflow (allProxies $ ql' ^. proxies) of
+                 Nothing -> prettyBORLTables True False False ql' >>= liftSimple . print >> askUser False addUsage cmds ql'
                  Just _ -> do
                    b <- liftTensorflow (prettyBORLTables True False True ql')
                    liftSimple $ print b
                    askUser False addUsage cmds ql')
         Just (_, cmd) ->
-          case find isTensorflow (allProxies $ ql ^. proxies) of
+          case find isTensorflow (allProxies $ qlq ^. proxies) of
             Nothing -> liftSimple $ stepExecute (ql, False, cmd) >>= askUser False addUsage cmds
             Just _ -> liftTensorflow (stepExecute (ql, False, cmd) >>= saveTensorflowModels) >>= askUser False addUsage cmds
 

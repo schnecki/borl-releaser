@@ -1,4 +1,7 @@
-module Releaser.SettingsCosts where
+module Releaser.SettingsCosts
+  ( costConfig
+  , ConfigCosts(..)
+  ) where
 
 
 import           Releaser.Costs.Type

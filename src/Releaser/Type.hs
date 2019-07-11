@@ -29,10 +29,14 @@ type ListOfActions = [[Time]]
 
 type StRep = [Double]
 
+data RewardInFutureType = ByOrderPoolOrders -- ^ Use the order pool orders at time the time of the action.
+                        | ByReleasedOrders  -- ^ User the released orders.
+  deriving (Generic, Serialize, NFData, Show, Eq, Ord)
+
 data RewardFunction
   = RewardShippedSimple         -- ^ The costs are accumulated from the shipped orders only
   | RewardPeriodEndSimple       -- ^ The costs are accumulated at the end of the period for all orders in the system
-  -- TODO: need future reward in BORL! | RewardByReleasedPeriod (M.Map Period [OrderId]) -- ^ The costs are caluclated by all orders released at each period.
+  | RewardInFuture RewardInFutureType  -- ^ Future reward.
   deriving (Generic, Serialize, NFData, Show, Eq, Ord)
 
 

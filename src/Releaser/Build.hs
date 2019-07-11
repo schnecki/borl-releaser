@@ -52,6 +52,7 @@ import           Releaser.Costs.Type
 import           Releaser.Decay.Type
 import           Releaser.FeatureExtractor.Type
 import           Releaser.Release.ReleasePlt
+import           Releaser.Reward
 import           Releaser.Routing.Type
 import           Releaser.SettingsAction
 import           Releaser.SettingsActionFilter
@@ -187,7 +188,12 @@ buildBORLTable :: IO (BORL St)
 buildBORLTable = do
   sim <- buildSim
   startOrds <- generateOrders sim
-  let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip productTypes (map Time [1,1 ..]))
+  let initSt =
+        St
+          sim
+          startOrds
+          (RewardInFuture ByOrderPoolOrders) -- RewardPeriodEndSimple
+          (M.fromList $ zip productTypes (map Time [1,1 ..]))
   let (actionList, actions) = mkConfig (action initSt) actionConfig
   let actFilter = mkConfig (actionFilter actionList) actionFilterConfig
   let alg = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
@@ -221,6 +227,7 @@ copyIfFileExists fn target = do
 ------------------------------------------------------------
 ------------------ ExperimentDef instance ------------------
 ------------------------------------------------------------
+
 
 instance ExperimentDef (BORL St) where
 
@@ -333,7 +340,8 @@ instance ExperimentDef (BORL St) where
                                                                                                       , algDQN
                                                                                                       ]) Nothing Nothing Nothing
                  , ParameterSetup "RewardType" (set (s.rewardFunctionOrders)) (view (s.rewardFunctionOrders)) (Just $ return . const [
-                                                                                                                  RewardPeriodEndSimple
+                                                                                                                  (RewardInFuture ByOrderPoolOrders) -- RewardPeriodEndSimple
+                                                                                                                  -- RewardPeriodEndSimple
                                                                                                                   -- , RewardShippedSimple
                                                                                                                                      ]) Nothing Nothing Nothing
                  , ParameterSetup "ReleaseAlgorithm" (\r -> over (s.simulation) (\sim -> sim { simRelease = r })) (simRelease . view (s.simulation))
@@ -379,5 +387,5 @@ instance ExperimentDef (BORL St) where
 
 
 experimentName :: T.Text
-experimentName = "ANN AggregatedOverProductTypes OrderPool+Shipped w. exp procTimes, unif demand"
+experimentName = "TEST FUTURE ANN AggregatedOverProductTypes OrderPool+Shipped w. exp procTimes, unif demand"
 
