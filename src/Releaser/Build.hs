@@ -308,8 +308,9 @@ instance ExperimentDef (BORL St) where
         psiV = StepResult "PsiV" (Just $ fromIntegral borlT) (borl' ^. psis._2)
         psiW = StepResult "PsiW" (Just $ fromIntegral borlT) (borl' ^. psis._3)
         vAvg = StepResult "VAvg" (Just $ fromIntegral borlT) (avg $ borl' ^. lastRewards)
-        reward = StepResult "Reward" (Just $ fromIntegral borlT) (head $ borl' ^. lastRewards)
-        avgReward = StepResult "Reward" (Just $ fromIntegral borlT) (head $ borl' ^. lastRewards)
+
+        reward = StepResult "Reward" (Just $ fromIntegral borlT) (safeHead 0 $ borl' ^. lastRewards)
+        avgReward = StepResult "Reward" (Just $ fromIntegral borlT) (safeHead 0 $ borl' ^. lastRewards)
         avg xs = sum xs / fromIntegral (length xs)
 
 
@@ -380,3 +381,6 @@ instance ExperimentDef (BORL St) where
 experimentName :: T.Text
 experimentName = "ANN AggregatedOverProductTypes OrderPool+Shipped w. exp procTimes, unif demand"
 
+safeHead :: a -> [a] -> a
+safeHead x []    =x
+safeHead _ (x:_) = x
