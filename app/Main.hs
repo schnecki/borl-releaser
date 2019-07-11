@@ -57,11 +57,11 @@ askUser showHelp addUsage cmds ql = do
     "help" -> askUser True addUsage cmds ql
     "?" -> askUser True addUsage cmds ql
     "s" -> do
-      ser <- toSerialisableWith serializeSt ql
+      ser <- toSerialisableWith serializeSt id ql
       liftSimple $ BS.writeFile "savedModel" (S.runPut $ S.put ser)
       askUser showHelp addUsage cmds ql
     "sim" -> do
-      let sim = ql ^. s.simulation
+      let sim = ql ^. s . simulation
       liftSimple $ putStrLn $ T.unpack $ prettySimSim sim
       askUser showHelp addUsage cmds ql
     "h" -> do
@@ -72,18 +72,21 @@ askUser showHelp addUsage cmds ql = do
       case S.runGet S.get bs of
         Left err -> error err
         Right ser -> do
-         borl <- liftTensorflow buildBORLTensorflow
-         let (St sim _ _ _) = borl ^. s
-         let (_, actions) = mkConfig (action (borl ^. s)) actionConfig
-         ql' <- fromSerialisableWith
-             (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
-             actions
-             (borl ^. actionFilter)
-             (borl ^. decayFunction)
-             netInp
-             netInp
-             (modelBuilder actions (borl ^. s)) ser
-         askUser showHelp addUsage cmds ql'
+          borl <- liftTensorflow buildBORLTensorflow
+          let (St sim _ _ _) = borl ^. s
+          let (_, actions) = mkConfig (action (borl ^. s)) actionConfig
+          ql' <-
+            fromSerialisableWith
+              (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
+              id
+              actions
+              (borl ^. actionFilter)
+              (borl ^. decayFunction)
+              netInp
+              netInp
+              (modelBuilder actions (borl ^. s))
+              ser
+          askUser showHelp addUsage cmds ql'
     "r" -> do
       liftSimple $ putStr "How many learning rounds should I execute: " >> hFlush stdout
       l <- liftSimple getLine
@@ -122,7 +125,7 @@ askUser showHelp addUsage cmds ql = do
                    liftSimple $ print b
                    askUser False addUsage cmds ql')
         Just (_, cmd) ->
-          case find isTensorflow (allProxies $ qlq ^. proxies) of
+          case find isTensorflow (allProxies $ ql ^. proxies) of
             Nothing -> liftSimple $ stepExecute (ql, False, cmd) >>= askUser False addUsage cmds
             Just _ -> liftTensorflow (stepExecute (ql, False, cmd) >>= saveTensorflowModels) >>= askUser False addUsage cmds
 

@@ -55,19 +55,12 @@ mkReward (RewardInFuture futureType) sim sim' = mkFutureReward futureType sim si
 
 
 instance RewardFuture St where
-  type Storage St = (Double, [OrderId])
-  -- applyState :: Storage St -> St -> Reward St
+  type StoreType St = (Double, [OrderId])
   applyState = applyFutureReward
-  -- mapStorage :: (St -> StSerialisable) -> Storage St -> Storage StSerialisable
-  mapStorage _ (nr, ords) = RewardFuture (nr, ords)
-
--- instance RewardFutureState StSerialisable where
---   type Storage StSerialisable = (Double, [OrderId])
---   applyState = error "applyState on StSerialisable should never be called"
---   mapStorage _ (nr, ords) = (nr, ords)
 
 instance RewardFuture StSerialisable where
-  type Storage StSerialisable = (Double, [OrderId])
+  type StoreType StSerialisable = (Double, [OrderId])
+  applyState = error "applyFutureReward should not be called for StSerialisable"
 
 
 mkFutureReward :: RewardInFutureType -> SimSim -> SimSim -> Reward St
@@ -77,7 +70,7 @@ mkFutureReward ByReleasedOrders sim sim' = RewardFuture (0, opOrdsSim \\ opOrdsS
         opOrdsSim' = map orderId (simOrdersOrderPool sim')
 
 
-applyFutureReward :: Storage St -> St -> Reward St
+applyFutureReward :: StoreType St -> St -> Reward St
 applyFutureReward (acc, []) _ = fromDouble acc
 applyFutureReward (acc, orderIds) (St sim _ _ _)
   | null shippedOrders = RewardFuture (acc, orderIds)
