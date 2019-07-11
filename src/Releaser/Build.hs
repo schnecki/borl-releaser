@@ -178,8 +178,9 @@ nnConfig =
 modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> m TensorflowModel
 modelBuilder actions initState =
   buildModel $
-  inputLayer1D (genericLength (netInp initState)) >> fullyConnected1D 89 TF.relu' >> fullyConnected1D 20 TF.relu' >> fullyConnected1D (genericLength actions) TF.tanh' >>
+  inputLayer1D len >> fullyConnected1D (5*len) TF.relu' >> fullyConnected1D (2*len) TF.relu' >> fullyConnected1D (genericLength actions) TF.tanh' >>
   trainingByAdam1DWith TF.AdamConfig {TF.adamLearningRate = 0.001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
+  where len = genericLength (netInp initState)
 
 
 buildBORLTable :: IO (BORL St)
