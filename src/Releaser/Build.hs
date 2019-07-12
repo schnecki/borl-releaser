@@ -240,8 +240,8 @@ copyIfFileExists fn target = do
 
 instance ExperimentDef (BORL St) where
 
-  -- type ExpM (BORL St) = TF.SessionT IO
-  type ExpM (BORL St) = IO
+  type ExpM (BORL St) = TF.SessionT IO
+  -- type ExpM (BORL St) = IO
 
 
   type Serializable (BORL St) = BORLSerialisable StSerialisable
