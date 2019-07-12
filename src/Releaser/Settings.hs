@@ -3,6 +3,7 @@ module Releaser.Settings
     ( module S
     ) where
 
+import           Releaser.Reward                   as S
 import           Releaser.SettingsAction           as S
 import           Releaser.SettingsActionFilter     as S
 import           Releaser.SettingsCosts            as S

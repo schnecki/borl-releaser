@@ -24,6 +24,7 @@ import           Releaser.Action.Type
 import           Releaser.Costs.Type
 import           Releaser.Release.ReleasePlt
 import           Releaser.Reward
+import           Releaser.Reward.Type
 import           Releaser.SettingsCosts
 import           Releaser.SettingsDemand
 import           Releaser.SettingsPeriod
@@ -78,9 +79,10 @@ writeFiles sim sim' = do
   let period = timeToDouble (currentTime / periodLen)
   let p = show period ++ "\t"
       lb = "\n"
-  let rewardShipped = mkReward RewardShippedSimple sim sim'
-  let rewardPeriodEnd = mkReward RewardPeriodEndSimple sim sim'
-  let fileReward = "reward"
-  when (currentTime == 0) $ writeFile fileReward "Period\tRewardPeriodEnd\tRewardShipped\n"
-  appendFile fileReward (p ++ show (rewardValue rewardPeriodEnd) ++ "\t" ++ show (rewardValue rewardShipped) ++ lb)
-
+  let costsShipped = rewardValue $ mkReward (RewardShippedSimple config) sim sim'
+  let costsPeriodEnd = rewardValue $ mkReward (RewardPeriodEndSimple config) sim sim'
+  let fileCosts = "costs"
+  when (currentTime == 0) $ writeFile fileCosts "Period\tCostsPeriodEnd\tCostShipped\n"
+  appendFile fileCosts (p ++ show costsPeriodEnd ++ "\t" ++ show costsShipped ++ lb)
+  where
+    config = ConfigReward 0 1

@@ -18,3 +18,5 @@ test/bil3/
 /test/results/
 /test/savedModel
 /stack.yaml.lock
+/test/costs
+/test/results

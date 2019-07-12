@@ -18,6 +18,8 @@ import           GHC.Generics
 import           ML.BORL                    as B
 import           SimSim                     as S
 
+import           Releaser.Reward.Type
+
 import           Debug.Trace
 
 
@@ -29,16 +31,21 @@ type ListOfActions = [[Time]]
 
 type StRep = [Double]
 
-data RewardInFutureType = ByOrderPoolOrders -- ^ Use the order pool orders at time the time of the action.
-                        | ByReleasedOrders  -- ^ User the released orders.
+data RewardInFutureType
+  = ByOrderPoolOrders           -- ^ Use the order pool orders at time the time of the action.
+  | ByReleasedOrders            -- ^ User the released orders.
   deriving (Generic, Serialize, NFData, Show, Eq, Ord)
 
 data RewardFunction
-  = RewardShippedSimple         -- ^ The costs are accumulated from the shipped orders only
-  | RewardPeriodEndSimple       -- ^ The costs are accumulated at the end of the period for all orders in the system
-  | RewardInFuture RewardInFutureType  -- ^ Future reward.
+  = RewardShippedSimple ConfigReward         -- ^ The costs are accumulated from the shipped orders only
+  | RewardPeriodEndSimple ConfigReward       -- ^ The costs are accumulated at the end of the period for all orders in the system
+  | RewardInFuture ConfigReward RewardInFutureType -- ^ Future reward.
   deriving (Generic, Serialize, NFData, Show, Eq, Ord)
 
+rewardFunctionConfig :: RewardFunction -> ConfigReward
+rewardFunctionConfig (RewardShippedSimple config)   = config
+rewardFunctionConfig (RewardPeriodEndSimple config) = config
+rewardFunctionConfig (RewardInFuture config _)      = config
 
 type PLTs = M.Map ProductType Time
 
@@ -47,7 +54,7 @@ data St = St
   { _simulation           :: SimSim         -- ^ The simulation itself.
   , _nextIncomingOrders   :: [Order]        -- ^ The incoming orders for next period
   , _rewardFunctionOrders :: RewardFunction -- ^ Defines how to calculate rewards
-  , _plannedLeadTimes     :: PLTs          -- ^ Planned lead times currently set
+  , _plannedLeadTimes     :: PLTs           -- ^ Planned lead times currently set
   } deriving (Generic, NFData)
 makeLenses ''St
 

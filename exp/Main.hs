@@ -27,9 +27,9 @@ expSetting :: BORL St -> ExperimentSetting
 expSetting borl =
   ExperimentSetting
     { _experimentBaseName = experimentName
-    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf] ++ concat [[replMem, batches, scaling, updateTarget] | isNNFlag]
+    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf] ++ concat [[replMem, scaling, updateTarget] | isNNFlag]
     , _experimentRepetitions = 1
-    , _preparationSteps = 300000
+    , _preparationSteps = 1000
     , _evaluationWarmUpSteps = 1000
     , _evaluationSteps = 5000
     , _evaluationReplications = 3
@@ -40,7 +40,6 @@ expSetting borl =
     isNN = ExperimentInfoParameter "Is Neural Network" isNNFlag
     isTf = ExperimentInfoParameter "Is Tensorflow Network" (isTensorflow (borl ^. proxies . v))
     replMem = ExperimentInfoParameter "Replay Memory Size" (nnConfig ^. replayMemoryMaxSize)
-    batches = ExperimentInfoParameter "Training Batch Size" (nnConfig ^. trainBatchSize)
     scaling = ExperimentInfoParameter "Scaling Setup" (nnConfig ^. scaleParameters)
     updateTarget = ExperimentInfoParameter "Target Network Update Interval" (nnConfig ^. updateTargetInterval)
     dec = ExperimentInfoParameter "Decay" (configDecayName decay)
@@ -55,8 +54,8 @@ expSetting borl =
 main :: IO ()
 main = do
 
-  -- run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
-  run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+  run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
+  -- run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
 
 run :: (ExperimentDef a, a ~ BORL St, InputState a ~ ()) => (ExpM a (Bool, Experiments a) -> IO (Bool, Experiments a)) -> (ExpM a (Experiments a) -> IO (Experiments a)) -> ExpM a a -> IO ()
 run runner runner2 mkInitSt = do

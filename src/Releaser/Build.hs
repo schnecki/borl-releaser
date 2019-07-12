@@ -1,10 +1,11 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE InstanceSigs      #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE Strict            #-}
-{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE InstanceSigs        #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE Strict              #-}
+{-# LANGUAGE TypeFamilies        #-}
 
 
 module Releaser.Build
@@ -53,6 +54,7 @@ import           Releaser.Decay.Type
 import           Releaser.FeatureExtractor.Type
 import           Releaser.Release.ReleasePlt
 import           Releaser.Reward
+import           Releaser.Reward.Type
 import           Releaser.Routing.Type
 import           Releaser.SettingsAction
 import           Releaser.SettingsActionFilter
@@ -171,17 +173,23 @@ nnConfig =
     , _trainBatchSize = 128
     , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
     , _prettyPrintElems = []    -- is set just before printing
-    , _scaleParameters = scalingByMaxAbsReward False 20
+    , _scaleParameters = scalingByMaxAbsReward False 50
     , _updateTargetInterval = 10000
-    , _trainMSEMax = Just 0.03
+    , _trainMSEMax = Nothing -- Just 0.03
     }
 
 modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> m TensorflowModel
 modelBuilder actions initState =
   buildModel $
-  inputLayer1D len >> fullyConnected1D (5*len) TF.relu' >> fullyConnected1D (2*len) TF.relu' >> fullyConnected1D (genericLength actions) TF.tanh' >>
+  inputLayer1D len >>
+  fullyConnected1D (3 * len) TF.relu' >>
+  fullyConnected1D (2 * len) TF.relu' >>
+  fullyConnected1D (ceiling (0.7 * fromIntegral len)) TF.relu' >>
+  fullyConnected1D (ceiling (0.3 * fromIntegral len)) TF.relu' >>
+  fullyConnected1D (genericLength actions) TF.tanh' >>
   trainingByAdam1DWith TF.AdamConfig {TF.adamLearningRate = 0.001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
-  where len = genericLength (netInp initState)
+  where
+    len = genericLength (netInp initState)
 
 
 buildBORLTable :: IO (BORL St)
@@ -192,7 +200,8 @@ buildBORLTable = do
         St
           sim
           startOrds
-          (RewardInFuture ByOrderPoolOrders) -- RewardPeriodEndSimple
+           (RewardInFuture configRewardOpOrds ByOrderPoolOrders)
+          --  (RewardPeriodEndSimple configRewardOrder)
           (M.fromList $ zip productTypes (map Time [1,1 ..]))
   let (actionList, actions) = mkConfig (action initSt) actionConfig
   let actFilter = mkConfig (actionFilter actionList) actionFilterConfig
@@ -206,7 +215,7 @@ buildBORLTensorflow :: (MonadBorl' m) => m (BORL St)
 buildBORLTensorflow = do
   sim <- liftSimple buildSim
   startOrds <- liftSimple $ generateOrders sim
-  let initSt = St sim startOrds RewardPeriodEndSimple (M.fromList $ zip productTypes (map Time [1,1 ..]))
+  let initSt = St sim startOrds (RewardPeriodEndSimple configRewardOrder) (M.fromList $ zip productTypes (map Time [1,1 ..]))
   let (actionList, actions) = mkConfig (action initSt) actionConfig
   let actFilter = mkConfig (actionFilter actionList) actionFilterConfig
   let alg = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
@@ -231,8 +240,8 @@ copyIfFileExists fn target = do
 
 instance ExperimentDef (BORL St) where
 
-  type ExpM (BORL St) = TF.SessionT IO
-  -- type ExpM (BORL St) = IO
+  -- type ExpM (BORL St) = TF.SessionT IO
+  type ExpM (BORL St) = IO
 
 
   type Serializable (BORL St) = BORLSerialisable StSerialisable
@@ -325,21 +334,11 @@ instance ExperimentDef (BORL St) where
 
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
-  parameters _ =
+  parameters borl =
     [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORLNoScale, algVPsi, algDQN]) Nothing Nothing Nothing
-    , ParameterSetup
-        "RewardType"
-        (set (s . rewardFunctionOrders))
-        (view (s . rewardFunctionOrders))
-        (Just $ return .
-         const
-           [ (RewardInFuture ByOrderPoolOrders) -- RewardPeriodEndSimple
-                                                                                                                  -- RewardPeriodEndSimple
-                                                                                                                  -- , RewardShippedSimple
-           ])
-        Nothing
-        Nothing
-        Nothing
+    , ParameterSetup "RewardType" (set (s . rewardFunctionOrders)) (view (s . rewardFunctionOrders)) (Just $ return . const [ RewardInFuture configRewardOpOrds ByOrderPoolOrders
+                                                                                                                            , RewardPeriodEndSimple configRewardOrder
+                                                                                                                            ]) Nothing Nothing Nothing
     , ParameterSetup
         "ReleaseAlgorithm"
         (\r -> over (s . simulation) (\sim -> sim {simRelease = r}))
@@ -362,11 +361,16 @@ instance ExperimentDef (BORL St) where
               if uniqueReleaseName x == pltReleaseName
                 then FullFactory
                 else SingleInstance)) -- only evaluate once if ImRe or BIL
+    ] ++
+    [ParameterSetup "Training Batch Size" (setAllProxies  (proxyNNConfig.trainBatchSize)) (^?! proxies.v.proxyNNConfig.trainBatchSize) (Just $ return . const [128]) Nothing Nothing Nothing
+    | isNN
     ]
+
+
     where
       algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
       algBORLNoScale = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal False
-
+      isNN = isNeuralNetwork (borl ^. proxies . v)
 
   -- HOOKS
   beforePreparationHook _ _ g borl =
