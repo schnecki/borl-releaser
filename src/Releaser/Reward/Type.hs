@@ -19,7 +19,7 @@ data ConfigReward = ConfigReward
 
 
 configRewardOpOrds :: ConfigReward
-configRewardOpOrds = ConfigReward 250 0.5
+configRewardOpOrds = ConfigReward 250 0.20
 
 configRewardOrder :: ConfigReward
 configRewardOrder = ConfigReward 250 1

@@ -337,7 +337,7 @@ instance ExperimentDef (BORL St) where
   parameters borl =
     [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORLNoScale, algVPsi, algDQN]) Nothing Nothing Nothing
     , ParameterSetup "RewardType" (set (s . rewardFunctionOrders)) (view (s . rewardFunctionOrders)) (Just $ return . const [ RewardInFuture configRewardOpOrds ByOrderPoolOrders
-                                                                                                                            , RewardPeriodEndSimple configRewardOrder
+                                                                                                                            -- , RewardPeriodEndSimple configRewardOrder
                                                                                                                             ]) Nothing Nothing Nothing
     , ParameterSetup
         "ReleaseAlgorithm"
@@ -346,13 +346,13 @@ instance ExperimentDef (BORL St) where
         (Just $ return .
          const
            [ mkReleasePLT initialPLTS
-           , releaseImmediate
-           , releaseBIL (M.fromList [(Product 1, 6), (Product 2, 6)])
-           , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
-           , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
-           , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
-           , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
-           , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
+           -- , releaseImmediate
+           -- , releaseBIL (M.fromList [(Product 1, 6), (Product 2, 6)])
+           -- , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
+           -- , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
+           -- , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
+           -- , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
+           -- , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
            ])
         Nothing
         (Just (\x -> uniqueReleaseName x /= pltReleaseName)) -- drop preparation phase for all release algorithms but the BORL releaser
