@@ -24,6 +24,6 @@ decayExpXiIsBetaHalf = ConfigDecay "Exponential Decay with xi=0.5*beta"  decayEx
         (max 0.015 $ 0.5 * bet)
       where
         rate = 0.05             -- will be reached after `decaySteps` rounds
-        decaySteps = 750000 :: Double
+        decaySteps = 350000 :: Double
         decay rate = rate ** (fromIntegral t / decaySteps)
 
