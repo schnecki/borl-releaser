@@ -1,10 +1,11 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric  #-}
 module Releaser.Reward.Type
-    ( ConfigReward(..)
-    , configRewardOpOrds
-    , configRewardOrder
-    ) where
+  ( ConfigReward(..)
+  , configRewardOpOrds
+  , configRewardOpOrdsAggressiveScaling
+  , configRewardOrder
+  ) where
 
 
 import           Control.DeepSeq
@@ -20,6 +21,10 @@ data ConfigReward = ConfigReward
 
 configRewardOpOrds :: ConfigReward
 configRewardOpOrds = ConfigReward 250 0.5
+
+configRewardOpOrdsAggressiveScaling :: ConfigReward
+configRewardOpOrdsAggressiveScaling = ConfigReward 250 0.1
+
 
 configRewardOrder :: ConfigReward
 configRewardOrder = ConfigReward 250 1

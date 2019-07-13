@@ -6,6 +6,7 @@ module Releaser.FeatureExtractor.Ops
     , ReduceValues
     , featExtractorSimple
     , featExtractorFullWoMachines
+    , featExtractorWipAsQueueCounters
     ) where
 
 import           Data.List                      (find, foldl', genericLength)
@@ -47,6 +48,26 @@ featExtractorSimple useReduce = ConfigFeatureExtractor "PLTS-OP-Shipped aggregat
             reduce x | useReduce = scaleValue (0, 12) x
                      | otherwise = x
 
+featExtractorWipAsQueueCounters :: ReduceValues -> ConfigFeatureExtractor
+featExtractorWipAsQueueCounters useReduce = ConfigFeatureExtractor "PLTS-OP-QueueCounters-FGI-Shipped" featExt
+  where
+    doIf prep f
+      | prep = f
+      | otherwise = id
+    featExt (St sim _ _ plts) =
+      Extraction
+        (map (doIf useReduce (scaleValue (1, 7)) . timeToDouble) (M.elems plts))
+        (foreachPt (map reduce . mkFromList) (simOrdersOrderPool sim))
+        (M.elems $ fmap (\xs -> foreachPt (return . reduce . fromIntegral . length) xs) (simOrdersQueue sim))
+        (foreachPt (map reduce . mkFromList) (simOrdersFgi sim))
+        (foreachPt (map (reduce . genericLength) . sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime) (simOrdersShipped sim))
+      where currentTime = simCurrentTime sim
+            mkFromList xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) currentTime xs)
+            reduce x | useReduce = scaleValue (0, 12) x
+                     | otherwise = x
+            foreachPt f xs = map (\pt -> f (filter ((==pt) . productType) xs)) productTypes
+
+
 featExtractorFullWoMachines :: ReduceValues -> ConfigFeatureExtractor
 featExtractorFullWoMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-FGI-Shipped" featExt
   where
@@ -57,7 +78,7 @@ featExtractorFullWoMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-F
       Extraction
         (map (doIf useReduce (scaleValue (1, 7)) . timeToDouble) (M.elems plts))
         (foreachPt (map reduce . mkFromList) (simOrdersOrderPool sim))
-        (M.elems $ fmap (\(xs) -> foreachPt (map reduce . mkFromList) xs) (simOrdersQueue sim))
+        (M.elems $ fmap (\xs -> foreachPt (map reduce . mkFromList) xs) (simOrdersQueue sim))
         (foreachPt (map reduce . mkFromList) (simOrdersFgi sim))
         (foreachPt (map (reduce . genericLength) . sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime) (simOrdersShipped sim))
       where currentTime = simCurrentTime sim

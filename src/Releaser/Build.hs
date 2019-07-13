@@ -149,6 +149,7 @@ borlParams = Parameters
   , _learnRandomAbove = 0.0
   , _zeta             = 1.0
   , _xi               = 0.2
+  , _disableAllLearning = False
   }
 
 
@@ -173,7 +174,7 @@ nnConfig =
     , _trainBatchSize = 128
     , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
     , _prettyPrintElems = []    -- is set just before printing
-    , _scaleParameters = scalingByMaxAbsReward False 50
+    , _scaleParameters = scalingByMaxAbsReward False 100
     , _updateTargetInterval = 10000
     , _trainMSEMax = Nothing -- Just 0.03
     }
@@ -336,7 +337,7 @@ instance ExperimentDef (BORL St) where
   -- parameters :: a -> [ParameterSetup a]
   parameters borl =
     [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORLNoScale, algVPsi, algDQN]) Nothing Nothing Nothing
-    , ParameterSetup "RewardType" (set (s . rewardFunctionOrders)) (view (s . rewardFunctionOrders)) (Just $ return . const [ RewardInFuture configRewardOpOrds ByOrderPoolOrders
+    , ParameterSetup "RewardType" (set (s . rewardFunctionOrders)) (view (s . rewardFunctionOrders)) (Just $ return . const [ RewardInFuture configRewardOpOrdsAggressiveScaling ByOrderPoolOrders
                                                                                                                             , RewardPeriodEndSimple configRewardOrder
                                                                                                                             ]) Nothing Nothing Nothing
     , ParameterSetup
@@ -383,12 +384,14 @@ instance ExperimentDef (BORL St) where
     liftSimple $ do
       when (repliNr == 1) $ copyFiles "prep_" expNr repetNr Nothing -- afterPreparationHook seems not to be executed. Why? ***TODO***
       mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
+        set (B.parameters . disableAllLearning) True $
         set (B.parameters . gamma) 0 $
         set (B.parameters . zeta) 0 $
         set (B.parameters . xi) 0 borl
   beforeEvaluationHook _ _ _ g borl -- in case warm up phase is 0 periods
    =
     liftSimple $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
+    set (B.parameters . disableAllLearning) True $
     set (B.parameters . gamma) 0 $
     set (B.parameters . zeta) 0 $
     set (B.parameters . xi) 0 borl
@@ -398,5 +401,5 @@ instance ExperimentDef (BORL St) where
 
 
 experimentName :: T.Text
-experimentName = "TEST FUTURE ANN AggregatedOverProductTypes OrderPool+Shipped w. exp procTimes, unif demand"
+experimentName = "Setting PLT w. exp procTimes, unif demand"
 

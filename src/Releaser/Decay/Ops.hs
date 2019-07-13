@@ -11,7 +11,7 @@ import           Releaser.Decay.Type
 decayExpXiIsBetaHalf :: ConfigDecay
 decayExpXiIsBetaHalf = ConfigDecay "Exponential Decay with xi=0.5*beta"  decayExp
   where
-    decayExp t p@(Parameters alp bet del ga eps exp rand zeta xi) =
+    decayExp t p@(Parameters alp bet del ga eps exp rand zeta xi dis) =
       Parameters
         (max 0.03 $ decay rate * alp)
         (max 0.015 $ decay rate * bet)
@@ -22,6 +22,7 @@ decayExpXiIsBetaHalf = ConfigDecay "Exponential Decay with xi=0.5*beta"  decayEx
         rand
         zeta
         (max 0.015 $ 0.5 * bet)
+        dis
       where
         rate = 0.05             -- will be reached after `decaySteps` rounds
         decaySteps = 350000 :: Double

@@ -12,7 +12,7 @@ import           Releaser.FeatureExtractor.Type
 import           Releaser.Type
 
 featureExtractor :: ReduceValues -> ConfigFeatureExtractor
-featureExtractor = featExtractorFullWoMachines
+featureExtractor = featExtractorWipAsQueueCounters
 
 
 extractFeatures :: ReduceValues -> St -> Extraction
