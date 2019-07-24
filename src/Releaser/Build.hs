@@ -405,5 +405,5 @@ instance ExperimentDef (BORL St) where
 
 
 experimentName :: T.Text
-experimentName = "24.7. Setting PLT w. exp procTimes, unif demand"
+experimentName = "25.7. Setting PLT w. exp procTimes, unif demand"
 
