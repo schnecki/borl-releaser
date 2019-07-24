@@ -136,19 +136,18 @@ instance Serialize Release where
                     ~bilName = T.takeWhile (/= '[') $ uniqueReleaseName (releaseBIL mempty)
     return fun
 
-
 -- | BORL Parameters.
 borlParams :: Parameters
 borlParams = Parameters
-  { _alpha            = 0.5
-  , _beta             = 0.15
-  , _delta            = 0.14
-  , _gamma            = 0.90
-  , _epsilon          = 0.5
+  { _alpha            = 0.05
+  , _beta             = 0.01
+  , _delta            = 0.005
+  , _gamma            = 0.01
+  , _epsilon          = 1.0
   , _exploration      = 1.0
-  , _learnRandomAbove = 0.0
-  , _zeta             = 1.0
-  , _xi               = 0.2
+  , _learnRandomAbove = 0.1
+  , _zeta             = 0.0
+  , _xi               = 0.0075
   , _disableAllLearning = False
   }
 
@@ -174,9 +173,9 @@ nnConfig =
     , _trainBatchSize = 128
     , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
     , _prettyPrintElems = []    -- is set just before printing
-    , _scaleParameters = scalingByMaxAbsReward False 100
-    , _updateTargetInterval = 10000
-    , _trainMSEMax = Nothing -- Just 0.03
+    , _scaleParameters = scalingByMaxAbsReward False 50
+    , _updateTargetInterval = 5000
+    , _trainMSEMax = Just 0.03
     }
 
 modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> m TensorflowModel
@@ -206,7 +205,8 @@ buildBORLTable = do
           (M.fromList $ zip productTypes (map Time [1,1 ..]))
   let (actionList, actions) = mkConfig (action initSt) actionConfig
   let actFilter = mkConfig (actionFilter actionList) actionFilterConfig
-  let alg = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
+  let alg = AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) -- ByStateValues -- (ByMovAvg 100)
+            Normal True
   return $ mkUnichainTabular alg initSt netInpTbl actions actFilter borlParams (configDecay decay) (Just initVals)
 
 initVals :: InitValues
@@ -219,7 +219,8 @@ buildBORLTensorflow = do
   let initSt = St sim startOrds (RewardPeriodEndSimple configRewardOrder) (M.fromList $ zip productTypes (map Time [1,1 ..]))
   let (actionList, actions) = mkConfig (action initSt) actionConfig
   let actFilter = mkConfig (actionFilter actionList) actionFilterConfig
-  let alg = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
+  let alg = AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) -- ByStateValues -- (ByMovAvg 100)
+            Normal True
   mkUnichainTensorflowM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
 
 copyFiles :: String -> ExperimentNumber -> RepetitionNumber -> Maybe ReplicationNumber -> IO ()
@@ -336,9 +337,12 @@ instance ExperimentDef (BORL St) where
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
   parameters borl =
-    [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [algBORLNoScale, algVPsi, algDQN]) Nothing Nothing Nothing
-    , ParameterSetup "RewardType" (set (s . rewardFunctionOrders)) (view (s . rewardFunctionOrders)) (Just $ return . const [ RewardInFuture configRewardOpOrdsAggressiveScaling ByOrderPoolOrders
-                                                                                                                            , RewardPeriodEndSimple configRewardOrder
+    [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [-- algBORLNoScale
+                                                                                          AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) Normal False
+                                                                                         , AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) Normal True
+                                                                                         , AlgDQNAvgRew 0.99 (ByMovAvg 100)]) Nothing Nothing Nothing
+    , ParameterSetup "RewardType" (set (s . rewardFunctionOrders)) (view (s . rewardFunctionOrders)) (Just $ return . const [ RewardInFuture configRewardOpOrds ByOrderPoolOrders
+                                                                                                                            -- , RewardPeriodEndSimple configRewardOrder
                                                                                                                             ]) Nothing Nothing Nothing
     , ParameterSetup
         "ReleaseAlgorithm"
@@ -348,12 +352,12 @@ instance ExperimentDef (BORL St) where
          const
            [ mkReleasePLT initialPLTS
            , releaseImmediate
-           , releaseBIL (M.fromList [(Product 1, 6), (Product 2, 6)])
-           , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
+           -- , releaseBIL (M.fromList [(Product 1, 6), (Product 2, 6)])
+           -- , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
            , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
            , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
            , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
-           , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
+           -- , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
            ])
         Nothing
         (Just (\x -> uniqueReleaseName x /= pltReleaseName)) -- drop preparation phase for all release algorithms but the BORL releaser
@@ -363,13 +367,13 @@ instance ExperimentDef (BORL St) where
                 then FullFactory
                 else SingleInstance)) -- only evaluate once if ImRe or BIL
     ] ++
-    [ParameterSetup "Training Batch Size" (setAllProxies  (proxyNNConfig.trainBatchSize)) (^?! proxies.v.proxyNNConfig.trainBatchSize) (Just $ return . const [128]) Nothing Nothing Nothing
+    [ParameterSetup "Training Batch Size" (setAllProxies  (proxyNNConfig.trainBatchSize)) (^?! proxies.v.proxyNNConfig.trainBatchSize) (Just $ return . const [32]) Nothing Nothing Nothing
     | isNN
     ]
 
 
     where
-      algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
+      -- algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
       algBORLNoScale = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal False
       isNN = isNeuralNetwork (borl ^. proxies . v)
 

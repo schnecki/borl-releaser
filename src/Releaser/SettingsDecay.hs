@@ -11,9 +11,22 @@ import           Releaser.Decay.Ops
 import           Releaser.Decay.Type
 
 decay :: ConfigDecay
-decay = decayExpXiIsBetaHalf
+decay = decayGridworld
 
 
-exponentialDecayWithRate50And150kSteps :: ConfigDecay
-exponentialDecayWithRate50And150kSteps = ConfigDecay "Exponential Decay with rate 0.50 and 150000 steps"
-  (exponentialDecay Nothing 0.50 150000) -- TODO add minimum
+decayGridworld :: ConfigDecay
+decayGridworld = ConfigDecay "Exponential decay with rate 0.05 in 300k steps" dec
+  where dec = exponentialDecay (Just minValues) 0.05 300000
+        minValues =
+         Parameters
+           { _alpha = 0.000
+           , _beta =  0.005
+           , _delta = 0.005
+           , _gamma = 0.005
+           , _epsilon = 0.05
+           , _exploration = 0.01
+           , _learnRandomAbove = 0.1
+           , _zeta = 0.0
+           , _xi = 0.0075
+           , _disableAllLearning = False
+           }
