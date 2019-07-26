@@ -1,3 +1,5 @@
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-# LANGUAGE FlexibleContexts    #-}
@@ -6,10 +8,11 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE Strict              #-}
 {-# LANGUAGE TypeFamilies        #-}
-
+{-# LANGUAGE TypeOperators       #-}
 
 module Releaser.Build
     ( buildBORLTable
+    , buildBORLGrenade
     , buildBORLTensorflow
     , buildSim
     , nnConfig
@@ -19,21 +22,29 @@ module Releaser.Build
     , experimentName
     ) where
 
+import           Control.DeepSeq
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.IO.Class
+import           Data.Constraint                   (Dict (..), withDict)
 import           Data.Function                     (on)
 import           Data.List                         (find, foldl', genericLength, groupBy,
                                                     nub, sort, sortBy)
 import qualified Data.Map                          as M
+import           Data.Maybe                        (fromJust)
+import           Data.Proxy                        as P
 import           Data.Serialize                    as S
+import           Data.Singletons.Prelude.List      (Head)
 import qualified Data.Text                         as T
+import           GHC.TypeLits                      (KnownNat, SomeNat (..), someNatVal)
+import           GHC.TypeLits.Witnesses
 import           Statistics.Distribution
 import           Statistics.Distribution.Uniform
 import           System.Directory
 import           System.IO.Unsafe                  (unsafePerformIO)
 import           System.Random.MWC
 import           Text.Printf
+import           Unsafe.Coerce
 
 -- ANN modules
 import           Grenade
@@ -136,21 +147,6 @@ instance Serialize Release where
                     ~bilName = T.takeWhile (/= '[') $ uniqueReleaseName (releaseBIL mempty)
     return fun
 
--- | BORL Parameters.
-borlParams :: Parameters
-borlParams = Parameters
-  { _alpha            = 0.05
-  , _beta             = 0.01
-  , _delta            = 0.005
-  , _gamma            = 0.01
-  , _epsilon          = 1.0
-  , _exploration      = 1.0
-  , _learnRandomAbove = 0.1
-  , _zeta             = 0.0
-  , _xi               = 0.0075
-  , _disableAllLearning = False
-  }
-
 
 instance Show St where
   show st = show (extractFeatures False st)
@@ -166,48 +162,102 @@ netInpTbl st = case extractFeatures False st of
     reduce x = 7 * fromIntegral (ceiling (x / 7))
 
 
+-- | BORL Parameters.
+borlParams :: Parameters
+borlParams = Parameters
+  { _alpha            = 0.05
+  , _beta             = 0.01
+  , _delta            = 0.005
+  , _gamma            = 0.01
+  , _epsilon          = 1.0
+  , _exploration      = 1.0
+  , _learnRandomAbove = 0.1
+  , _zeta             = 0.0
+  , _xi               = 0.0075
+  , _disableAllLearning = False
+  }
+
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
     { _replayMemoryMaxSize = 30000
-    , _trainBatchSize = 128
+    , _trainBatchSize = 32
     , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
     , _prettyPrintElems = []    -- is set just before printing
-    , _scaleParameters = scalingByMaxAbsReward False 50
+    , _scaleParameters = scalingByMaxAbsReward False 20
     , _updateTargetInterval = 5000
-    , _trainMSEMax = Just 0.03
+    , _trainMSEMax = Just 0.01
     }
 
 modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> m TensorflowModel
 modelBuilder actions initState =
   buildModel $
-  inputLayer1D len >>
-  fullyConnected1D (3 * len) TF.relu' >>
-  fullyConnected1D (2 * len) TF.relu' >>
-  fullyConnected1D (ceiling (0.7 * fromIntegral len)) TF.relu' >>
-  fullyConnected1D (ceiling (0.3 * fromIntegral len)) TF.relu' >>
+  inputLayer1D lenIn >>
+  fullyConnected1D (3 * lenIn) TF.relu' >>
+  fullyConnected1D (2 * lenIn) TF.relu' >>
+  fullyConnected1D (1 * lenIn) TF.relu' >>
+  fullyConnected1D (max lenOut $ ceiling $ 0.7 * fromIntegral (lenIn + lenOut)) TF.relu' >>
+  fullyConnected1D (max lenOut $ ceiling $ 0.3 * fromIntegral (lenIn + lenOut)) TF.relu' >>
+  fullyConnected1D (max lenOut $ ceiling $ 0.2 * fromIntegral (lenIn + lenOut)) TF.relu' >>
   fullyConnected1D (genericLength actions) TF.tanh' >>
   trainingByAdam1DWith TF.AdamConfig {TF.adamLearningRate = 0.001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
   where
-    len = genericLength (netInp initState)
+    lenIn = genericLength (netInp initState)
+    lenOut = genericLength actions
+
+
+alg :: Algorithm
+alg = AlgBORLVOnly (ByMovAvg 5000)
+  -- AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 4000) Normal True
+
+
+mkInitSt :: SimSim -> [Order] -> (St, [Action St], St -> [Bool])
+mkInitSt sim startOrds =
+  let initSt = St sim startOrds (RewardPeriodEndSimple configRewardOrder) (M.fromList $ zip productTypes (map Time [1,1 ..]))
+      (actionList, actions) = mkConfig (action initSt) actionConfig
+      actFilter = mkConfig (actionFilter actionList) actionFilterConfig
+  in (initSt, actions, actFilter)
 
 
 buildBORLTable :: IO (BORL St)
 buildBORLTable = do
   sim <- buildSim
   startOrds <- generateOrders sim
-  let initSt =
-        St
-          sim
-          startOrds
-           (RewardInFuture configRewardOpOrds ByOrderPoolOrders)
-          --  (RewardPeriodEndSimple configRewardOrder)
-          (M.fromList $ zip productTypes (map Time [1,1 ..]))
-  let (actionList, actions) = mkConfig (action initSt) actionConfig
-  let actFilter = mkConfig (actionFilter actionList) actionFilterConfig
-  let alg = AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) -- ByStateValues -- (ByMovAvg 100)
-            Normal True
+  let (initSt, actions, actFilter) = mkInitSt sim startOrds
   return $ mkUnichainTabular alg initSt netInpTbl actions actFilter borlParams (configDecay decay) (Just initVals)
+
+-- makeNN ::
+--      forall nrH nrL layers shapes.
+--      ( KnownNat nrH
+--      , KnownNat nrL
+--      , Last shapes ~ 'D1 nrL
+--      , Head shapes ~ 'D1 nrH
+--      , NFData (Tapes layers shapes)
+--      , NFData (Network layers shapes)
+--      , Serialize (Network layers shapes)
+--      , Network layers shapes ~ NN nrH nrL
+--      )
+--   => St
+--   -> [Action St]
+--   -> IO (Network layers shapes)
+-- makeNN initSt actions =
+--   case (someNatVal (genericLength (netInp initSt)), someNatVal (genericLength actions)) of
+--     (Just (SomeNat (_ :: P.Proxy netIn)), Just (SomeNat (_ :: P.Proxy netOut))) ->
+--       withDict (unsafeCoerce (Dict :: Dict (KnownNat netIn, KnownNat netOut))) $ do
+--         randomNetworkInitWith UniformInit :: IO (NN netIn netOut)
+
+
+buildBORLGrenade :: IO (BORL St)
+buildBORLGrenade = do
+  sim <- buildSim
+  startOrds <- generateOrders sim
+  let (initSt, actions, actFilter) = mkInitSt sim startOrds
+  nn <- randomNetworkInitWith UniformInit :: IO (NN 19 9)
+  mkUnichainGrenade alg initSt netInp actions actFilter borlParams (configDecay decay) nn nnConfig (Just initVals)
+
+type NN inp out
+   = Network '[ FullyConnected inp 20, Relu, FullyConnected 20 10, Relu, FullyConnected 10 10, Relu, FullyConnected 10 out, Tanh] '[ 'D1 inp, 'D1 20, 'D1 20, 'D1 10, 'D1 10, 'D1 10, 'D1 10, 'D1 out, 'D1 out]
+
 
 initVals :: InitValues
 initVals = InitValues 0 0 0 0 0
@@ -216,11 +266,7 @@ buildBORLTensorflow :: (MonadBorl' m) => m (BORL St)
 buildBORLTensorflow = do
   sim <- liftSimple buildSim
   startOrds <- liftSimple $ generateOrders sim
-  let initSt = St sim startOrds (RewardPeriodEndSimple configRewardOrder) (M.fromList $ zip productTypes (map Time [1,1 ..]))
-  let (actionList, actions) = mkConfig (action initSt) actionConfig
-  let actFilter = mkConfig (actionFilter actionList) actionFilterConfig
-  let alg = AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) -- ByStateValues -- (ByMovAvg 100)
-            Normal True
+  let (initSt, actions, actFilter) = mkInitSt sim startOrds
   mkUnichainTensorflowM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
 
 copyFiles :: String -> ExperimentNumber -> RepetitionNumber -> Maybe ReplicationNumber -> IO ()

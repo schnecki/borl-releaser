@@ -52,6 +52,9 @@ dependencies:
   - transformers
   - directory
   - hostname
+  - typelits-witnesses
+  - constraints
+  - singletons
 
 
 library:

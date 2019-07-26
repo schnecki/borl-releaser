@@ -26,7 +26,8 @@ import           Releaser.Type
 main :: IO ()
 main =
   runMonadBorlIO $ do
-    borl <- liftSimple buildBORLTable
+    borl <- liftSimple buildBORLGrenade
+    -- borl <- liftSimple buildBORLTable
   -- runMonadBorlTF $ do
   --   borl <- buildBORLTensorflow
     askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
