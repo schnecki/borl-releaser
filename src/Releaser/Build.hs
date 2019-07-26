@@ -340,7 +340,7 @@ instance ExperimentDef (BORL St) where
     [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [-- algBORLNoScale
                                                                                           AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) Normal False
                                                                                          , AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) Normal True
-                                                                                         , AlgDQNAvgRew 0.99 (ByMovAvg 100)]) Nothing Nothing Nothing
+                                                                                         , AlgBORLVOnly (ByMovAvg 5000)]) Nothing Nothing Nothing
     , ParameterSetup "RewardType" (set (s . rewardFunctionOrders)) (view (s . rewardFunctionOrders)) (Just $ return . const [ RewardInFuture configRewardOpOrds ByOrderPoolOrders
                                                                                                                             -- , RewardPeriodEndSimple configRewardOrder
                                                                                                                             ]) Nothing Nothing Nothing
