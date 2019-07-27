@@ -64,8 +64,6 @@ import           Releaser.Costs.Type
 import           Releaser.Decay.Type
 import           Releaser.FeatureExtractor.Type
 import           Releaser.Release.ReleasePlt
-import           Releaser.Reward
-import           Releaser.Reward.Type
 import           Releaser.Routing.Type
 import           Releaser.SettingsAction
 import           Releaser.SettingsActionFilter
@@ -75,6 +73,7 @@ import           Releaser.SettingsDecay
 import           Releaser.SettingsDemand
 import           Releaser.SettingsFeatureExtractor
 import           Releaser.SettingsPeriod
+import           Releaser.SettingsReward
 import           Releaser.SettingsRouting
 import           Releaser.Type
 import           Releaser.Util
@@ -94,6 +93,7 @@ buildSim =
     (mkReleasePLT initialPLTS)
     dispatchFirstComeFirstServe
     shipOnDueDate
+
 
 initialPLTS :: M.Map ProductType Time
 initialPLTS = M.fromList $ zip productTypes [1 ..]
@@ -189,7 +189,7 @@ modelBuilder actions initState =
 
 mkInitSt :: SimSim -> [Order] -> (St, [Action St], St -> [Bool])
 mkInitSt sim startOrds =
-  let initSt = St sim startOrds (RewardPeriodEndSimple configRewardPeriodEnd) (M.fromList $ zip productTypes (map Time [1,1 ..]))
+  let initSt = St sim startOrds rewardFunction (M.fromList $ zip productTypes (map Time [1,1 ..]))
       (actionList, actions) = mkConfig (action initSt) actionConfig
       actFilter = mkConfig (actionFilter actionList) actionFilterConfig
   in (initSt, actions, actFilter)
@@ -198,7 +198,7 @@ mkInitSt sim startOrds =
 buildBORLTable :: IO (BORL St)
 buildBORLTable = do
   sim <- buildSim
-  startOrds <- generateOrders sim
+  startOrds <- liftSimple $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
   return $ mkUnichainTabular alg initSt netInpTblBinary actions actFilter borlParams (configDecay decay) (Just initVals)
 
@@ -214,14 +214,15 @@ buildBORLTable = do
 --         randomNetworkInitWith UniformInit :: IO (NN netIn netOut)
 
 type NN inp out
-   = Network '[ FullyConnected inp 20, Relu, FullyConnected 20 10, Relu, FullyConnected 10 10, Relu, FullyConnected 10 out, Tanh] '[ 'D1 inp, 'D1 20, 'D1 20, 'D1 10, 'D1 10, 'D1 10, 'D1 10, 'D1 out, 'D1 out]
+   = Network '[ FullyConnected inp 80, Relu, FullyConnected 80 60, Relu, FullyConnected 60 40, Relu, FullyConnected 40 20, Relu, FullyConnected 20 out, Tanh]
+             '[ 'D1 inp, 'D1 80, 'D1 80, 'D1 60, 'D1 60, 'D1 40, 'D1 40, 'D1 20, 'D1 20, 'D1 out, 'D1 out]
 
 buildBORLGrenade :: IO (BORL St)
 buildBORLGrenade = do
   sim <- buildSim
-  startOrds <- generateOrders sim
+  startOrds <- liftSimple $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
-  nn <- randomNetworkInitWith UniformInit :: IO (NN 19 9)
+  nn <- randomNetworkInitWith UniformInit :: IO (NN 58 9)
   mkUnichainGrenade alg initSt netInp actions actFilter borlParams (configDecay decay) nn nnConfig (Just initVals)
 
 
@@ -382,7 +383,7 @@ instance ExperimentDef (BORL St) where
     ] ++
     [ParameterSetup "Training Batch Size" (setAllProxies  (proxyNNConfig.trainBatchSize)) (^?! proxies.v.proxyNNConfig.trainBatchSize) (Just $ return . const [32]) Nothing Nothing Nothing | isNN] ++
     [ParameterSetup "Replay Memory Size" (setAllProxies  (proxyNNConfig.replayMemoryMaxSize)) (^?! proxies.v.proxyNNConfig.replayMemoryMaxSize) (Just $ return . const [30000,100000]) Nothing Nothing Nothing | isNN] ++
-    [ParameterSetup "Train MSE Max" (setAllProxies  (proxyNNConfig.trainMSEMax)) (^?! proxies.v.proxyNNConfig.trainMSEMax) (Just $ return . const [Just 0.04, Nothing]) Nothing Nothing Nothing | isNN]
+    [ParameterSetup "Train MSE Max" (setAllProxies  (proxyNNConfig.trainMSEMax)) (^?! proxies.v.proxyNNConfig.trainMSEMax) (Just $ return . const [Nothing]) Nothing Nothing Nothing | isNN]
     where
       isNN = isNeuralNetwork (borl ^. proxies . v)
 

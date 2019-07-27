@@ -11,7 +11,6 @@ import           Grenade
 import           ML.BORL   as B hiding (actionFilter, featureExtractor)
 import           SimSim
 
-
 useHeuristicToFillReplMem :: Maybe Release
 useHeuristicToFillReplMem = Just $ releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
 
@@ -42,9 +41,9 @@ nnConfig =
     , _trainBatchSize = 32
     , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
     , _prettyPrintElems = []    -- is set just before printing
-    , _scaleParameters = scalingByMaxAbsReward False 30
+    , _scaleParameters = scalingByMaxAbsReward False 40
     , _updateTargetInterval = 5000
-    , _trainMSEMax = Just 0.04
+    , _trainMSEMax = Nothing -- Just 0.04 -- this makes only sense when using the simple extractor
     }
 
 

@@ -35,10 +35,10 @@ featExtractorSimple useReduce = ConfigFeatureExtractor "PLTS-OP-Shipped aggregat
     doIf prep f
       | prep = f
       | otherwise = id
-    featExt (St sim _ _ plts) =
+    featExt (St sim incOrds _ plts) =
       Extraction
         (map (doIf useReduce (scaleValue (1, 7)) . timeToDouble) (M.elems plts))
-        [map reduce $ mkFromList (simOrdersOrderPool sim)] -- TODO: split also by product type
+        [map reduce $ mkFromList (incOrds ++ simOrdersOrderPool sim)] -- TODO: split also by product type
         []
         []
         [map reduce $ map genericLength (sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime (simOrdersShipped sim))]
@@ -54,10 +54,10 @@ featExtractorWipAsQueueCounters useReduce = ConfigFeatureExtractor "PLTS-OP-Queu
     doIf prep f
       | prep = f
       | otherwise = id
-    featExt (St sim _ _ plts) =
+    featExt (St sim incOrds _ plts) =
       Extraction
         (map (doIf useReduce (scaleValue (1, 7)) . timeToDouble) (M.elems plts))
-        (foreachPt (map reduce . mkFromList) (simOrdersOrderPool sim))
+        (foreachPt (map reduce . mkFromList) (incOrds ++ simOrdersOrderPool sim))
         (M.elems $ fmap (\xs -> foreachPt (return . reduce . fromIntegral . length) xs) (simOrdersQueue sim))
         (foreachPt (map reduce . mkFromList) (simOrdersFgi sim))
         (foreachPt (map (reduce . genericLength) . sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime) (simOrdersShipped sim))
@@ -74,10 +74,10 @@ featExtractorFullWoMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-F
     doIf prep f
       | prep = f
       | otherwise = id
-    featExt (St sim _ _ plts) =
+    featExt (St sim incOrds _ plts) =
       Extraction
         (map (doIf useReduce (scaleValue (1, 7)) . timeToDouble) (M.elems plts))
-        (foreachPt (map reduce . mkFromList) (simOrdersOrderPool sim))
+        (foreachPt (map reduce . mkFromList) (incOrds ++ simOrdersOrderPool sim))
         (M.elems $ fmap (\xs -> foreachPt (map reduce . mkFromList) xs) (simOrdersQueue sim))
         (foreachPt (map reduce . mkFromList) (simOrdersFgi sim))
         (foreachPt (map (reduce . genericLength) . sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime) (simOrdersShipped sim))

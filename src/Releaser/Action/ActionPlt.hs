@@ -23,11 +23,10 @@ import           SimSim                            hiding (productTypes)
 
 import           Releaser.Action.Type
 import           Releaser.Release.ReleasePlt
-import           Releaser.Reward
-import           Releaser.Reward.Type
 import           Releaser.SettingsConfigParameters
 import           Releaser.SettingsDemand
 import           Releaser.SettingsPeriod
+import           Releaser.SettingsReward
 import           Releaser.SettingsRouting
 import           Releaser.Type
 
@@ -60,18 +59,16 @@ mkAction act = do
 action :: [Time] -> Reader ActionConfig (St -> IO (Reward St, St, EpisodeEnd))
 action pltChange =
   return $ \(St sim incomingOrders rewardFun plts) -> do
-    -- let periodLen = simPeriodLength sim
-    -- let currentTime = simCurrentTime sim
     let pltsChangeMap = M.fromList $ zip productTypes pltChange
         pltsNew = M.unionWith (+) plts pltsChangeMap
     let simReleaseSet
-          --  | isJust useHeuristicToFillReplMem && fromIntegral (currentTime `div` periodLen) < (nnConfig ^. replayMemoryMaxSize) = sim { simRelease = fromJust useHeuristicToFillReplMem }
           | uniqueReleaseName (simRelease sim) == pltReleaseName = sim {simRelease = mkReleasePLT pltsNew}
           | otherwise = sim
-    sim' <- simulateUntil (simCurrentTime sim + periodLength) simReleaseSet incomingOrders
-    let reward = mkReward rewardFun sim sim'
+    simWOrders <- addAdditionalOrdersToOrderPool simReleaseSet incomingOrders
+    sim' <- simulateUntil (simCurrentTime simWOrders + periodLength) simWOrders [] -- are set above
+    let reward = mkReward rewardFun simWOrders sim'
     newIncomingOrders <- generateOrders sim'
-    writeFiles sim sim'
+    writeFiles simWOrders sim'
     return (reward, St sim' newIncomingOrders rewardFun pltsNew, False)
 
 

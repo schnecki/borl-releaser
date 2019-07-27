@@ -16,9 +16,13 @@ module Releaser.Reward.Ops
   , configRewardPeriodEnd
   ) where
 
-import           Data.List              ((\\))
+import           Control.DeepSeq
+import           Data.Function          (on)
+import           Data.List              (groupBy, sortBy, (\\))
 import qualified Data.Map.Strict        as M
 import           Data.Maybe             (fromMaybe)
+import           Data.Serialize
+import           GHC.Generics
 
 import           ML.BORL
 import           SimSim
@@ -33,7 +37,7 @@ configRewardPosNeg1 :: ConfigReward
 configRewardPosNeg1 = ConfigReward 1 (1/277.8) (Just $ -1)
 
 configRewardFutureOpOrds :: ConfigReward
-configRewardFutureOpOrds = ConfigReward 50 (1/36*0.25) (Just $ -50)
+configRewardFutureOpOrds = ConfigReward 50 1 (Just $ -50)
 
 configRewardPeriodEnd :: ConfigReward
 configRewardPeriodEnd = ConfigReward 50 0.25 (Just $ -50)
@@ -66,32 +70,48 @@ mkReward (RewardPeriodEndSimple config) _ sim = fromDouble config $ nrWipOrders 
     nrBoOrders = fromIntegral $ length boOrders
 mkReward (RewardInFuture config futureType) sim sim' = mkFutureReward config futureType sim sim'
 
+data Future = Future
+  { nrOfOrders  :: Int
+  , accumulator :: Double
+  , orderIds    :: [OrderId]
+  } deriving (Generic, Serialize, NFData)
 
 instance RewardFuture St where
-  type StoreType St = (ConfigReward, Double, [OrderId])
+  type StoreType St = (ConfigReward, [Future])
   applyState = applyFutureReward
 
 instance RewardFuture StSerialisable where
-  type StoreType StSerialisable = (ConfigReward, Double, [OrderId])
+  type StoreType StSerialisable = (ConfigReward, [Future])
   applyState = error "applyFutureReward should not be called for StSerialisable"
 
 
 mkFutureReward :: ConfigReward -> RewardInFutureType -> SimSim -> SimSim -> Reward St
-mkFutureReward config ByOrderPoolOrders sim _ = RewardFuture (config, 0, map orderId $ simOrdersOrderPool sim)
-mkFutureReward config ByReleasedOrders sim sim' = RewardFuture (config, 0, opOrdsSim \\ opOrdsSim')
-  where opOrdsSim = map orderId (simOrdersOrderPool sim)
-        opOrdsSim' = map orderId (simOrdersOrderPool sim')
+mkFutureReward config ByOrderPoolOrders sim _ = RewardFuture (config, map (\os -> Future (length os) 0 (map orderId os)) orders)
+  where
+    orders = groupBy ((==) `on` dueDate) $ sortBy (compare `on` dueDate) $ simOrdersOrderPool sim
+mkFutureReward config ByReleasedOrders sim sim' = RewardFuture (config, [Future (length orders) 0 orders | not (null orders)])
+  where
+    opOrdsSim = map orderId (simOrdersOrderPool sim)
+    opOrdsSim' = map orderId (simOrdersOrderPool sim')
+    orders = opOrdsSim \\ opOrdsSim'
 
 
 applyFutureReward :: StoreType St -> St -> Reward St
-applyFutureReward (config, acc, []) _ = fromDouble config acc
-applyFutureReward (config, acc, orderIds) (St sim _ _ _)
-  | null shippedOrders = RewardFuture (config, acc, orderIds)
-  | length orderIds == length shippedOrders = fromDouble config acc'
-  | otherwise = RewardFuture (config, acc', orderIds \\ map orderId shippedOrders)
+applyFutureReward (_, []) _ = RewardEmpty
+applyFutureReward (config, futures) (St sim _ _ _)
+  | all ((== 0) . nrOfOrders) futures = RewardEmpty
+  | all (null . orderIds) futures = finalize futures
+  | all null shippedOrders = RewardFuture (config, futures)
+  | all (null . orderIds) futures' = finalize futures
+  | otherwise = RewardFuture (config, futures')
   where
-    shippedOrders = filter ((`elem` orderIds) . orderId) (simOrdersShipped sim)
-    acc' = acc + sum (map (calcRewardShipped sim) shippedOrders)
+    finalize futures = avgRew $ map (\(Future _ acc _) -> fromDouble config acc) (filter ((> 0) . nrOfOrders) futures)
+    avgRew xs = Reward $ sum (map rewardValue xs) / fromIntegral (max 1 (length xs))
+    shippedOrders = map (\(Future _ _ orderIds) -> filter ((`elem` orderIds) . orderId) (simOrdersShipped sim)) futures
+    futures' = zipWith updateFuture futures shippedOrders
+    updateFuture (Future count acc openOrders) shippedOrds =
+      let acc' = acc + sum (map (calcRewardShipped sim) shippedOrds)
+      in Future count acc' (openOrders \\ map orderId shippedOrds)
 
 
 calcRewardShipped :: SimSim -> Order -> Double
