@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-# LANGUAGE DeriveAnyClass    #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -10,13 +11,14 @@ module Releaser.Reward.Ops
   ( mkReward
   , SimT
   , SimTPlus1
+  , configRewardFutureOpOrds
+  , configRewardPosNeg1
+  , configRewardPeriodEnd
   ) where
 
 import           Data.List              ((\\))
 import qualified Data.Map.Strict        as M
 import           Data.Maybe             (fromMaybe)
-import           Data.Serialize
-import           GHC.Generics
 
 import           ML.BORL
 import           SimSim
@@ -24,6 +26,17 @@ import           SimSim
 import           Releaser.Reward.Type
 import           Releaser.SettingsCosts
 import           Releaser.Type
+
+
+-- Note: the average reward is then also only in (-1,1)
+configRewardPosNeg1 :: ConfigReward
+configRewardPosNeg1 = ConfigReward 1 (1/277.8) (Just $ -1)
+
+configRewardFutureOpOrds :: ConfigReward
+configRewardFutureOpOrds = ConfigReward 50 (1/36*0.25) (Just $ -50)
+
+configRewardPeriodEnd :: ConfigReward
+configRewardPeriodEnd = ConfigReward 50 0.25 (Just $ -50)
 
 
 type SimT = SimSim

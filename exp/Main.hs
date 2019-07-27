@@ -27,7 +27,7 @@ expSetting :: BORL St -> ExperimentSetting
 expSetting borl =
   ExperimentSetting
     { _experimentBaseName = experimentName
-    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf] ++ concat [[replMem, scaling, updateTarget] | isNNFlag]
+    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf] ++ concat [[scaling, updateTarget] | isNNFlag]
     , _experimentRepetitions = 1
     , _preparationSteps = 300000
     , _evaluationWarmUpSteps = 1000
@@ -39,7 +39,6 @@ expSetting borl =
     isNNFlag = isNeuralNetwork (borl ^. proxies . v)
     isNN = ExperimentInfoParameter "Is Neural Network" isNNFlag
     isTf = ExperimentInfoParameter "Is Tensorflow Network" (isTensorflow (borl ^. proxies . v))
-    replMem = ExperimentInfoParameter "Replay Memory Size" (nnConfig ^. replayMemoryMaxSize)
     scaling = ExperimentInfoParameter "Scaling Setup" (nnConfig ^. scaleParameters)
     updateTarget = ExperimentInfoParameter "Target Network Update Interval" (nnConfig ^. updateTargetInterval)
     dec = ExperimentInfoParameter "Decay" (configDecayName decay)

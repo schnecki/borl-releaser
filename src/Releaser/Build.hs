@@ -347,11 +347,15 @@ instance ExperimentDef (BORL St) where
   -- parameters :: a -> [ParameterSetup a]
   parameters borl =
     [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [-- algBORLNoScale
-                                                                                          AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) Normal False
-                                                                                         , AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) Normal True
-                                                                                         , AlgBORLVOnly (ByMovAvg 5000)]) Nothing Nothing Nothing
+                                                                                         --  AlgBORL defaultGamma0 defaultGamma1 (MovAFixed 120) Normal False
+                                                                                         -- , AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) Normal True
+                                                                        -- AlgBORLVOnly (ByMovAvg 100)
+                                                                         AlgBORLVOnly (ByMovAvg 1000)
+                                                                      -- , AlgBORLVOnly (ByMovAvg 5000)
+
+                                                                      ]) Nothing Nothing Nothing
     , ParameterSetup "RewardType" (set (s . rewardFunctionOrders)) (view (s . rewardFunctionOrders)) (Just $ return . const [ RewardInFuture configRewardFutureOpOrds ByOrderPoolOrders
-                                                                                                                            -- , RewardPeriodEndSimple configRewardOrder
+                                                                                                                            , RewardPeriodEndSimple configRewardPeriodEnd
                                                                                                                             ]) Nothing Nothing Nothing
     , ParameterSetup
         "ReleaseAlgorithm"
@@ -376,11 +380,9 @@ instance ExperimentDef (BORL St) where
                 then FullFactory
                 else SingleInstance)) -- only evaluate once if ImRe or BIL
     ] ++
-    [ParameterSetup "Training Batch Size" (setAllProxies  (proxyNNConfig.trainBatchSize)) (^?! proxies.v.proxyNNConfig.trainBatchSize) (Just $ return . const [32]) Nothing Nothing Nothing
-    | isNN
-    ]
-
-
+    [ParameterSetup "Training Batch Size" (setAllProxies  (proxyNNConfig.trainBatchSize)) (^?! proxies.v.proxyNNConfig.trainBatchSize) (Just $ return . const [32]) Nothing Nothing Nothing | isNN] ++
+    [ParameterSetup "Replay Memory Size" (setAllProxies  (proxyNNConfig.replayMemoryMaxSize)) (^?! proxies.v.proxyNNConfig.replayMemoryMaxSize) (Just $ return . const [30000,100000]) Nothing Nothing Nothing | isNN] ++
+    [ParameterSetup "Train MSE Max" (setAllProxies  (proxyNNConfig.trainMSEMax)) (^?! proxies.v.proxyNNConfig.trainMSEMax) (Just $ return . const [Just 0.04, Nothing]) Nothing Nothing Nothing | isNN]
     where
       isNN = isNeuralNetwork (borl ^. proxies . v)
 
@@ -400,8 +402,7 @@ instance ExperimentDef (BORL St) where
         set (B.parameters . zeta) 0 $
         set (B.parameters . xi) 0 borl
   beforeEvaluationHook _ _ _ g borl -- in case warm up phase is 0 periods
-   =
-    liftSimple $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
+   = liftSimple $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
     set (B.parameters . disableAllLearning) True $
     set (B.parameters . gamma) 0 $
     set (B.parameters . zeta) 0 $
