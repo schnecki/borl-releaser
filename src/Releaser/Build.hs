@@ -69,6 +69,7 @@ import           Releaser.Reward.Type
 import           Releaser.Routing.Type
 import           Releaser.SettingsAction
 import           Releaser.SettingsActionFilter
+import           Releaser.SettingsConfigParameters
 import           Releaser.SettingsCosts
 import           Releaser.SettingsDecay
 import           Releaser.SettingsDemand
@@ -161,33 +162,13 @@ netInpTbl st = case extractFeatures False st of
   where
     reduce x = 7 * fromIntegral (ceiling (x / 7))
 
+netInpTblBinary :: St -> [Double]
+netInpTblBinary st = case extractFeatures False st of
+  Extraction plts op que fgi shipped -> plts ++ map reduce (concat $ op ++ concat que ++ fgi ++ shipped)
+  where
+    reduce x | x == 0 = x
+             | otherwise = 1
 
--- | BORL Parameters.
-borlParams :: Parameters
-borlParams = Parameters
-  { _alpha            = 0.05
-  , _beta             = 0.01
-  , _delta            = 0.005
-  , _gamma            = 0.01
-  , _epsilon          = 1.0
-  , _exploration      = 1.0
-  , _learnRandomAbove = 0.1
-  , _zeta             = 0.0
-  , _xi               = 0.0075
-  , _disableAllLearning = False
-  }
-
-nnConfig :: NNConfig
-nnConfig =
-  NNConfig
-    { _replayMemoryMaxSize = 30000
-    , _trainBatchSize = 32
-    , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
-    , _prettyPrintElems = []    -- is set just before printing
-    , _scaleParameters = scalingByMaxAbsReward False 20
-    , _updateTargetInterval = 5000
-    , _trainMSEMax = Just 0.01
-    }
 
 modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> m TensorflowModel
 modelBuilder actions initState =
@@ -206,14 +187,9 @@ modelBuilder actions initState =
     lenOut = genericLength actions
 
 
-alg :: Algorithm
-alg = AlgBORLVOnly (ByMovAvg 5000)
-  -- AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 4000) Normal True
-
-
 mkInitSt :: SimSim -> [Order] -> (St, [Action St], St -> [Bool])
 mkInitSt sim startOrds =
-  let initSt = St sim startOrds (RewardPeriodEndSimple configRewardOrder) (M.fromList $ zip productTypes (map Time [1,1 ..]))
+  let initSt = St sim startOrds (RewardPeriodEndSimple configRewardPeriodEnd) (M.fromList $ zip productTypes (map Time [1,1 ..]))
       (actionList, actions) = mkConfig (action initSt) actionConfig
       actFilter = mkConfig (actionFilter actionList) actionFilterConfig
   in (initSt, actions, actFilter)
@@ -224,19 +200,10 @@ buildBORLTable = do
   sim <- buildSim
   startOrds <- generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
-  return $ mkUnichainTabular alg initSt netInpTbl actions actFilter borlParams (configDecay decay) (Just initVals)
+  return $ mkUnichainTabular alg initSt netInpTblBinary actions actFilter borlParams (configDecay decay) (Just initVals)
 
 -- makeNN ::
---      forall nrH nrL layers shapes.
---      ( KnownNat nrH
---      , KnownNat nrL
---      , Last shapes ~ 'D1 nrL
---      , Head shapes ~ 'D1 nrH
---      , NFData (Tapes layers shapes)
---      , NFData (Network layers shapes)
---      , Serialize (Network layers shapes)
---      , Network layers shapes ~ NN nrH nrL
---      )
+--      forall nrH nrL layers shapes. ( KnownNat nrH , KnownNat nrL , Last shapes ~ 'D1 nrL , Head shapes ~ 'D1 nrH , NFData (Tapes layers shapes) , NFData (Network layers shapes) , Serialize (Network layers shapes) , Network layers shapes ~ NN nrH nrL)
 --   => St
 --   -> [Action St]
 --   -> IO (Network layers shapes)
@@ -246,6 +213,8 @@ buildBORLTable = do
 --       withDict (unsafeCoerce (Dict :: Dict (KnownNat netIn, KnownNat netOut))) $ do
 --         randomNetworkInitWith UniformInit :: IO (NN netIn netOut)
 
+type NN inp out
+   = Network '[ FullyConnected inp 20, Relu, FullyConnected 20 10, Relu, FullyConnected 10 10, Relu, FullyConnected 10 out, Tanh] '[ 'D1 inp, 'D1 20, 'D1 20, 'D1 10, 'D1 10, 'D1 10, 'D1 10, 'D1 out, 'D1 out]
 
 buildBORLGrenade :: IO (BORL St)
 buildBORLGrenade = do
@@ -255,12 +224,6 @@ buildBORLGrenade = do
   nn <- randomNetworkInitWith UniformInit :: IO (NN 19 9)
   mkUnichainGrenade alg initSt netInp actions actFilter borlParams (configDecay decay) nn nnConfig (Just initVals)
 
-type NN inp out
-   = Network '[ FullyConnected inp 20, Relu, FullyConnected 20 10, Relu, FullyConnected 10 10, Relu, FullyConnected 10 out, Tanh] '[ 'D1 inp, 'D1 20, 'D1 20, 'D1 10, 'D1 10, 'D1 10, 'D1 10, 'D1 out, 'D1 out]
-
-
-initVals :: InitValues
-initVals = InitValues 0 0 0 0 0
 
 buildBORLTensorflow :: (MonadBorl' m) => m (BORL St)
 buildBORLTensorflow = do
@@ -387,7 +350,7 @@ instance ExperimentDef (BORL St) where
                                                                                           AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) Normal False
                                                                                          , AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) Normal True
                                                                                          , AlgBORLVOnly (ByMovAvg 5000)]) Nothing Nothing Nothing
-    , ParameterSetup "RewardType" (set (s . rewardFunctionOrders)) (view (s . rewardFunctionOrders)) (Just $ return . const [ RewardInFuture configRewardOpOrds ByOrderPoolOrders
+    , ParameterSetup "RewardType" (set (s . rewardFunctionOrders)) (view (s . rewardFunctionOrders)) (Just $ return . const [ RewardInFuture configRewardFutureOpOrds ByOrderPoolOrders
                                                                                                                             -- , RewardPeriodEndSimple configRewardOrder
                                                                                                                             ]) Nothing Nothing Nothing
     , ParameterSetup
@@ -419,8 +382,6 @@ instance ExperimentDef (BORL St) where
 
 
     where
-      -- algVPsi = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal True
-      algBORLNoScale = AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 100) Normal False
       isNN = isNeuralNetwork (borl ^. proxies . v)
 
   -- HOOKS
@@ -449,7 +410,4 @@ instance ExperimentDef (BORL St) where
   afterWarmUpHook _ expNr repetNr repliNr = liftIO $ copyFiles "warmup_" expNr repetNr (Just repliNr)
   afterEvaluationHook _ expNr repetNr repliNr = liftIO $ copyFiles "eval_" expNr repetNr (Just repliNr)
 
-
-experimentName :: T.Text
-experimentName = "25.7. Setting PLT w. exp procTimes, unif demand"
 

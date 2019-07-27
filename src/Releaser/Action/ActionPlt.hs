@@ -7,25 +7,25 @@ module Releaser.Action.ActionPlt
     , ActionConfig (..)
     ) where
 
-import           ClassyPrelude               (when)
+import           ClassyPrelude                     (when)
 import           Control.DeepSeq
+import           Control.Lens
 import           Control.Monad.Trans.Reader
-import           Data.Foldable               (toList)
-import           Data.List                   (nub)
-import qualified Data.Map.Strict             as M
-import           Data.Maybe                  (fromMaybe)
-import qualified Data.Text                   as T
+import           Data.Foldable                     (toList)
+import           Data.List                         (nub)
+import qualified Data.Map.Strict                   as M
+import           Data.Maybe                        (fromJust, isJust)
+import qualified Data.Text                         as T
 import           Text.Printf
 
 import           ML.BORL
-import           SimSim                      hiding (productTypes)
+import           SimSim                            hiding (productTypes)
 
 import           Releaser.Action.Type
-import           Releaser.Costs.Type
 import           Releaser.Release.ReleasePlt
 import           Releaser.Reward
 import           Releaser.Reward.Type
-import           Releaser.SettingsCosts
+import           Releaser.SettingsConfigParameters
 import           Releaser.SettingsDemand
 import           Releaser.SettingsPeriod
 import           Releaser.SettingsRouting
@@ -60,9 +60,12 @@ mkAction act = do
 action :: [Time] -> Reader ActionConfig (St -> IO (Reward St, St, EpisodeEnd))
 action pltChange =
   return $ \(St sim incomingOrders rewardFun plts) -> do
+    -- let periodLen = simPeriodLength sim
+    -- let currentTime = simCurrentTime sim
     let pltsChangeMap = M.fromList $ zip productTypes pltChange
         pltsNew = M.unionWith (+) plts pltsChangeMap
     let simReleaseSet
+          --  | isJust useHeuristicToFillReplMem && fromIntegral (currentTime `div` periodLen) < (nnConfig ^. replayMemoryMaxSize) = sim { simRelease = fromJust useHeuristicToFillReplMem }
           | uniqueReleaseName (simRelease sim) == pltReleaseName = sim {simRelease = mkReleasePLT pltsNew}
           | otherwise = sim
     sim' <- simulateUntil (simCurrentTime sim + periodLength) simReleaseSet incomingOrders
@@ -85,4 +88,4 @@ writeFiles sim sim' = do
   when (currentTime == 0) $ writeFile fileCosts "Period\tCostsPeriodEnd\tCostShipped\n"
   appendFile fileCosts (p ++ show costsPeriodEnd ++ "\t" ++ show costsShipped ++ lb)
   where
-    config = ConfigReward 0 1
+    config = ConfigReward 0 1 Nothing

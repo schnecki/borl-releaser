@@ -29,12 +29,15 @@ import           Releaser.Type
 type SimT = SimSim
 type SimTPlus1 = SimSim
 
-
+-- | This scales the reward and ensures the result to be in the range [-baseline, baseline].
 fromDouble :: ConfigReward -> Double -> Reward St
-fromDouble config r = Reward (base - scale * r)
+fromDouble config r = Reward $ maxFun (base - scale * r)
   where
     base = configRewardBaseline config
     scale = configRewardScale config
+    maxFun = case configRewardMinimum config of
+      Nothing     -> id
+      Just minVal -> max minVal
 
 
 mkReward :: RewardFunction -> SimT -> SimTPlus1 -> Reward St
