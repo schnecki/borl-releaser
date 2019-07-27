@@ -329,9 +329,11 @@ instance ExperimentDef (BORL St) where
         psiV = StepResult "PsiV" (Just $ fromIntegral borlT) (borl' ^. psis . _2)
         psiW = StepResult "PsiW" (Just $ fromIntegral borlT) (borl' ^. psis . _3)
         vAvg = StepResult "VAvg" (Just $ fromIntegral borlT) (avg $ borl' ^. lastRewards)
-        reward = StepResult "Reward" (Just $ fromIntegral borlT) (head $ borl' ^. lastRewards)
-        avgReward = StepResult "Reward" (Just $ fromIntegral borlT) (head $ borl' ^. lastRewards)
+        reward = StepResult "Reward" (Just $ fromIntegral borlT) (headWithDefault 0 $ borl' ^. lastRewards)
+        avgReward = StepResult "Reward" (Just $ fromIntegral borlT) (headWithDefault 0 $ borl' ^. lastRewards)
         avg xs = sum xs / fromIntegral (length xs)
+        headWithDefault d []    = d
+        headWithDefault _ (x:_) = x
     return -- cost related measures
       ( [ cSum , cEarn , cBoc , cWip , cFgi
              -- floor
