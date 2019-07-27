@@ -40,11 +40,11 @@ nnConfig =
   NNConfig
     { _replayMemoryMaxSize = 30000
     , _trainBatchSize = 32
-    , _grenadeLearningParams = LearningParameters 0.005 0.9 0.0001
+    , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
     , _prettyPrintElems = []    -- is set just before printing
-    , _scaleParameters = scalingByMaxAbsReward False 20
+    , _scaleParameters = scalingByMaxAbsReward False 30
     , _updateTargetInterval = 5000
-    , _trainMSEMax = Just 0.02
+    , _trainMSEMax = Just 0.04
     }
 
 

@@ -27,4 +27,4 @@ configRewardFutureOpOrds :: ConfigReward
 configRewardFutureOpOrds = ConfigReward 250 0.3 (Just $ -250)
 
 configRewardPeriodEnd :: ConfigReward
-configRewardPeriodEnd = ConfigReward 200 1.0 (Just $ -200)
+configRewardPeriodEnd = ConfigReward 50 0.25 (Just $ -50)
