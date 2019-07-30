@@ -37,7 +37,7 @@ configRewardPosNeg1 :: ConfigReward
 configRewardPosNeg1 = ConfigReward 1 (1/277.8) (Just $ -1)
 
 configRewardFutureOpOrds :: ConfigReward
-configRewardFutureOpOrds = ConfigReward 50 1 (Just $ -50)
+configRewardFutureOpOrds = ConfigReward 50 0.5 (Just $ -50)
 
 configRewardPeriodEnd :: ConfigReward
 configRewardPeriodEnd = ConfigReward 50 0.25 (Just $ -50)

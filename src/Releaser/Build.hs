@@ -158,13 +158,13 @@ netInp = extractionToList . extractFeatures True
 
 netInpTbl :: St -> [Double]
 netInpTbl st = case extractFeatures False st of
-  Extraction plts op que fgi shipped -> plts ++ map reduce (concat $ op ++ concat que ++ fgi ++ shipped)
+  Extraction plts op que fgi shipped -> plts ++ map reduce (concat $ op ++ map (map (fromIntegral . ceiling . (/9))) (concat que) ++ fgi ++ shipped)
   where
     reduce x = 7 * fromIntegral (ceiling (x / 7))
 
 netInpTblBinary :: St -> [Double]
 netInpTblBinary st = case extractFeatures False st of
-  Extraction plts op que fgi shipped -> plts ++ map reduce (concat $ op ++ concat que ++ fgi ++ shipped)
+  Extraction plts op que fgi shipped -> plts ++ map reduce (concat op) ++ map (fromIntegral . ceiling . (/9)) (concat (concat que)) ++ map reduce (concat $ fgi ++ shipped)
   where
     reduce x | x == 0 = x
              | otherwise = 1
@@ -349,12 +349,13 @@ instance ExperimentDef (BORL St) where
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
   parameters borl =
-    [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [-- algBORLNoScale
-                                                                                         --  AlgBORL defaultGamma0 defaultGamma1 (MovAFixed 120) Normal False
+    [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [ AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 1000) Normal False
+                                                                                         , AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 1000) Normal True
+                                                                                         , AlgBORL defaultGamma0 defaultGamma1 ByStateValues Normal False
                                                                                          -- , AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) Normal True
-                                                                        -- AlgBORLVOnly (ByMovAvg 100)
-                                                                         AlgBORLVOnly (ByMovAvg 1000)
-                                                                      -- , AlgBORLVOnly (ByMovAvg 5000)
+                                                                                         -- , AlgBORLVOnly (ByMovAvg 1000)
+                                                                                         -- , AlgDQN 0.5
+                                                                                         -- , AlgDQN 0.99
 
                                                                       ]) Nothing Nothing Nothing
     , ParameterSetup "RewardType" (set (s . rewardFunctionOrders)) (view (s . rewardFunctionOrders)) (Just $ return . const [ RewardInFuture configRewardFutureOpOrds ByOrderPoolOrders
@@ -383,9 +384,13 @@ instance ExperimentDef (BORL St) where
                 then FullFactory
                 else SingleInstance)) -- only evaluate once if ImRe or BIL
     ] ++
-    [ParameterSetup "Training Batch Size" (setAllProxies  (proxyNNConfig.trainBatchSize)) (^?! proxies.v.proxyNNConfig.trainBatchSize) (Just $ return . const [32]) Nothing Nothing Nothing | isNN] ++
-    [ParameterSetup "Replay Memory Size" (setAllProxies  (proxyNNConfig.replayMemoryMaxSize)) (^?! proxies.v.proxyNNConfig.replayMemoryMaxSize) (Just $ return . const [30000,100000]) Nothing Nothing Nothing | isNN] ++
-    [ParameterSetup "Train MSE Max" (setAllProxies  (proxyNNConfig.trainMSEMax)) (^?! proxies.v.proxyNNConfig.trainMSEMax) (Just $ return . const [Nothing]) Nothing Nothing Nothing | isNN]
+    [ParameterSetup "Training Batch Size" (setAllProxies  (proxyNNConfig.trainBatchSize)) (^?! proxies.v.proxyNNConfig.trainBatchSize) (Just $ return . const [128]) Nothing Nothing Nothing | isNN] ++
+    [ParameterSetup "Replay Memory Size" (setAllProxies  (proxyNNConfig.replayMemoryMaxSize)) (^?! proxies.v.proxyNNConfig.replayMemoryMaxSize) (Just $ return . const [100000]) Nothing Nothing Nothing | isNN] ++
+    [ParameterSetup "Train MSE Max" (setAllProxies  (proxyNNConfig.trainMSEMax)) (^?! proxies.v.proxyNNConfig.trainMSEMax) (Just $ return . const [Nothing]) Nothing Nothing Nothing | isNN] ++
+    [ParameterSetup "ScaleParameters" (setAllProxies  (proxyNNConfig.scaleParameters)) (^?! proxies.v.proxyNNConfig.scaleParameters) (Just $ return . const [ scalingByMaxAbsReward False 60
+                                                                                                                                                            , scalingByMaxAbsReward False 30
+                                                                                                                                                            ]) Nothing Nothing Nothing | isNN]
+
     where
       isNN = isNeuralNetwork (borl ^. proxies . v)
 

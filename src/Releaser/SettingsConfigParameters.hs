@@ -41,15 +41,15 @@ nnConfig =
     , _trainBatchSize = 32
     , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
     , _prettyPrintElems = []    -- is set just before printing
-    , _scaleParameters = scalingByMaxAbsReward False 40
-    , _updateTargetInterval = 5000
+    , _scaleParameters = scalingByMaxAbsReward False 60
+    , _updateTargetInterval = 10000
     , _trainMSEMax = Nothing -- Just 0.04 -- this makes only sense when using the simple extractor
     }
 
 
 alg :: Algorithm
-alg = AlgBORLVOnly (ByMovAvg 1000)
-  -- AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 4000) Normal True
+alg = -- AlgBORLVOnly (ByMovAvg 1000)
+  AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 1000) Normal True
 
 initVals :: InitValues
 initVals = InitValues 0 0 0 0 0

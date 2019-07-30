@@ -26,8 +26,8 @@ import           Releaser.Type
 main :: IO ()
 main =
   runMonadBorlIO $ do
-    borl <- liftSimple buildBORLGrenade
-    -- borl <- liftSimple buildBORLTable
+    -- borl <- liftSimple buildBORLGrenade
+    borl <- liftSimple buildBORLTable
   -- runMonadBorlTF $ do
   --   borl <- buildBORLTensorflow
     askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
@@ -120,9 +120,9 @@ askUser showHelp addUsage cmds ql = do
             (c == "q")
             (stepM ql >>= \ql' ->
                case find isTensorflow (allProxies $ ql' ^. proxies) of
-                 Nothing -> prettyBORLTables True False False ql' >>= liftSimple . print >> askUser False addUsage cmds ql'
+                 Nothing -> prettyBORLHead True ql' >>= liftSimple . print >> askUser False addUsage cmds ql'
                  Just _ -> do
-                   b <- liftTensorflow (prettyBORLTables True False True ql')
+                   b <- liftTensorflow (prettyBORLHead True ql')
                    liftSimple $ print b
                    askUser False addUsage cmds ql')
         Just (_, cmd) ->

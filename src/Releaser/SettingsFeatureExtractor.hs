@@ -12,8 +12,8 @@ import           Releaser.FeatureExtractor.Type
 import           Releaser.Type
 
 featureExtractor :: ReduceValues -> ConfigFeatureExtractor
-featureExtractor = -- featExtractorSimple
-  featExtractorWipAsQueueCounters
+featureExtractor = featExtractorSimpleWithQueueCounts
+  -- featExtractorWipAsQueueCounters
 
 
 extractFeatures :: ReduceValues -> St -> Extraction

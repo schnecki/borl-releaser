@@ -7,9 +7,12 @@ module Releaser.FeatureExtractor.Ops
     , featExtractorSimple
     , featExtractorFullWoMachines
     , featExtractorWipAsQueueCounters
+    , featExtractorSimpleWithQueueCounts
     ) where
 
-import           Data.List                      (find, foldl', genericLength)
+import           Data.Function                  (on)
+import           Data.List                      (find, foldl', genericLength, groupBy,
+                                                 sortBy)
 
 import qualified Data.Map                       as M
 
@@ -47,6 +50,26 @@ featExtractorSimple useReduce = ConfigFeatureExtractor "PLTS-OP-Shipped aggregat
             mkFromList xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) currentTime xs)
             reduce x | useReduce = scaleValue (0, 12) x
                      | otherwise = x
+
+featExtractorSimpleWithQueueCounts :: ReduceValues -> ConfigFeatureExtractor
+featExtractorSimpleWithQueueCounts useReduce = ConfigFeatureExtractor "PLTS-OP-QueueCounters-Shipped aggregated over product types" featExt
+  where
+    doIf prep f
+      | prep = f
+      | otherwise = id
+    featExt (St sim incOrds _ plts) =
+      Extraction
+        (map (doIf useReduce (scaleValue (1, 7)) . timeToDouble) (M.elems plts))
+        [map reduce $ mkFromList (incOrds ++ simOrdersOrderPool sim)]
+        (map (return . return . reduce . fromIntegral . length) (M.elems $ simOrdersQueue sim))
+        []
+        [map reduce $ map genericLength (sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime (simOrdersShipped sim))]
+
+      where currentTime = simCurrentTime sim
+            mkFromList xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) currentTime xs)
+            reduce x | useReduce = scaleValue (0, 12) x
+                     | otherwise = x
+
 
 featExtractorWipAsQueueCounters :: ReduceValues -> ConfigFeatureExtractor
 featExtractorWipAsQueueCounters useReduce = ConfigFeatureExtractor "PLTS-OP-QueueCounters-FGI-Shipped" featExt

@@ -56,7 +56,6 @@ dependencies:
   - constraints
   - singletons
 
-
 library:
   source-dirs: src
   ghc-options:

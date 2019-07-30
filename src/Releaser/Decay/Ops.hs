@@ -49,6 +49,6 @@ decayRate10PctSteps300k = ConfigDecay ("Exponential decay with rate " <> tshow r
            , _exploration = 0.05
            , _learnRandomAbove = 0.05
            , _zeta = 0.0
-           , _xi = 0.0075
+           , _xi = 0.03
            , _disableAllLearning = False
            }

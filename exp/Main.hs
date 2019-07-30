@@ -27,19 +27,18 @@ expSetting :: BORL St -> ExperimentSetting
 expSetting borl =
   ExperimentSetting
     { _experimentBaseName = experimentName
-    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf] ++ concat [[scaling, updateTarget] | isNNFlag]
+    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf] ++ concat [[updateTarget] | isNNFlag]
     , _experimentRepetitions = 1
-    , _preparationSteps = 1000000
+    , _preparationSteps = 3000000
     , _evaluationWarmUpSteps = 1000
     , _evaluationSteps = 5000
-    , _evaluationReplications = 3
+    , _evaluationReplications = 20
     , _maximumParallelEvaluations = 1
     }
   where
     isNNFlag = isNeuralNetwork (borl ^. proxies . v)
     isNN = ExperimentInfoParameter "Is Neural Network" isNNFlag
     isTf = ExperimentInfoParameter "Is Tensorflow Network" (isTensorflow (borl ^. proxies . v))
-    scaling = ExperimentInfoParameter "Scaling Setup" (nnConfig ^. scaleParameters)
     updateTarget = ExperimentInfoParameter "Target Network Update Interval" (nnConfig ^. updateTargetInterval)
     dec = ExperimentInfoParameter "Decay" (configDecayName decay)
     actBounds = ExperimentInfoParameter "Action Bounds" (configActLower actionConfig, configActUpper actionConfig)
@@ -91,9 +90,9 @@ run runner runner2 mkInitSt = do
               -- -- , Id $ EveryXthElem 10 $ Of "PLT P2", Mean OverReplications (EveryXthElem 10 $ Of "PLT P2")
               -- , Id $ EveryXthElem 4 $ Of "PLT P2" -- , Mean OverReplications (EveryXthElem 10 $ Of "PLT P2")
 
-              , Id $ Last $ Of "PsiRho", Mean OverReplications (Last $ Of "PsiRho")
-              , Id $ Last $ Of "PsiV", Mean OverReplications (Last $ Of "PsiV")
-              , Id $ Last $ Of "PsiW", Mean OverReplications (Last $ Of "PsiW")
+              -- , Id $ Last $ Of "PsiRho", Mean OverReplications (Last $ Of "PsiRho")
+              -- , Id $ Last $ Of "PsiV", Mean OverReplications (Last $ Of "PsiV")
+              -- , Id $ Last $ Of "PsiW", Mean OverReplications (Last $ Of "PsiW")
               ]
   evalRes <- genEvals runner2 dbSetting res evals
   -- print (view evalsResults evalRes)

@@ -3,6 +3,7 @@ module Releaser.SettingsRouting
     , productTypes
     , ConfigRouting (..)
     , queues
+    , machines
     , allBlocks
     ) where
 
@@ -25,4 +26,8 @@ allBlocks = map (snd . fst) (configRoutingRoutes routing)
 
 queues :: [Block]
 queues = filter isQueue allBlocks
+
+
+machines :: [Block]
+machines = filter isMachine allBlocks
 
