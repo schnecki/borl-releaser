@@ -11,8 +11,8 @@ import           Grenade
 import           ML.BORL   as B hiding (actionFilter, featureExtractor)
 import           SimSim
 
-useHeuristicToFillReplMem :: Maybe Release
-useHeuristicToFillReplMem = Just $ releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
+-- useHeuristicToFillReplMem :: Maybe Release
+-- useHeuristicToFillReplMem = Just $ releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
 
 
 -- | BORL Parameters.
@@ -55,4 +55,4 @@ initVals :: InitValues
 initVals = InitValues 0 0 0 0 0
 
 experimentName :: T.Text
-experimentName = "26.7. Setting PLT w. exp procTimes, unif demand"
+experimentName = "30.7. Adaptive BORL Order Releaser with exp procTimes, unif demand"
