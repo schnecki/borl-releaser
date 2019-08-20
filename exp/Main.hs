@@ -11,7 +11,8 @@ import           Releaser.Build
 import           Releaser.Type
 
 import           Experimenter
-import           ML.BORL           hiding (featureExtractor)
+import           ML.BORL            hiding (featureExtractor)
+import           TensorFlow.Session
 
 import           Releaser.Settings
 
@@ -53,13 +54,40 @@ main :: IO ()
 main = do
 
   -- run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
-  run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+  -- run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+
+  -- Generate results only
+  -- loadAndEval runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+
+  -- Generate CSV only
+  loadAndWriteCsv runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+
 
 run :: (ExperimentDef a, a ~ BORL St, InputState a ~ ()) => (ExpM a (Bool, Experiments a) -> IO (Bool, Experiments a)) -> (ExpM a (Experiments a) -> IO (Experiments a)) -> ExpM a a -> IO ()
 run runner runner2 mkInitSt = do
   dbSetting <- databaseSetting
   (changed, res) <- runExperimentsM runner dbSetting expSetting () mkInitSt
   liftSimple $ putStrLn $ "Any change: " ++ show changed
+  eval dbSetting runner2 res
+
+loadAndEval ::
+     (SessionT IO (Maybe (Experiments (BORL St))) -> IO (Maybe (Experiments (BORL St))))
+  -> (SessionT IO (Experiments (BORL St)) -> IO (Experiments (BORL St)))
+  -> SessionT IO (BORL St)
+  -> IO ()
+loadAndEval runner runner2 mkInitSt = do
+  dbSetting <- databaseSetting
+  Just res <- loadExperimentsResultsM True runner dbSetting expSetting () mkInitSt 1
+  eval dbSetting runner2 res
+
+loadAndWriteCsv :: (SessionT IO (Maybe (Experiments (BORL St))) -> IO (Maybe (Experiments (BORL St)))) -> (SessionT IO () -> IO ()) -> SessionT IO (BORL St) -> IO ()
+loadAndWriteCsv runner runner2 mkInitSt = do
+  dbSetting <- databaseSetting
+  Just res <- loadExperimentsResultsM False runner dbSetting expSetting () mkInitSt 1
+  writeCsvMeasure runner2 dbSetting res (SmoothMovAvg 300) ["AvgReward"]
+
+
+eval dbSetting runner2 res = do
   let evals = [ Sum OverPeriods $ Of "EARN", Mean OverReplications (Stats $ Sum OverPeriods $ Of "EARN")
               , Sum OverPeriods $ Of "BOC" , Mean OverReplications (Stats $ Sum OverPeriods $ Of "BOC")
               , Sum OverPeriods $ Of "WIPC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "WIPC")
@@ -75,16 +103,20 @@ run runner runner2 mkInitSt = do
               -- , Id $ Last $ Of "FTMeanFloorAndFgi", Mean OverReplications (Last $ Of "FTMeanFloorAndFgi")
               -- , Id $ Last $ Of "FTStdDevFloorAndFgi", Mean OverReplications (Last $ Of "FTStdDevFloorAndFgi")
               -- , Id $ Last $ Of "TARDPctFloorAndFgi", Mean OverReplications (Last $ Of "TARDPctFloorAndFgi")
-              -- , Id $ Last $ Of "TARDMeanFloorAndFGI", Mean OverReplications (Last $ Of "TARDMeanFloorAndFGI")
-              -- , Id $ Last $ Of "TARDStdDevFloorAndFGI", Mean OverReplications (Last $ Of "TARDStdDevFloorAndFGI")
+              -- , Id $ Last $ Of "TARDMeanFloorAndFGI"
+              , Mean OverReplications (Last $ Of "TARDMeanFloorAndFGI")
+              -- , Id $ Last $ Of "TARDStdDevFloorAndFGI"
+              , Mean OverReplications (Last $ Of "TARDStdDevFloorAndFGI")
 
-              -- , Id $ Last $ Of "FTMeanFloor", Mean OverReplications (Last $ Of "FTMeanFloor")
+              -- , Id $ Last $ Of "FTMeanFloor"
+              , Mean OverReplications (Last $ Of "FTMeanFloor")
               -- , Id $ Last $ Of "FTStdDevFloor", Mean OverReplications (Last $ Of "FTStdDevFloor")
               -- , Id $ Last $ Of "TARDPctFloor", Mean OverReplications (Last $ Of "TARDPctFloor")
-              -- , Id $ Last $ Of "TARDMeanFloorAndFGI", Mean OverReplications (Last $ Of "TARDMeanFloorAndFGI")
-              -- , Id $ Last $ Of "TARDStdDevFloorAndFGI", Mean OverReplications (Last $ Of "TARDStdDevFloorAndFGI")
+              -- , Id $ Last $ Of "TARDMeanFloor", Mean OverReplications (Last $ Of "TARDMeanFloor")
+              -- , Id $ Last $ Of "TARDStdDevFloor", Mean OverReplications (Last $ Of "TARDStdDevFloor")
 
-              -- , Id $ Last $ Of "AvgReward", Mean OverReplications (Last $ Of "AvgReward")
+              -- , Id $ Last $ Of "AvgReward"
+              , Mean OverReplications (Last $ Of "AvgReward")
               -- -- , Id $ EveryXthElem 10 $ Of "PLT P1", Mean OverReplications (EveryXthElem 10 $ Of "PLT P1")
               -- , Id $ EveryXthElem 4 $ Of "PLT P1" -- , Mean OverReplications (EveryXthElem 1 $ Of "PLT P1")
               -- -- , Id $ EveryXthElem 10 $ Of "PLT P2", Mean OverReplications (EveryXthElem 10 $ Of "PLT P2")
