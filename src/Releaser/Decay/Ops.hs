@@ -29,26 +29,50 @@ import           Releaser.Util
 --         decaySteps = 350000 :: Double
 --         decay rate = rate ** (fromIntegral t / decaySteps)
 
-
-decayRate10PctSteps300k :: ConfigDecay
-decayRate10PctSteps300k = ConfigDecay ("Exponential decay with rate " <> tshow rate <> " in " <> tshow rate <> " steps") dec
-  where rate = 0.10
-        steps = 300000
-        dec = exponentialDecay (Just minValues) rate steps
-        minValues =
-         Parameters
-           { _alpha = 0.000
-           , _alphaANN = 0      -- not decayed
-           , _beta =  0.005
-           , _betaANN = 0       -- not decayed
-           , _delta = 0.005
-           , _deltaANN = 0      -- not decayed
-           , _gamma = 0.005
-           , _gammaANN = 0      -- not decayed
-           , _epsilon = 0.05
-           , _exploration = 0.05
-           , _learnRandomAbove = 0.05
-           , _zeta = 0.0
-           , _xi = 0.03
-           , _disableAllLearning = False
-           }
+-- | Decay function of parameters.
+decayRate50PctStepsk150k :: ConfigDecay
+decayRate50PctStepsk150k = ConfigDecay ("Exponential decay with rate " <> tshow rate <> " in " <> tshow steps <> " steps") dec
+  where
+    rate=0.5
+    steps=150000
+    dec =
+      decaySetupParameters
+        Parameters
+          { _alpha            = ExponentialDecay (Just 1e-5) 0.15 10000
+          , _beta             = ExponentialDecay (Just 1e-4) rate steps
+          , _delta            = ExponentialDecay (Just 5e-4) rate steps
+          , _gamma            = ExponentialDecay (Just 1e-3) rate steps
+          , _zeta             = ExponentialDecay (Just 0)    rate steps
+          , _xi               = NoDecay
+          -- Exploration
+          , _epsilon          = ExponentialDecay (Just 0.50) rate steps
+          , _exploration      = ExponentialDecay (Just 0.01) 0.05 steps
+          , _learnRandomAbove = NoDecay
+          -- ANN
+          , _alphaANN         = ExponentialDecay Nothing rate steps
+          , _betaANN          = ExponentialDecay Nothing rate steps
+          , _deltaANN         = ExponentialDecay Nothing rate steps
+          , _gammaANN         = ExponentialDecay Nothing rate steps
+          }
+-- decayRate10PctSteps300k :: ConfigDecay
+-- decayRate10PctSteps300k = ConfigDecay ("Exponential decay with rate " <> tshow rate <> " in " <> tshow rate <> " steps") dec
+--   where rate = 0.10
+--         steps = 300000
+--         dec = exponentialDecay (Just minValues) rate steps
+--         minValues =
+--          Parameters
+--            { _alpha = 0.000
+--            , _alphaANN = 0      -- not decayed
+--            , _beta =  0.005
+--            , _betaANN = 0       -- not decayed
+--            , _delta = 0.005
+--            , _deltaANN = 0      -- not decayed
+--            , _gamma = 0.005
+--            , _gammaANN = 0      -- not decayed
+--            , _epsilon = 0.05
+--            , _exploration = 0.05
+--            , _learnRandomAbove = 0.05
+--            , _zeta = 0.0
+--            , _xi = 0.03
+--            , _disableAllLearning = False
+--            }

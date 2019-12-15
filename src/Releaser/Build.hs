@@ -174,14 +174,14 @@ modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> m TensorflowModel
 modelBuilder actions initState =
   buildModel $
   inputLayer1D lenIn >>
-  fullyConnected1D (3 * lenIn) TF.relu' >>
-  fullyConnected1D (2 * lenIn) TF.relu' >>
-  fullyConnected1D (1 * lenIn) TF.relu' >>
-  fullyConnected1D (max lenOut $ ceiling $ 0.7 * fromIntegral (lenIn + lenOut)) TF.relu' >>
-  fullyConnected1D (max lenOut $ ceiling $ 0.3 * fromIntegral (lenIn + lenOut)) TF.relu' >>
-  fullyConnected1D (max lenOut $ ceiling $ 0.2 * fromIntegral (lenIn + lenOut)) TF.relu' >>
-  fullyConnected1D (genericLength actions) TF.tanh' >>
-  trainingByAdam1DWith TF.AdamConfig {TF.adamLearningRate = 0.001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
+  fullyConnected [3 * lenIn] TF.relu' >>
+  fullyConnected [2 * lenIn] TF.relu' >>
+  fullyConnected [1 * lenIn] TF.relu' >>
+  fullyConnected [max lenOut $ ceiling $ 0.7 * fromIntegral (lenIn + lenOut)] TF.relu' >>
+  fullyConnected [max lenOut $ ceiling $ 0.3 * fromIntegral (lenIn + lenOut)] TF.relu' >>
+  fullyConnected [max lenOut $ ceiling $ 0.2 * fromIntegral (lenIn + lenOut)] TF.relu' >>
+  fullyConnected [genericLength actions] TF.tanh' >>
+  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
   where
     lenIn = genericLength (netInp initState)
     lenOut = genericLength actions
@@ -198,7 +198,7 @@ mkInitSt sim startOrds =
 buildBORLTable :: IO (BORL St)
 buildBORLTable = do
   sim <- buildSim
-  startOrds <- liftSimple $ generateOrders sim
+  startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
   return $ mkUnichainTabular alg initSt netInpTblBinary actions actFilter borlParams (configDecay decay) (Just initVals)
 
@@ -220,7 +220,7 @@ type NN inp out
 buildBORLGrenade :: IO (BORL St)
 buildBORLGrenade = do
   sim <- buildSim
-  startOrds <- liftSimple $ generateOrders sim
+  startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
   nn <- randomNetworkInitWith UniformInit :: IO (NN 58 9)
   mkUnichainGrenade alg initSt netInp actions actFilter borlParams (configDecay decay) nn nnConfig (Just initVals)
@@ -228,8 +228,8 @@ buildBORLGrenade = do
 
 buildBORLTensorflow :: (MonadBorl' m) => m (BORL St)
 buildBORLTensorflow = do
-  sim <- liftSimple buildSim
-  startOrds <- liftSimple $ generateOrders sim
+  sim <- liftIO buildSim
+  startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
   mkUnichainTensorflowM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
 
@@ -289,7 +289,7 @@ instance ExperimentDef (BORL St) where
   runStep borl incOrds _ = do
     borl' <- stepM (set (s . nextIncomingOrders) incOrds borl)
     -- helpers
-    when (borl ^. t `mod` 10000 == 0) $ liftSimple $ prettyBORLHead True borl >>= print
+    when (borl ^. t `mod` 10000 == 0) $ liftIO $ prettyBORLHead True Nothing borl >>= print
     let simT = timeToDouble $ simCurrentTime $ borl' ^. s . simulation
     let borlT = borl' ^. t
     -- demand
@@ -348,9 +348,8 @@ instance ExperimentDef (BORL St) where
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
   parameters borl =
-    [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [ AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 1000) Normal False
-                                                                                         , AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 1000) Normal True
-                                                                                         , AlgBORL defaultGamma0 defaultGamma1 ByStateValues Normal False
+    [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [ AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 1000) False Nothing
+                                                                                         , AlgBORL defaultGamma0 defaultGamma1 ByStateValues   False Nothing
                                                                                          -- , AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) Normal True
                                                                                          -- , AlgBORLVOnly (ByMovAvg 1000)
                                                                                          -- , AlgDQN 0.5
@@ -395,13 +394,13 @@ instance ExperimentDef (BORL St) where
 
   -- HOOKS
   beforePreparationHook _ _ g borl =
-    liftSimple $ do
+    liftIO $ do
       let dir = "results/" <> T.unpack (T.replace " " "_" experimentName) <> "/data/"
       createDirectoryIfMissing True dir
       writeFile (dir ++ "plot.sh") gnuplot
       mapMOf (s . simulation) (setSimulationRandomGen g) borl
   beforeWarmUpHook expNr repetNr repliNr g borl =
-    liftSimple $ do
+    liftIO $ do
       when (repliNr == 1) $ copyFiles "prep_" expNr repetNr Nothing -- afterPreparationHook seems not to be executed. Why? ***TODO***
       mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
         set (B.parameters . disableAllLearning) True $
@@ -409,7 +408,7 @@ instance ExperimentDef (BORL St) where
         set (B.parameters . zeta) 0 $
         set (B.parameters . xi) 0 borl
   beforeEvaluationHook _ _ _ g borl -- in case warm up phase is 0 periods
-   = liftSimple $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
+   = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
     set (B.parameters . disableAllLearning) True $
     set (B.parameters . gamma) 0 $
     set (B.parameters . zeta) 0 $

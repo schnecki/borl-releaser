@@ -6,12 +6,13 @@ module Main where
 
 
 import           Control.Lens
+import           Control.Monad.IO.Class
 import           Network.HostName
 import           Releaser.Build
 import           Releaser.Type
 
 import           Experimenter
-import           ML.BORL            hiding (featureExtractor)
+import           ML.BORL                hiding (featureExtractor)
 import           TensorFlow.Session
 
 import           Releaser.Settings
@@ -67,7 +68,7 @@ run :: (ExperimentDef a, a ~ BORL St, InputState a ~ ()) => (ExpM a (Bool, Exper
 run runner runner2 mkInitSt = do
   dbSetting <- databaseSetting
   (changed, res) <- runExperimentsM runner dbSetting expSetting () mkInitSt
-  liftSimple $ putStrLn $ "Any change: " ++ show changed
+  liftIO $ putStrLn $ "Any change: " ++ show changed
   eval dbSetting runner2 res
 
 loadAndEval ::

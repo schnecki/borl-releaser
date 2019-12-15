@@ -16,7 +16,7 @@ import           SimSim
 
 
 -- | BORL Parameters.
-borlParams :: Parameters
+borlParams :: Parameters Double
 borlParams = Parameters
   { _alpha              = 0.05
   , _alphaANN           = 1.0
@@ -34,22 +34,40 @@ borlParams = Parameters
   , _disableAllLearning = False
   }
 
+
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-    { _replayMemoryMaxSize = 30000
-    , _trainBatchSize = 32
-    , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
-    , _prettyPrintElems = []    -- is set just before printing
-    , _scaleParameters = scalingByMaxAbsReward False 60
-    , _updateTargetInterval = 10000
-    , _trainMSEMax = Nothing -- Just 0.04 -- this makes only sense when using the simple extractor
+    { _replayMemoryMaxSize = 10000
+    , _trainBatchSize = 8
+    , _grenadeLearningParams = LearningParameters 0.01 0.0 0.0001
+    , _learningParamsDecay = ExponentialDecay Nothing 0.05 100000
+    , _prettyPrintElems = [] -- is set jsut before printing
+    , _scaleParameters = scalingByMaxAbsReward False 6
+    , _stabilizationAdditionalRho = 0.5
+    , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 100000
+    , _updateTargetInterval = 1
+    , _trainMSEMax = Nothing -- Just 0.03
+    , _setExpSmoothParamsTo1 = True
     }
 
 
-alg :: Algorithm
+-- nnConfig :: NNConfig
+-- nnConfig =
+--   NNConfig
+--     { _replayMemoryMaxSize = 30000
+--     , _trainBatchSize = 32
+--     , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
+--     , _prettyPrintElems = []    -- is set just before printing
+--     , _scaleParameters = scalingByMaxAbsReward False 60
+--     , _updateTargetInterval = 10000
+--     , _trainMSEMax = Nothing -- Just 0.04 -- this makes only sense when using the simple extractor
+--     }
+
+
+alg :: Algorithm s
 alg = -- AlgBORLVOnly (ByMovAvg 1000)
-  AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 1000) Normal True
+  AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 1000) False Nothing
 
 initVals :: InitValues
 initVals = InitValues 0 0 0 0 0

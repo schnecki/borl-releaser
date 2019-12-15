@@ -12,5 +12,5 @@ import           Releaser.Decay.Type
 import           Releaser.Util
 
 decay :: ConfigDecay
-decay = decayRate10PctSteps300k
+decay = decayRate50PctStepsk150k
 

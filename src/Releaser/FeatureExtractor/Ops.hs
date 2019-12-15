@@ -40,7 +40,7 @@ featExtractorSimple useReduce = ConfigFeatureExtractor "PLTS-OP-Shipped aggregat
       | otherwise = id
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map (doIf useReduce (scaleValue (1, 7)) . timeToDouble) (M.elems plts))
+        (map (doIf useReduce (scaleValue $ Just (1, 7)) . timeToDouble) (M.elems plts))
         [map reduce $ mkFromList (incOrds ++ simOrdersOrderPool sim)] -- TODO: split also by product type
         []
         []
@@ -48,7 +48,7 @@ featExtractorSimple useReduce = ConfigFeatureExtractor "PLTS-OP-Shipped aggregat
 
       where currentTime = simCurrentTime sim
             mkFromList xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) currentTime xs)
-            reduce x | useReduce = scaleValue (0, 12) x
+            reduce x | useReduce = scaleValue (Just (0, 12)) x
                      | otherwise = x
 
 featExtractorSimpleWithQueueCounts :: ReduceValues -> ConfigFeatureExtractor
@@ -59,7 +59,7 @@ featExtractorSimpleWithQueueCounts useReduce = ConfigFeatureExtractor "PLTS-OP-Q
       | otherwise = id
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map (doIf useReduce (scaleValue (1, 7)) . timeToDouble) (M.elems plts))
+        (map (doIf useReduce (scaleValue $ Just (1, 7)) . timeToDouble) (M.elems plts))
         [map reduce $ mkFromList (incOrds ++ simOrdersOrderPool sim)]
         (map (return . return . reduce . fromIntegral . length) (M.elems $ simOrdersQueue sim))
         []
@@ -67,7 +67,7 @@ featExtractorSimpleWithQueueCounts useReduce = ConfigFeatureExtractor "PLTS-OP-Q
 
       where currentTime = simCurrentTime sim
             mkFromList xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) currentTime xs)
-            reduce x | useReduce = scaleValue (0, 12) x
+            reduce x | useReduce = scaleValue (Just (0, 12)) x
                      | otherwise = x
 
 
@@ -79,14 +79,14 @@ featExtractorWipAsQueueCounters useReduce = ConfigFeatureExtractor "PLTS-OP-Queu
       | otherwise = id
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map (doIf useReduce (scaleValue (1, 7)) . timeToDouble) (M.elems plts))
+        (map (doIf useReduce (scaleValue (Just (1, 7))) . timeToDouble) (M.elems plts))
         (foreachPt (map reduce . mkFromList) (incOrds ++ simOrdersOrderPool sim))
         (M.elems $ fmap (\xs -> foreachPt (return . reduce . fromIntegral . length) xs) (simOrdersQueue sim))
         (foreachPt (map reduce . mkFromList) (simOrdersFgi sim))
         (foreachPt (map (reduce . genericLength) . sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime) (simOrdersShipped sim))
       where currentTime = simCurrentTime sim
             mkFromList xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) currentTime xs)
-            reduce x | useReduce = scaleValue (0, 12) x
+            reduce x | useReduce = scaleValue (Just (0, 12)) x
                      | otherwise = x
             foreachPt f xs = map (\pt -> f (filter ((==pt) . productType) xs)) productTypes
 
@@ -99,14 +99,14 @@ featExtractorFullWoMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-F
       | otherwise = id
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map (doIf useReduce (scaleValue (1, 7)) . timeToDouble) (M.elems plts))
+        (map (doIf useReduce (scaleValue (Just (1, 7))) . timeToDouble) (M.elems plts))
         (foreachPt (map reduce . mkFromList) (incOrds ++ simOrdersOrderPool sim))
-        (M.elems $ fmap (\xs -> foreachPt (map reduce . mkFromList) xs) (simOrdersQueue sim))
+        (M.elems $ fmap (foreachPt (map reduce . mkFromList)) (simOrdersQueue sim))
         (foreachPt (map reduce . mkFromList) (simOrdersFgi sim))
         (foreachPt (map (reduce . genericLength) . sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime) (simOrdersShipped sim))
       where currentTime = simCurrentTime sim
             mkFromList xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) currentTime xs)
-            reduce x | useReduce = scaleValue (0, 12) x
+            reduce x | useReduce = scaleValue (Just (0, 12)) x
                      | otherwise = x
             foreachPt f xs = map (\pt -> f (filter ((==pt) . productType) xs)) productTypes
 

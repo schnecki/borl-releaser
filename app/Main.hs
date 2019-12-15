@@ -5,6 +5,7 @@ module Main where
 import           Control.DeepSeq             (NFData, force)
 import           Control.Lens
 import           Control.Monad               (foldM, unless, when)
+import           Control.Monad.IO.Class
 import qualified Data.ByteString             as BS
 import           Data.Function               (on)
 import           Data.List                   (find, sortBy)
@@ -26,8 +27,8 @@ import           Releaser.Type
 main :: IO ()
 main =
   runMonadBorlIO $ do
-    -- borl <- liftSimple buildBORLGrenade
-    borl <- liftSimple buildBORLTable
+    -- borl <- liftIO buildBORLGrenade
+    borl <- liftIO buildBORLTable
   -- runMonadBorlTF $ do
   --   borl <- buildBORLTensorflow
     askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
@@ -50,26 +51,26 @@ askUser showHelp addUsage cmds ql = do
         , ("_", "Any other input starts another learning round\n")
         ] ++
         addUsage
-  liftSimple $ putStrLn ""
-  when showHelp $ liftSimple $ putStrLn $ unlines $ map (\(c, h) -> c ++ ": " ++ h) usage
-  liftSimple $ putStr "Enter value (type help to display the usage information): " >> hFlush stdout
-  c <- liftSimple getLine
+  liftIO $ putStrLn ""
+  when showHelp $ liftIO $ putStrLn $ unlines $ map (\(c, h) -> c ++ ": " ++ h) usage
+  liftIO $ putStr "Enter value (type help to display the usage information): " >> hFlush stdout
+  c <- liftIO getLine
   case c of
     "help" -> askUser True addUsage cmds ql
     "?" -> askUser True addUsage cmds ql
     "s" -> do
       ser <- toSerialisableWith serializeSt id ql
-      liftSimple $ BS.writeFile "savedModel" (S.runPut $ S.put ser)
+      liftIO $ BS.writeFile "savedModel" (S.runPut $ S.put ser)
       askUser showHelp addUsage cmds ql
     "sim" -> do
       let sim = ql ^. s . simulation
-      liftSimple $ putStrLn $ T.unpack $ prettySimSim sim
+      liftIO $ putStrLn $ T.unpack $ prettySimSim sim
       askUser showHelp addUsage cmds ql
     "h" -> do
-      liftSimple $ prettyBORLHead True ql >>= print
+      liftIO $ prettyBORLHead True Nothing ql >>= print
       askUser False addUsage cmds ql
     "l" -> do
-      bs <- liftSimple $ BS.readFile "savedModel"
+      bs <- liftIO $ BS.readFile "savedModel"
       case S.runGet S.get bs of
         Left err -> error err
         Right ser -> do
@@ -89,29 +90,22 @@ askUser showHelp addUsage cmds ql = do
               ser
           askUser showHelp addUsage cmds ql'
     "r" -> do
-      liftSimple $ putStr "How many learning rounds should I execute: " >> hFlush stdout
-      l <- liftSimple getLine
+      liftIO $ putStr "How many learning rounds should I execute: " >> hFlush stdout
+      l <- liftIO getLine
       case reads l :: [(Integer, String)] of
         [(nr, _)] -> mkTime (stepsM ql nr) >>= askUser False addUsage cmds
         _ -> do
-          liftSimple $ putStr "Could not read your input :( You are supposed to enter an Integer.\n"
+          liftIO $ putStr "Could not read your input :( You are supposed to enter an Integer.\n"
           askUser False addUsage cmds ql
     "p" -> do
       let ppElems = mkPrettyPrintElems (ql ^. s)
-      liftSimple $ prettyBORL (setPrettyPrintElems ppElems ql) >>= print
+          setPrettyPrintElems = setAllProxies (proxyNNConfig.prettyPrintElems) ppElems
+      liftIO $ prettyBORL (setPrettyPrintElems ql) >>= print
       askUser False addUsage cmds ql
-    "m" -> do
-      liftSimple $ putStr "Multiply by: " >> hFlush stdout
-      l <- liftSimple getLine
-      case reads l :: [(Double, String)] of
-        [(nr, _)] -> askUser False addUsage cmds (foldl (\q f -> over (proxies . f) (multiplyProxy nr) q) ql [psiV, v, w])
-        _ -> do
-          liftSimple $ putStr "Could not read your input :( You are supposed to enter an Integer.\n"
-          askUser False addUsage cmds ql
     "v" -> do
       case find isTensorflow (allProxies $ ql ^. proxies) of
-        Nothing -> liftSimple $ prettyBORLTables True False False ql >>= print
-        Just _ -> liftTensorflow (prettyBORLTables True False False ql) >>= liftSimple . print
+        Nothing -> liftIO $ prettyBORLTables Nothing True False False ql >>= print
+        Just _ -> liftTensorflow (prettyBORLTables Nothing True False False ql) >>= liftIO . print
       askUser False addUsage cmds ql
     _ ->
       case find ((== c) . fst) cmds of
@@ -120,23 +114,23 @@ askUser showHelp addUsage cmds ql = do
             (c == "q")
             (stepM ql >>= \ql' ->
                case find isTensorflow (allProxies $ ql' ^. proxies) of
-                 Nothing -> prettyBORLHead True ql' >>= liftSimple . print >> askUser False addUsage cmds ql'
+                 Nothing -> prettyBORLHead True Nothing ql' >>= liftIO . print >> askUser False addUsage cmds ql'
                  Just _ -> do
-                   b <- liftTensorflow (prettyBORLHead True ql')
-                   liftSimple $ print b
+                   b <- liftTensorflow (prettyBORLHead True Nothing ql')
+                   liftIO $ print b
                    askUser False addUsage cmds ql')
         Just (_, cmd) ->
           case find isTensorflow (allProxies $ ql ^. proxies) of
-            Nothing -> liftSimple $ stepExecute (ql, False, cmd) >>= askUser False addUsage cmds
+            Nothing -> liftIO $ stepExecute (ql, False, cmd) >>= askUser False addUsage cmds
             Just _ -> liftTensorflow (stepExecute (ql, False, cmd) >>= saveTensorflowModels) >>= askUser False addUsage cmds
 
 
 mkTime :: (MonadBorl' m, NFData t) => m t -> m t
 mkTime a = do
-    start <- liftSimple getCurrentTime
+    start <- liftIO getCurrentTime
     !val <- force <$> a
-    end   <- liftSimple getCurrentTime
-    liftSimple $ putStrLn ("Computation Time: " ++ show (diffUTCTime end start))
+    end   <- liftIO getCurrentTime
+    liftIO $ putStrLn ("Computation Time: " ++ show (diffUTCTime end start))
     return val
 
 mkPrettyPrintElems :: St -> [[Double]]
@@ -145,7 +139,7 @@ mkPrettyPrintElems st = zipWith (++) plts (replicate (length plts) base)
     base = drop (length productTypes) (netInp st)
     minVal = configActFilterMin actionFilterConfig
     maxVal = configActFilterMax actionFilterConfig
-    actList = map (scaleValue (fromIntegral minVal, fromIntegral maxVal) . fromIntegral) [minVal .. maxVal]
+    actList = map (scaleValue (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal .. maxVal]
     plts = [[x, y] | x <- actList, y <- actList]
 
 
