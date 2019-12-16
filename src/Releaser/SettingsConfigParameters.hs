@@ -18,19 +18,19 @@ import           SimSim
 -- | BORL Parameters.
 borlParams :: Parameters Double
 borlParams = Parameters
-  { _alpha              = 0.05
+  { _alpha              = 0.001
   , _alphaANN           = 1.0
-  , _beta               = 0.01
+  , _beta               = 0.03
   , _betaANN            = 1.0
-  , _delta              = 0.005
+  , _delta              = 0.01
   , _deltaANN           = 1.0
   , _gamma              = 0.01
   , _gammaANN           = 1.0
-  , _epsilon            = 1.0
+  , _epsilon            = 0.5
   , _exploration        = 1.0
   , _learnRandomAbove   = 0.1
-  , _zeta               = 0.0
-  , _xi                 = 0.0075
+  , _zeta               = 0.01
+  , _xi                 = 0.01
   , _disableAllLearning = False
   }
 
@@ -41,10 +41,10 @@ nnConfig =
     { _replayMemoryMaxSize = 10000
     , _trainBatchSize = 8
     , _grenadeLearningParams = LearningParameters 0.01 0.0 0.0001
-    , _learningParamsDecay = ExponentialDecay Nothing 0.05 100000
-    , _prettyPrintElems = [] -- is set jsut before printing
-    , _scaleParameters = scalingByMaxAbsReward False 6
-    , _stabilizationAdditionalRho = 0.5
+    , _learningParamsDecay = ExponentialDecay (Just 1e-4) 0.05 100000
+    , _prettyPrintElems = [] -- is set just before printing
+    , _scaleParameters = scalingByMaxAbsReward False 60
+    , _stabilizationAdditionalRho = 5
     , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 100000
     , _updateTargetInterval = 1
     , _trainMSEMax = Nothing -- Just 0.03
@@ -67,7 +67,7 @@ nnConfig =
 
 alg :: Algorithm s
 alg = -- AlgBORLVOnly (ByMovAvg 1000)
-  AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 1000) False Nothing
+  AlgBORL defaultGamma0 defaultGamma1 ByStateValues False Nothing
 
 initVals :: InitValues
 initVals = InitValues 0 0 0 0 0

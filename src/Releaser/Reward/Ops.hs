@@ -14,21 +14,28 @@ module Releaser.Reward.Ops
   , configRewardFutureOpOrds
   , configRewardPosNeg1
   , configRewardPeriodEnd
+  , configReward100
+  , configReward50
+  , configReward500
   ) where
 
 import           Control.DeepSeq
-import           Data.Function          (on)
-import           Data.List              (groupBy, sortBy, (\\))
-import qualified Data.Map.Strict        as M
-import           Data.Maybe             (fromMaybe)
+import           Data.Function                 (on)
+import           Data.List                     (groupBy, sortBy, (\\))
+import qualified Data.Map.Strict               as M
+import           Data.Maybe                    (fromMaybe)
 import           Data.Serialize
 import           GHC.Generics
+
+import           Debug.Trace
 
 import           ML.BORL
 import           SimSim
 
 import           Releaser.Reward.Type
+import           Releaser.SettingsActionFilter
 import           Releaser.SettingsCosts
+import           Releaser.SettingsPeriod
 import           Releaser.Type
 
 
@@ -42,6 +49,14 @@ configRewardFutureOpOrds = ConfigReward 50 0.5 (Just $ -50)
 configRewardPeriodEnd :: ConfigReward
 configRewardPeriodEnd = ConfigReward 50 0.25 (Just $ -50)
 
+configReward100 :: ConfigReward
+configReward100 = ConfigReward 100 1 (Just $ -100)
+
+configReward50 :: ConfigReward
+configReward50 = ConfigReward 50 1 (Just $ -50)
+
+configReward500 :: ConfigReward
+configReward500 = ConfigReward 500 1 (Just $ -500)
 
 type SimT = SimSim
 type SimTPlus1 = SimSim
@@ -59,7 +74,7 @@ fromDouble config r = Reward $ maxFun (base - scale * r)
 
 mkReward :: RewardFunction -> SimT -> SimTPlus1 -> Reward St
 mkReward (RewardShippedSimple config) _ sim = fromDouble config $ sum $ map (calcRewardShipped sim) (simOrdersShipped sim)
-mkReward (RewardPeriodEndSimple config) _ sim = fromDouble config $ nrWipOrders * wipCosts costConfig + nrFgiOrders * fgiCosts costConfig + nrBoOrders * boCosts costConfig
+mkReward (RewardPeriodEndSimple config) _ sim = fromDouble config (nrWipOrders * wipCosts costConfig + nrFgiOrders * fgiCosts costConfig + nrBoOrders * boCosts costConfig)
   where
     currentTime = simCurrentTime sim
     nrWipOrders = fromIntegral $ M.size (simOrdersQueue sim) + M.size (simOrdersMachine sim)
@@ -74,7 +89,7 @@ data Future = Future
   { nrOfOrders  :: Int
   , accumulator :: Double
   , orderIds    :: [OrderId]
-  } deriving (Generic, Serialize, NFData)
+  } deriving (Generic, Serialize, NFData, Show)
 
 instance RewardFuture St where
   type StoreType St = (ConfigReward, [Future])
@@ -89,6 +104,14 @@ mkFutureReward :: ConfigReward -> RewardInFutureType -> SimSim -> SimSim -> Rewa
 mkFutureReward config ByOrderPoolOrders sim _ = RewardFuture (config, map (\os -> Future (length os) 0 (map orderId os)) orders)
   where
     orders = groupBy ((==) `on` dueDate) $ sortBy (compare `on` dueDate) $ simOrdersOrderPool sim
+
+    -- orders = map (\dd -> filter ((== dd) . dueDate) (simOrdersOrderPool sim)) [minPLT, minPLT+periodLen .. maxPLT]
+    -- currentTime = simCurrentTime sim
+    -- periodLen = simPeriodLength sim
+    -- ActionFilterConfig minPLTPeriod maxPLTPeriod = actionFilterConfig
+    -- minPLT = currentTime + fromIntegral minPLTPeriod * periodLength
+    -- maxPLT = currentTime + fromIntegral maxPLTPeriod * periodLength
+
 mkFutureReward config ByReleasedOrders sim sim' = RewardFuture (config, [Future (length orders) 0 orders | not (null orders)])
   where
     opOrdsSim = map orderId (simOrdersOrderPool sim)
@@ -102,17 +125,25 @@ applyFutureReward (config, futures) (St sim _ _ _)
   | all ((== 0) . nrOfOrders) futures = RewardEmpty
   | all (null . orderIds) futures = finalize futures
   | all null shippedOrders = RewardFuture (config, futures)
-  | all (null . orderIds) futures' = finalize futures
+  | all (null . orderIds) futures' = finalize futures'
   | otherwise = RewardFuture (config, futures')
   where
-    finalize futures = avgRew $ map (\(Future _ acc _) -> fromDouble config acc) (filter ((> 0) . nrOfOrders) futures)
-    avgRew xs = Reward $ sum (map rewardValue xs) / fromIntegral (max 1 (length xs))
+    -- finalize futures =
+    --   -- average per (filled) bucket
+    --   avgRew $ map (\(Future _ acc _) -> fromDouble config acc) (filter ((> 0) . nrOfOrders) futures)
+    -- avgRew xs = Reward $ sum (map rewardValue xs) / fromIntegral (max 1 (length xs))
+    finalize futures =
+      -- average costs per order
+      fromDouble config $ (\xs -> sum (map (\(Future _ acc _) -> acc) xs) / sum (map (\(Future nr _ _) -> fromIntegral nr) xs)) (filter ((> 0) . nrOfOrders) futures)
+
     shippedOrders = map (\(Future _ _ orderIds) -> filter ((`elem` orderIds) . orderId) (simOrdersShipped sim)) futures
     futures' = zipWith updateFuture futures shippedOrders
     updateFuture (Future count acc openOrders) shippedOrds =
       let acc' = acc + sum (map (calcRewardShipped sim) shippedOrds)
       in Future count acc' (openOrders \\ map orderId shippedOrds)
+-- fromDouble config $ sum $ map (calcRewardShipped sim) (simOrdersShipped sim)
 
+-- fromDouble config (nrWipOrders * wipCosts costConfig + nrFgiOrders * fgiCosts costConfig + nrBoOrders * boCosts costConfig)
 
 calcRewardShipped :: SimSim -> Order -> Double
 calcRewardShipped sim order =
@@ -124,6 +155,8 @@ calcRewardShipped sim order =
       fgi = fgiCosts costConfig * periodsInFgi
       periodsLate = fromIntegral $ floor (fromM (shipped order) / periodLen) - ceiling (timeToDouble (dueDate order) / periodLen)
       bo = boCosts costConfig * periodsLate
-   in wip + fgi + bo
+   in
+    -- trace (show order ++ " (wip,fgi,bo): " ++ show (wip, fgi, bo))
+    wip + fgi + bo
 
 

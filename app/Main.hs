@@ -26,12 +26,14 @@ import           Releaser.Type
 
 main :: IO ()
 main =
-  runMonadBorlIO $ do
-    -- borl <- liftIO buildBORLGrenade
-    borl <- liftIO buildBORLTable
-  -- runMonadBorlTF $ do
-  --   borl <- buildBORLTensorflow
-    askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
+  -- runMonadBorlIO $ do
+  --   -- borl <- liftIO buildBORLGrenade
+  --   borl <- liftIO buildBORLTable
+  runMonadBorlTF $ do
+    borl <- buildBORLTensorflow
+    let ppElems = mkMiniPrettyPrintElems (borl ^. s)
+        setPrettyPrintElems = setAllProxies (proxyNNConfig.prettyPrintElems) ppElems
+    askUser True usage cmds (setPrettyPrintElems borl)   -- maybe increase learning by setting estimate of rho
   where cmds = []
         usage = []
 
@@ -93,10 +95,30 @@ askUser showHelp addUsage cmds ql = do
       liftIO $ putStr "How many learning rounds should I execute: " >> hFlush stdout
       l <- liftIO getLine
       case reads l :: [(Integer, String)] of
-        [(nr, _)] -> mkTime (stepsM ql nr) >>= askUser False addUsage cmds
+        [(nr, _)] -> do
+          liftIO $ putStr "How often shall I repeat this? [1] " >> hFlush stdout
+          l <- liftIO getLine
+          case reads l :: [(Integer, String)] of
+            [(often, _)] -> do
+              ql' <- foldM (\q _ -> do
+                        q' <- mkTime (stepsM q nr)
+                        output <- prettyBORLMWithStateInverse Nothing q'
+                        liftIO $ print output >> hFlush stdout
+                        return q'
+                    ) ql [1 .. often]
+              askUser False addUsage cmds ql'
+            _ -> stepsM ql nr >>= askUser False addUsage cmds
         _ -> do
           liftIO $ putStr "Could not read your input :( You are supposed to enter an Integer.\n"
           askUser False addUsage cmds ql
+
+      -- liftIO $ putStr "How many learning rounds should I execute: " >> hFlush stdout
+      -- l <- liftIO getLine
+      -- case reads l :: [(Integer, String)] of
+      --   [(nr, _)] -> mkTime (stepsM ql nr) >>= askUser False addUsage cmds
+      --   _ -> do
+      --     liftIO $ putStr "Could not read your input :( You are supposed to enter an Integer.\n"
+      --     askUser False addUsage cmds ql
     "p" -> do
       let ppElems = mkPrettyPrintElems (ql ^. s)
           setPrettyPrintElems = setAllProxies (proxyNNConfig.prettyPrintElems) ppElems
@@ -142,18 +164,14 @@ mkPrettyPrintElems st = zipWith (++) plts (replicate (length plts) base)
     actList = map (scaleValue (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal .. maxVal]
     plts = [[x, y] | x <- actList, y <- actList]
 
+mkMiniPrettyPrintElems :: St -> [[Double]]
+mkMiniPrettyPrintElems st = zipWith (++) plts (replicate (length plts) xs)
+  where
+    base' = drop (length productTypes) (netInp st)
+    base = replicate (length base') 0.0
+    minVal = configActFilterMin actionFilterConfig
+    maxVal = configActFilterMax actionFilterConfig
+    actList = map (scaleValue (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal, minVal + maxVal `div` 2, maxVal]
+    plts = [[x, y] | x <- actList, y <- actList, x == y]
 
-  -- where
-    -- len = length productTypes + 1 + length [configActFilterMin actionFilterConfig .. configActFilterMax actionFilterConfig] + 1 + length [-configActFilterMax actionFilterConfig .. 0]
-    -- (lows, highs) = (replicate len (-1), replicate len 1)
-    -- -- curInput = netInp $  St sim [] RewardPeriodEndSimple (M.fromList $ zip productTypes (map Time [1,1 ..]))
-    -- vals = zipWith (\lo hi -> map rnd [lo,lo + (hi - lo) / 3 .. hi]) lows highs
-    -- valsRev = zipWith (\lo hi -> map rnd [hi,hi - (hi - lo) / 3 .. lo]) lows highs
-    -- rnd x = fromIntegral (round (100 * x)) / 100
-    -- ppSts = take 300 (combinations vals) ++ take 300 (combinations valsRev)
-    -- combinations :: [[a]] -> [[a]]
-    -- combinations [] = []
-    -- combinations [xs] = map return xs
-    -- combinations (xs:xss) = concatMap (\x -> map (x :) ys) xs
-    --   where
-    --     ys = combinations xss
+    xs = [-1.000,-0.833,-0.500,-0.333,-0.667,0.167,-0.667,-0.333,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.000]

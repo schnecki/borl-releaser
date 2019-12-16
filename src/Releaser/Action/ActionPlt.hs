@@ -68,21 +68,26 @@ action pltChange =
     sim' <- simulateUntil (simCurrentTime simWOrders + periodLength) simWOrders [] -- are set above
     let reward = mkReward rewardFun simWOrders sim'
     newIncomingOrders <- generateOrders sim'
-    writeFiles simWOrders sim'
+    writeFiles pltsNew simWOrders sim'
     return (reward, St sim' newIncomingOrders rewardFun pltsNew, False)
 
 
-writeFiles :: SimSim -> SimSim -> IO ()
-writeFiles sim sim' = do
+writeFiles :: M.Map ProductType Time -> SimSim -> SimSim -> IO ()
+writeFiles plts' sim sim' = do
   let periodLen = simPeriodLength sim
   let currentTime = simCurrentTime sim
   let period = timeToDouble (currentTime / periodLen)
-  let p = show period ++ "\t"
+  let p = show period ++ sep
+      sep = "\t"
       lb = "\n"
   let costsShipped = rewardValue $ mkReward (RewardShippedSimple config) sim sim'
   let costsPeriodEnd = rewardValue $ mkReward (RewardPeriodEndSimple config) sim sim'
   let fileCosts = "costs"
-  when (currentTime == 0) $ writeFile fileCosts "Period\tCostsPeriodEnd\tCostShipped\n"
+      filePlts = "plts"
+  when (currentTime == 0) $ do
+    writeFile fileCosts "Period\tCostsPeriodEnd\tCostShipped\n"
+    writeFile filePlts ("Period" ++ concatMap (\p -> sep <> "'Product " <> show p <> "'") (M.keys plts') ++ lb)
   appendFile fileCosts (p ++ show costsPeriodEnd ++ "\t" ++ show costsShipped ++ lb)
+  appendFile filePlts (p ++ concatMap (\p -> sep <> show p) (M.elems plts') ++ lb)
   where
     config = ConfigReward 0 1 Nothing

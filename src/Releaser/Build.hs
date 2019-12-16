@@ -28,6 +28,7 @@ import           Control.Monad
 import           Control.Monad.IO.Class
 import           Data.Constraint                   (Dict (..), withDict)
 import           Data.Function                     (on)
+import           Data.Int                          (Int64)
 import           Data.List                         (find, foldl', genericLength, groupBy,
                                                     nub, sort, sortBy)
 import qualified Data.Map                          as M
@@ -86,8 +87,8 @@ buildSim :: IO SimSim
 buildSim =
   newSimSimIO
     (configRoutingRoutes routing)
-    -- procTimesConst
-    procTimes
+    procTimesConst
+    -- procTimes
     periodLength
            -- releaseImmediate
     (mkReleasePLT initialPLTS)
@@ -170,8 +171,8 @@ netInpTblBinary st = case extractFeatures False st of
              | otherwise = 1
 
 
-modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> m TensorflowModel
-modelBuilder actions initState =
+modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> Int64 -> m TensorflowModel
+modelBuilder actions initState cols =
   buildModel $
   inputLayer1D lenIn >>
   fullyConnected [3 * lenIn] TF.relu' >>
@@ -180,11 +181,11 @@ modelBuilder actions initState =
   fullyConnected [max lenOut $ ceiling $ 0.7 * fromIntegral (lenIn + lenOut)] TF.relu' >>
   fullyConnected [max lenOut $ ceiling $ 0.3 * fromIntegral (lenIn + lenOut)] TF.relu' >>
   fullyConnected [max lenOut $ ceiling $ 0.2 * fromIntegral (lenIn + lenOut)] TF.relu' >>
-  fullyConnected [genericLength actions] TF.tanh' >>
-  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
+  fullyConnected [genericLength actions, cols] TF.tanh' >>
+  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.01, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
   where
     lenIn = genericLength (netInp initState)
-    lenOut = genericLength actions
+    lenOut = genericLength actions + cols
 
 
 mkInitSt :: SimSim -> [Order] -> (St, [Action St], St -> [Bool])
@@ -201,6 +202,7 @@ buildBORLTable = do
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
   return $ mkUnichainTabular alg initSt netInpTblBinary actions actFilter borlParams (configDecay decay) (Just initVals)
+
 
 -- makeNN ::
 --      forall nrH nrL layers shapes. ( KnownNat nrH , KnownNat nrL , Last shapes ~ 'D1 nrL , Head shapes ~ 'D1 nrH , NFData (Tapes layers shapes) , NFData (Network layers shapes) , Serialize (Network layers shapes) , Network layers shapes ~ NN nrH nrL)
@@ -231,7 +233,7 @@ buildBORLTensorflow = do
   sim <- liftIO buildSim
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
-  mkUnichainTensorflowM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
+  mkUnichainTensorflowCombinedNetM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
 
 copyFiles :: String -> ExperimentNumber -> RepetitionNumber -> Maybe ReplicationNumber -> IO ()
 copyFiles pre expNr repetNr mRepliNr = do
