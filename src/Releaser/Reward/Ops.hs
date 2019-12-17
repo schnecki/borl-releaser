@@ -17,6 +17,7 @@ module Releaser.Reward.Ops
   , configReward100
   , configReward50
   , configReward500
+  , configReward2500
   ) where
 
 import           Control.DeepSeq
@@ -57,6 +58,10 @@ configReward50 = ConfigReward 50 1 (Just $ -50)
 
 configReward500 :: ConfigReward
 configReward500 = ConfigReward 500 1 (Just $ -500)
+
+configReward2500 :: ConfigReward
+configReward2500 = ConfigReward 2500 1 (Just $ -2500)
+
 
 type SimT = SimSim
 type SimTPlus1 = SimSim
@@ -101,9 +106,9 @@ instance RewardFuture StSerialisable where
 
 
 mkFutureReward :: ConfigReward -> RewardInFutureType -> SimSim -> SimSim -> Reward St
-mkFutureReward config ByOrderPoolOrders sim _ = RewardFuture (config, map (\os -> Future (length os) 0 (map orderId os)) orders)
+mkFutureReward config ByOrderPoolOrders sim sim' = RewardFuture (config, map (\os -> Future (length os) 0 (map orderId os)) orders)
   where
-    orders = groupBy ((==) `on` dueDate) $ sortBy (compare `on` dueDate) $ simOrdersOrderPool sim
+    orders = groupBy ((==) `on` dueDate) $ sortBy (compare `on` dueDate) $ simOrdersOrderPool sim'
 
     -- orders = map (\dd -> filter ((== dd) . dueDate) (simOrdersOrderPool sim)) [minPLT, minPLT+periodLen .. maxPLT]
     -- currentTime = simCurrentTime sim
@@ -134,6 +139,7 @@ applyFutureReward (config, futures) (St sim _ _ _)
     -- avgRew xs = Reward $ sum (map rewardValue xs) / fromIntegral (max 1 (length xs))
     finalize futures =
       -- average costs per order
+
       fromDouble config $ (\xs -> sum (map (\(Future _ acc _) -> acc) xs) / sum (map (\(Future nr _ _) -> fromIntegral nr) xs)) (filter ((> 0) . nrOfOrders) futures)
 
     shippedOrders = map (\(Future _ _ orderIds) -> filter ((`elem` orderIds) . orderId) (simOrdersShipped sim)) futures

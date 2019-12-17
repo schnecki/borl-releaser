@@ -26,14 +26,16 @@ import           Releaser.Type
 
 main :: IO ()
 main =
-  -- runMonadBorlIO $ do
-  --   -- borl <- liftIO buildBORLGrenade
-  --   borl <- liftIO buildBORLTable
-  runMonadBorlTF $ do
-    borl <- buildBORLTensorflow
-    let ppElems = mkMiniPrettyPrintElems (borl ^. s)
-        setPrettyPrintElems = setAllProxies (proxyNNConfig.prettyPrintElems) ppElems
-    askUser True usage cmds (setPrettyPrintElems borl)   -- maybe increase learning by setting estimate of rho
+  runMonadBorlIO $ do
+    -- borl <- liftIO buildBORLGrenade
+    borl <- liftIO buildBORLTable
+    askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
+
+  -- runMonadBorlTF $ do
+  --   borl <- buildBORLTensorflow
+  --   let ppElems = mkMiniPrettyPrintElems (borl ^. s)
+  --       setPrettyPrintElems = setAllProxies (proxyNNConfig.prettyPrintElems) ppElems
+    -- askUser True usage cmds (setPrettyPrintElems borl)   -- maybe increase learning by setting estimate of rho
   where cmds = []
         usage = []
 
