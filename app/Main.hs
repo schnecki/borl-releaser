@@ -35,7 +35,7 @@ main =
   --   borl <- buildBORLTensorflow
   --   let ppElems = mkMiniPrettyPrintElems (borl ^. s)
   --       setPrettyPrintElems = setAllProxies (proxyNNConfig.prettyPrintElems) ppElems
-    -- askUser True usage cmds (setPrettyPrintElems borl)   -- maybe increase learning by setting estimate of rho
+  --   askUser True usage cmds (setPrettyPrintElems borl)   -- maybe increase learning by setting estimate of rho
   where cmds = []
         usage = []
 
@@ -167,7 +167,9 @@ mkPrettyPrintElems st = zipWith (++) plts (replicate (length plts) base)
     plts = [[x, y] | x <- actList, y <- actList]
 
 mkMiniPrettyPrintElems :: St -> [[Double]]
-mkMiniPrettyPrintElems st = zipWith (++) plts (replicate (length plts) xs)
+mkMiniPrettyPrintElems st
+  | length xs /= length base' = error $ "wrong length in mkMiniPrettyPrintElems: " ++ show (length xs) ++ " instead of " ++ show (length base')
+  | otherwise = zipWith (++) plts (replicate (length plts) xs)
   where
     base' = drop (length productTypes) (netInp st)
     base = replicate (length base') 0.0
@@ -176,4 +178,5 @@ mkMiniPrettyPrintElems st = zipWith (++) plts (replicate (length plts) xs)
     actList = map (scaleValue (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal, minVal + maxVal `div` 2, maxVal]
     plts = [[x, y] | x <- actList, y <- actList, x == y]
 
-    xs = [-1.000,-0.833,-0.500,-0.333,-0.667,0.167,-0.667,-0.333,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.000]
+    -- xs = [-1.000,-0.833,-0.500,-0.333,-0.667,0.167,-0.667,-0.333,0,0,0,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.000]
+    xs = [-1.000,-1.000,-1.000,-1.000,-1.000,-0.333,-0.167,0.500,1.833,-0.667,-0.833,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.500]

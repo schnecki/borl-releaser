@@ -34,7 +34,7 @@ decayRate50PctStepsk150k :: ConfigDecay
 decayRate50PctStepsk150k = ConfigDecay ("Exponential decay with rate " <> tshow rate <> " in " <> tshow steps <> " steps") dec
   where
     rate=0.5
-    steps=150000
+    steps=15000
     dec =
       decaySetupParameters
         Parameters
@@ -46,7 +46,7 @@ decayRate50PctStepsk150k = ConfigDecay ("Exponential decay with rate " <> tshow 
           , _xi               = NoDecay
           -- Exploration
           , _epsilon          = NoDecay -- ExponentialDecay (Just 0.50) rate steps
-          , _exploration      = ExponentialDecay (Just 0.05) 0.5 steps
+          , _exploration      = ExponentialDecay (Just 0.01) 0.05 steps
           , _learnRandomAbove = NoDecay
           -- ANN
           , _alphaANN         = ExponentialDecay Nothing rate steps

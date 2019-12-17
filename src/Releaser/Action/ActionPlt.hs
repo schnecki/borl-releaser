@@ -86,7 +86,7 @@ writeFiles plts' sim sim' = do
       filePlts = "plts"
   when (currentTime == 0) $ do
     writeFile fileCosts "Period\tCostsPeriodEnd\tCostShipped\n"
-    writeFile filePlts ("Period" ++ concatMap (\p -> sep <> "'Product " <> show p <> "'") (M.keys plts') ++ lb)
+    writeFile filePlts ("Period" ++ concatMap (\p -> sep <> "\"" <> show p <> "\"") (M.keys plts') ++ lb)
   appendFile fileCosts (p ++ show costsPeriodEnd ++ "\t" ++ show costsShipped ++ lb)
   appendFile filePlts (p ++ concatMap (\p -> sep <> show p) (M.elems plts') ++ lb)
   where

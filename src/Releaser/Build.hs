@@ -90,8 +90,9 @@ buildSim =
     procTimesConst
     -- procTimes
     periodLength
-           -- releaseImmediate
-    (mkReleasePLT initialPLTS)
+    -- releaseImmediate
+    (releaseBIL $ M.fromList [(Product 1, 1), (Product 2, 1)])
+    -- (mkReleasePLT initialPLTS)
     dispatchFirstComeFirstServe
     shipOnDueDate
 
@@ -201,7 +202,8 @@ buildBORLTable = do
   sim <- buildSim
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
-  return $ mkUnichainTabular alg initSt netInpTblBinary actions actFilter borlParams (configDecay decay) (Just initVals)
+  return $ mkUnichainTabular alg initSt netInpTbl -- netInpTblBinary
+    actions actFilter borlParams (configDecay decay) (Just initVals)
 
 
 -- makeNN ::

@@ -29,3 +29,6 @@ test/bil3/
 /stateValuesAllStatesCount
 /stateWAllStates
 /plts
+/queueLength
+/statePsiW2AllStates
+/stateW2AllStates

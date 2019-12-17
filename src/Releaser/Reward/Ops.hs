@@ -16,6 +16,7 @@ module Releaser.Reward.Ops
   , configRewardPeriodEnd
   , configReward100
   , configReward50
+  , configReward250
   , configReward500
   , configReward2500
   ) where
@@ -56,6 +57,10 @@ configReward100 = ConfigReward 100 1 (Just $ -100)
 configReward50 :: ConfigReward
 configReward50 = ConfigReward 50 1 (Just $ -50)
 
+configReward250 :: ConfigReward
+configReward250 = ConfigReward 250 1 (Just $ -250)
+
+
 configReward500 :: ConfigReward
 configReward500 = ConfigReward 500 1 (Just $ -500)
 
@@ -79,10 +84,12 @@ fromDouble config r = Reward $ maxFun (base - scale * r)
 
 mkReward :: RewardFunction -> SimT -> SimTPlus1 -> Reward St
 mkReward (RewardShippedSimple config) _ sim = fromDouble config $ sum $ map (calcRewardShipped sim) (simOrdersShipped sim)
-mkReward (RewardPeriodEndSimple config) _ sim = fromDouble config (nrWipOrders * wipCosts costConfig + nrFgiOrders * fgiCosts costConfig + nrBoOrders * boCosts costConfig)
+mkReward (RewardPeriodEndSimple config) _ sim =
+  fromDouble config (nrWipOrders * wipCosts costConfig + nrFgiOrders * fgiCosts costConfig + nrBoOrders * boCosts costConfig)
+
   where
     currentTime = simCurrentTime sim
-    nrWipOrders = fromIntegral $ M.size (simOrdersQueue sim) + M.size (simOrdersMachine sim)
+    nrWipOrders = fromIntegral $ length (concat $ M.elems (simOrdersQueue sim)) + M.size (simOrdersMachine sim)
     nrFgiOrders = fromIntegral $ length (simOrdersFgi sim)
     allOrdersInTheSystem = simOrdersOrderPool sim ++ concat (M.elems (simOrdersQueue sim)) ++ map fst (M.elems (simOrdersMachine sim)) ++ simOrdersFgi sim
     isBackorder order = currentTime >= dueDate order
@@ -138,9 +145,12 @@ applyFutureReward (config, futures) (St sim _ _ _)
     --   avgRew $ map (\(Future _ acc _) -> fromDouble config acc) (filter ((> 0) . nrOfOrders) futures)
     -- avgRew xs = Reward $ sum (map rewardValue xs) / fromIntegral (max 1 (length xs))
     finalize futures =
-      -- average costs per order
+      -- 1. -- average costs per order (results in minimizing number of orders by releasing one product immediately and the other as late as possible)
+      -- fromDouble config $ (\xs -> sum (map (\(Future _ acc _) -> acc) xs) / sum (map (\(Future nr _ _) -> fromIntegral nr) xs)) (filter ((> 0) . nrOfOrders) futures)
 
-      fromDouble config $ (\xs -> sum (map (\(Future _ acc _) -> acc) xs) / sum (map (\(Future nr _ _) -> fromIntegral nr) xs)) (filter ((> 0) . nrOfOrders) futures)
+      -- average costs per order (results in minimizing number of orders by releasing one product immediately and the other as late as possible)
+      fromDouble config $ (\xs -> sum (map (\(Future _ acc _) -> acc) xs) -- / sum (map (\(Future nr _ _) -> fromIntegral nr) xs)
+                          ) (filter ((> 0) . nrOfOrders) futures)
 
     shippedOrders = map (\(Future _ _ orderIds) -> filter ((`elem` orderIds) . orderId) (simOrdersShipped sim)) futures
     futures' = zipWith updateFuture futures shippedOrders
