@@ -12,7 +12,8 @@ import           Releaser.Demand.Type
 ----------------------------------------
 
 demand :: ConfigDemand
-demand = demandConst9FixedDds -- demandUniformIn3To15FixedDds
+demand = -- demandConst9FixedDds
+  demandUniformIn3To15FixedDds
 
 generateOrders :: SimSim -> IO [Order]
 generateOrders = configDemandFunction demand

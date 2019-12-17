@@ -87,15 +87,14 @@ buildSim :: IO SimSim
 buildSim =
   newSimSimIO
     (configRoutingRoutes routing)
-    procTimesConst
-    -- procTimes
+    -- procTimesConst
+    procTimes
     periodLength
     -- releaseImmediate
-    (releaseBIL $ M.fromList [(Product 1, 1), (Product 2, 1)])
-    -- (mkReleasePLT initialPLTS)
+    -- (releaseBIL $ M.fromList [(Product 1, 1), (Product 2, 1)])
+    (mkReleasePLT initialPLTS)
     dispatchFirstComeFirstServe
     shipOnDueDate
-
 
 initialPLTS :: M.Map ProductType Time
 initialPLTS = M.fromList $ zip productTypes [1 ..]

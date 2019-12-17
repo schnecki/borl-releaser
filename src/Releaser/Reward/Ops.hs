@@ -84,9 +84,7 @@ fromDouble config r = Reward $ maxFun (base - scale * r)
 
 mkReward :: RewardFunction -> SimT -> SimTPlus1 -> Reward St
 mkReward (RewardShippedSimple config) _ sim = fromDouble config $ sum $ map (calcRewardShipped sim) (simOrdersShipped sim)
-mkReward (RewardPeriodEndSimple config) _ sim =
-  fromDouble config (nrWipOrders * wipCosts costConfig + nrFgiOrders * fgiCosts costConfig + nrBoOrders * boCosts costConfig)
-
+mkReward (RewardPeriodEndSimple config) _ sim = fromDouble config (nrWipOrders * wipCosts costConfig + nrFgiOrders * fgiCosts costConfig + nrBoOrders * boCosts costConfig)
   where
     currentTime = simCurrentTime sim
     nrWipOrders = fromIntegral $ length (concat $ M.elems (simOrdersQueue sim)) + M.size (simOrdersMachine sim)

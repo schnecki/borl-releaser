@@ -34,7 +34,7 @@ decayRate50PctStepsk150k :: ConfigDecay
 decayRate50PctStepsk150k = ConfigDecay ("Exponential decay with rate " <> tshow rate <> " in " <> tshow steps <> " steps") dec
   where
     rate=0.5
-    steps=15000
+    steps=150000
     dec =
       decaySetupParameters
         Parameters

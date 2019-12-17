@@ -26,16 +26,16 @@ import           Releaser.Type
 
 main :: IO ()
 main =
-  runMonadBorlIO $ do
-    -- borl <- liftIO buildBORLGrenade
-    borl <- liftIO buildBORLTable
-    askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
+  -- runMonadBorlIO $ do
+  --   -- borl <- liftIO buildBORLGrenade
+  --   borl <- liftIO buildBORLTable
+  --   askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
 
-  -- runMonadBorlTF $ do
-  --   borl <- buildBORLTensorflow
-  --   let ppElems = mkMiniPrettyPrintElems (borl ^. s)
-  --       setPrettyPrintElems = setAllProxies (proxyNNConfig.prettyPrintElems) ppElems
-  --   askUser True usage cmds (setPrettyPrintElems borl)   -- maybe increase learning by setting estimate of rho
+  runMonadBorlTF $ do
+    borl <- buildBORLTensorflow
+    let ppElems = mkMiniPrettyPrintElems (borl ^. s)
+        setPrettyPrintElems = setAllProxies (proxyNNConfig.prettyPrintElems) ppElems
+    askUser True usage cmds (setPrettyPrintElems borl)   -- maybe increase learning by setting estimate of rho
   where cmds = []
         usage = []
 
@@ -179,4 +179,9 @@ mkMiniPrettyPrintElems st
     plts = [[x, y] | x <- actList, y <- actList, x == y]
 
     -- xs = [-1.000,-0.833,-0.500,-0.333,-0.667,0.167,-0.667,-0.333,0,0,0,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.000]
-    xs = [-1.000,-1.000,-1.000,-1.000,-1.000,-0.333,-0.167,0.500,1.833,-0.667,-0.833,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.500]
+    xs = [-1.000,-1.000,-1.000,-1.000,-1.000,-0.333,-0.167,0.500,1.833,
+          -1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.500]
+
+    -- test-- -0.667,-0.833,
+
+
