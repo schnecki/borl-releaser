@@ -183,7 +183,7 @@ modelBuilder actions initState cols =
   fullyConnected [max lenOut $ ceiling $ 0.3 * fromIntegral (lenIn + lenOut)] TF.relu' >>
   fullyConnected [max lenOut $ ceiling $ 0.2 * fromIntegral (lenIn + lenOut)] TF.relu' >>
   fullyConnected [genericLength actions, cols] TF.tanh' >>
-  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
+  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.0001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
   where
     lenIn = genericLength (netInp initState)
     lenOut = genericLength actions + cols
