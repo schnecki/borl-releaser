@@ -13,7 +13,8 @@ import           Releaser.Type
 
 featureExtractor :: ReduceValues -> ConfigFeatureExtractor
 featureExtractor = -- featExtractorSimple
-  featExtractorSimpleWithQueueCounts
+  featExtractorSimpleWipWithQueueCounts
+  -- featExtractorSimpleWithQueueCounts (not FGI does not make sense)
   -- featExtractorWipAsQueueCounters
 
 

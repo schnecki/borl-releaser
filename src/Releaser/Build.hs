@@ -20,6 +20,7 @@ module Releaser.Build
     , modelBuilder
     , actionConfig
     , experimentName
+    , mInverse
     ) where
 
 import           Control.DeepSeq
@@ -91,7 +92,7 @@ buildSim =
     procTimes
     periodLength
     -- releaseImmediate
-    -- (releaseBIL $ M.fromList [(Product 1, 1), (Product 2, 1)])
+    -- (releaseBIL $ M.fromList [(Product 1, 2), (Product 2, 2)])
     (mkReleasePLT initialPLTS)
     dispatchFirstComeFirstServe
     shipOnDueDate
@@ -159,13 +160,13 @@ netInp = extractionToList . extractFeatures True
 
 netInpTbl :: St -> [Double]
 netInpTbl st = case extractFeatures False st of
-  Extraction plts op que fgi shipped -> plts ++ map reduce (concat $ op ++ map (map (fromIntegral . ceiling . (/9))) (concat que) ++ fgi ++ shipped)
+  Extraction plts op que fgi shipped _ -> plts ++ map reduce (concat $ op ++ map (map (fromIntegral . ceiling . (/9))) (concat que) ++ fgi ++ shipped)
   where
     reduce x = 7 * fromIntegral (ceiling (x / 7))
 
 netInpTblBinary :: St -> [Double]
 netInpTblBinary st = case extractFeatures False st of
-  Extraction plts op que fgi shipped -> plts ++ map reduce (concat op) ++ map (fromIntegral . ceiling . (/9)) (concat (concat que)) ++ map reduce (concat $ fgi ++ shipped)
+  Extraction plts op que fgi shipped _ -> plts ++ map reduce (concat op) ++ map (fromIntegral . ceiling . (/9)) (concat (concat que)) ++ map reduce (concat $ fgi ++ shipped)
   where
     reduce x | x == 0 = x
              | otherwise = 1
@@ -203,6 +204,10 @@ buildBORLTable = do
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
   return $ mkUnichainTabular alg initSt netInpTbl -- netInpTblBinary
     actions actFilter borlParams (configDecay decay) (Just initVals)
+
+
+mInverse :: BORL St -> [Double] -> Maybe (Either String St)
+mInverse borl xs = return $ Left $ show $ fromListToExtraction (borl ^. s) (featureExtractor True) xs
 
 
 -- makeNN ::

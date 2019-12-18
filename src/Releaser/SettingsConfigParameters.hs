@@ -18,7 +18,7 @@ import           SimSim
 -- | BORL Parameters.
 borlParams :: Parameters Double
 borlParams = Parameters
-  { _alpha              = 0.001
+  { _alpha              = 0.01
   , _alphaANN           = 1.0
   , _beta               = 0.03
   , _betaANN            = 1.0
@@ -38,8 +38,8 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-    { _replayMemoryMaxSize = 30000
-    , _trainBatchSize = 18
+    { _replayMemoryMaxSize = 10000
+    , _trainBatchSize = 8
     , _grenadeLearningParams = LearningParameters 0.01 0.0 0.0001
     , _learningParamsDecay = ExponentialDecay (Just 5e-5) 0.50 100000
     , _prettyPrintElems = [] -- is set just before printing
@@ -66,12 +66,12 @@ nnConfig =
 
 
 alg :: Algorithm s
-alg = -- AlgBORLVOnly (ByMovAvg 1000)
-  AlgBORL defaultGamma0 defaultGamma1
-  -- ByStateValues
+alg =
+
+  -- AlgDQNAvgRewardFree 0.75 0.995 ByStateValues
+  AlgBORL defaultGamma0 defaultGamma1 ByStateValues False Nothing
   -- (ByStateValuesAndReward 0.5 NoDecay)
-  (ByMovAvg 5000)
-  False Nothing
+  -- (ByMovAvg 5000)
 
 initVals :: InitValues
 initVals = InitValues 0 0 0 0 0

@@ -38,7 +38,7 @@ decayRate50PctStepsk150k = ConfigDecay ("Exponential decay with rate " <> tshow 
     dec =
       decaySetupParameters
         Parameters
-          { _alpha            = ExponentialDecay (Just 1e-4) rate steps
+          { _alpha            = ExponentialDecay (Just 1e-4) 0.01 50000
           , _beta             = ExponentialDecay (Just 1e-4) rate steps
           , _delta            = ExponentialDecay (Just 5e-4) rate steps
           , _gamma            = ExponentialDecay (Just 1e-3) rate steps
@@ -46,7 +46,7 @@ decayRate50PctStepsk150k = ConfigDecay ("Exponential decay with rate " <> tshow 
           , _xi               = NoDecay
           -- Exploration
           , _epsilon          = NoDecay -- ExponentialDecay (Just 0.50) rate steps
-          , _exploration      = ExponentialDecay (Just 0.01) 0.25 steps
+          , _exploration      = ExponentialDecay (Just 0.20) 0.05 50000 -- 100000
           , _learnRandomAbove = NoDecay
           -- ANN
           , _alphaANN         = ExponentialDecay Nothing rate steps

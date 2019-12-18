@@ -5,9 +5,10 @@ module Releaser.FeatureExtractor.Ops
     , Extraction (..)
     , ReduceValues
     , featExtractorSimple
+    , featExtractorSimpleWithQueueCounts
+    , featExtractorSimpleWipWithQueueCounts
     , featExtractorFullWoMachines
     , featExtractorWipAsQueueCounters
-    , featExtractorSimpleWithQueueCounts
     ) where
 
 import           Data.Function                  (on)
@@ -35,79 +36,77 @@ type ReduceValues = Bool
 featExtractorSimple :: ReduceValues -> ConfigFeatureExtractor
 featExtractorSimple useReduce = ConfigFeatureExtractor "PLTS-OP-Shipped aggregated over product types" featExt
   where
-    doIf prep f
-      | prep = f
-      | otherwise = id
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map (doIf useReduce (scaleValue $ Just (1, 7)) . timeToDouble) (M.elems plts))
-        [map reduce $ mkFromList (incOrds ++ simOrdersOrderPool sim)] -- TODO: split also by product type
+        (map (timeToDouble) (M.elems plts))
+        [mkFromList (incOrds ++ simOrdersOrderPool sim)] -- TODO: split also by product type
         []
         []
-        [map reduce $ map genericLength (sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime (simOrdersShipped sim))]
-
-      where currentTime = simCurrentTime sim
-            mkFromList xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) currentTime xs)
-            reduce x | useReduce = scaleValue (Just (0, 12)) x
-                     | otherwise = x
+        [map genericLength (sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime (simOrdersShipped sim))]
+        useReduce
+      where
+        currentTime = simCurrentTime sim
+        mkFromList xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) currentTime xs)
 
 featExtractorSimpleWithQueueCounts :: ReduceValues -> ConfigFeatureExtractor
 featExtractorSimpleWithQueueCounts useReduce = ConfigFeatureExtractor "PLTS-OP-QueueCounters-Shipped aggregated over product types" featExt
   where
-    doIf prep f
-      | prep = f
-      | otherwise = id
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map (doIf useReduce (scaleValue $ Just (1, 7)) . timeToDouble) (M.elems plts))
-        [map reduce $ mkFromList (incOrds ++ simOrdersOrderPool sim)]
-        (map (return . return . reduce . fromIntegral . length) (M.elems $ simOrdersQueue sim))
+        (map timeToDouble (M.elems plts))
+        [mkFromList (incOrds ++ simOrdersOrderPool sim)]
+        (map (return . return . fromIntegral . length) (M.elems $ simOrdersQueue sim))
         []
-        [map reduce $ map genericLength (sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime (simOrdersShipped sim))]
+        [map genericLength (sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime (simOrdersShipped sim))]
+        useReduce
+      where currentTime = simCurrentTime sim
+            mkFromList xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) currentTime xs)
+
+featExtractorSimpleWipWithQueueCounts :: ReduceValues -> ConfigFeatureExtractor
+featExtractorSimpleWipWithQueueCounts useReduce = ConfigFeatureExtractor "PLTS-OP-QueueCounters-Shipped aggregated over product types" featExt
+  where
+    featExt (St sim incOrds _ plts) =
+      Extraction
+        (map timeToDouble (M.elems plts))
+        [mkFromList (incOrds ++ simOrdersOrderPool sim)]
+        (map (return . return . fromIntegral . length) (M.elems $ simOrdersQueue sim))
+        [mkFromList (simOrdersFgi sim)]
+        [map genericLength (sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime (simOrdersShipped sim))] -- WHY 0 and not 1
+        useReduce
 
       where currentTime = simCurrentTime sim
             mkFromList xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) currentTime xs)
-            reduce x | useReduce = scaleValue (Just (0, 12)) x
-                     | otherwise = x
 
 
 featExtractorWipAsQueueCounters :: ReduceValues -> ConfigFeatureExtractor
 featExtractorWipAsQueueCounters useReduce = ConfigFeatureExtractor "PLTS-OP-QueueCounters-FGI-Shipped" featExt
   where
-    doIf prep f
-      | prep = f
-      | otherwise = id
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map (doIf useReduce (scaleValue (Just (1, 7))) . timeToDouble) (M.elems plts))
-        (foreachPt (map reduce . mkFromList) (incOrds ++ simOrdersOrderPool sim))
-        (M.elems $ fmap (\xs -> foreachPt (return . reduce . fromIntegral . length) xs) (simOrdersQueue sim))
-        (foreachPt (map reduce . mkFromList) (simOrdersFgi sim))
-        (foreachPt (map (reduce . genericLength) . sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime) (simOrdersShipped sim))
+        (map timeToDouble (M.elems plts))
+        (foreachPt mkFromList (incOrds ++ simOrdersOrderPool sim))
+        (M.elems $ fmap (\xs -> foreachPt (return . fromIntegral . length) xs) (simOrdersQueue sim))
+        (foreachPt mkFromList (simOrdersFgi sim))
+        (foreachPt (map genericLength . sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime) (simOrdersShipped sim))
+        useReduce
       where currentTime = simCurrentTime sim
             mkFromList xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) currentTime xs)
-            reduce x | useReduce = scaleValue (Just (0, 12)) x
-                     | otherwise = x
             foreachPt f xs = map (\pt -> f (filter ((==pt) . productType) xs)) productTypes
 
 
 featExtractorFullWoMachines :: ReduceValues -> ConfigFeatureExtractor
 featExtractorFullWoMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-FGI-Shipped" featExt
   where
-    doIf prep f
-      | prep = f
-      | otherwise = id
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map (doIf useReduce (scaleValue (Just (1, 7))) . timeToDouble) (M.elems plts))
-        (foreachPt (map reduce . mkFromList) (incOrds ++ simOrdersOrderPool sim))
-        (M.elems $ fmap (foreachPt (map reduce . mkFromList)) (simOrdersQueue sim))
-        (foreachPt (map reduce . mkFromList) (simOrdersFgi sim))
-        (foreachPt (map (reduce . genericLength) . sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime) (simOrdersShipped sim))
+        (map timeToDouble (M.elems plts))
+        (foreachPt mkFromList (incOrds ++ simOrdersOrderPool sim))
+        (M.elems $ fmap (foreachPt mkFromList) (simOrdersQueue sim))
+        (foreachPt mkFromList (simOrdersFgi sim))
+        (foreachPt (map genericLength . sortByTimeUntilDue (-configActFilterMax actionFilterConfig) 0 currentTime) (simOrdersShipped sim))
+        useReduce
       where currentTime = simCurrentTime sim
             mkFromList xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) currentTime xs)
-            reduce x | useReduce = scaleValue (Just (0, 12)) x
-                     | otherwise = x
             foreachPt f xs = map (\pt -> f (filter ((==pt) . productType) xs)) productTypes
 
 

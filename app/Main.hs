@@ -31,6 +31,7 @@ main =
   --   borl <- liftIO buildBORLTable
   --   askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
 
+
   runMonadBorlTF $ do
     borl <- buildBORLTensorflow
     let ppElems = mkMiniPrettyPrintElems (borl ^. s)
@@ -71,7 +72,7 @@ askUser showHelp addUsage cmds ql = do
       liftIO $ putStrLn $ T.unpack $ prettySimSim sim
       askUser showHelp addUsage cmds ql
     "h" -> do
-      liftIO $ prettyBORLHead True Nothing ql >>= print
+      liftIO $ prettyBORLHead True (Just $ mInverse ql) ql >>= print
       askUser False addUsage cmds ql
     "l" -> do
       bs <- liftIO $ BS.readFile "savedModel"
@@ -104,7 +105,7 @@ askUser showHelp addUsage cmds ql = do
             [(often, _)] -> do
               ql' <- foldM (\q _ -> do
                         !q' <- mkTime (stepsM q nr)
-                        output <- prettyBORLMWithStateInverse Nothing q'
+                        output <- prettyBORLMWithStateInverse (Just $ mInverse ql) q'
                         liftIO $ print output >> hFlush stdout
                         return $! force q'
                     ) ql [1 .. often]
@@ -124,7 +125,7 @@ askUser showHelp addUsage cmds ql = do
     "p" -> do
       let ppElems = mkPrettyPrintElems (ql ^. s)
           setPrettyPrintElems = setAllProxies (proxyNNConfig.prettyPrintElems) ppElems
-      liftIO $ prettyBORL (setPrettyPrintElems ql) >>= print
+      liftIO $ prettyBORLWithStInverse (Just $ mInverse ql) (setPrettyPrintElems ql) >>= print
       askUser False addUsage cmds ql
     "v" -> do
       case find isTensorflow (allProxies $ ql ^. proxies) of
@@ -168,7 +169,7 @@ mkPrettyPrintElems st = zipWith (++) plts (replicate (length plts) base)
 
 mkMiniPrettyPrintElems :: St -> [[Double]]
 mkMiniPrettyPrintElems st
-  | length xs /= length base' = error $ "wrong length in mkMiniPrettyPrintElems: " ++ show (length xs) ++ " instead of " ++ show (length base')
+  | length xs /= length base' = error $ "wrong length in mkMiniPrettyPrintElems: " ++ show (length xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show base'
   | otherwise = zipWith (++) plts (replicate (length plts) xs)
   where
     base' = drop (length productTypes) (netInp st)
@@ -178,7 +179,7 @@ mkMiniPrettyPrintElems st
     actList = map (scaleValue (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal, minVal + maxVal `div` 2, maxVal]
     plts = [[x, y] | x <- actList, y <- actList, x == y]
 
-    xs = [-1.000,-0.833,-0.500,-0.333,-0.667,0.167,-0.667,-0.333,0,0,0,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.000]
+    xs = [-1.000,-0.833,-0.500,-0.333,-0.667,0.167,-0.667,-0.333,0,0,0,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.000]
     -- xs = [-1.000,-1.000,-1.000,-1.000,-1.000,-0.333,-0.167,0.500,1.833,
     --       -1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.500]
 
