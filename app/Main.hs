@@ -103,10 +103,10 @@ askUser showHelp addUsage cmds ql = do
           case reads l :: [(Integer, String)] of
             [(often, _)] -> do
               ql' <- foldM (\q _ -> do
-                        q' <- mkTime (stepsM q nr)
+                        !q' <- mkTime (stepsM q nr)
                         output <- prettyBORLMWithStateInverse Nothing q'
                         liftIO $ print output >> hFlush stdout
-                        return q'
+                        return $! force q'
                     ) ql [1 .. often]
               askUser False addUsage cmds ql'
             _ -> stepsM ql nr >>= askUser False addUsage cmds
@@ -178,9 +178,9 @@ mkMiniPrettyPrintElems st
     actList = map (scaleValue (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal, minVal + maxVal `div` 2, maxVal]
     plts = [[x, y] | x <- actList, y <- actList, x == y]
 
-    -- xs = [-1.000,-0.833,-0.500,-0.333,-0.667,0.167,-0.667,-0.333,0,0,0,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.000]
-    xs = [-1.000,-1.000,-1.000,-1.000,-1.000,-0.333,-0.167,0.500,1.833,
-          -1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.500]
+    xs = [-1.000,-0.833,-0.500,-0.333,-0.667,0.167,-0.667,-0.333,0,0,0,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.000]
+    -- xs = [-1.000,-1.000,-1.000,-1.000,-1.000,-0.333,-0.167,0.500,1.833,
+    --       -1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.500]
 
     -- test-- -0.667,-0.833,
 

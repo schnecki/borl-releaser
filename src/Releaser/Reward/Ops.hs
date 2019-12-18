@@ -122,7 +122,9 @@ mkFutureReward config ByOrderPoolOrders sim sim' = RewardFuture (config, map (\o
     -- minPLT = currentTime + fromIntegral minPLTPeriod * periodLength
     -- maxPLT = currentTime + fromIntegral maxPLTPeriod * periodLength
 
-mkFutureReward config ByReleasedOrders sim sim' = RewardFuture (config, [Future (length orders) 0 orders | not (null orders)])
+mkFutureReward config ByReleasedOrders sim sim'
+  | null orders = RewardEmpty
+  | otherwise = RewardFuture (config, [Future (length orders) 0 orders])
   where
     opOrdsSim = map orderId (simOrdersOrderPool sim)
     opOrdsSim' = map orderId (simOrdersOrderPool sim')

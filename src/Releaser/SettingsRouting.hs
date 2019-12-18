@@ -16,8 +16,8 @@ import           Releaser.Routing.Type
 
 routing :: ConfigRouting
 routing =
-  routingSingleStage
-  -- routingDiverging2Stages
+  -- routingSingleStage
+  routingDiverging2Stages
 
 productTypes :: [ProductType]
 productTypes = sort $ nub $ map (fst . fst) (configRoutingRoutes routing)

@@ -38,14 +38,14 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-    { _replayMemoryMaxSize = 10000
-    , _trainBatchSize = 8
+    { _replayMemoryMaxSize = 30000
+    , _trainBatchSize = 18
     , _grenadeLearningParams = LearningParameters 0.01 0.0 0.0001
-    , _learningParamsDecay = ExponentialDecay (Just 1e-5) 0.05 100000
+    , _learningParamsDecay = ExponentialDecay (Just 5e-5) 0.50 100000
     , _prettyPrintElems = [] -- is set just before printing
-    , _scaleParameters = scalingByMaxAbsReward False 260
+    , _scaleParameters = scalingByMaxAbsReward False 510
     , _stabilizationAdditionalRho = 0
-    , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.50 100000
+    , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 100000
     , _updateTargetInterval = 1
     , _trainMSEMax = Nothing -- Just 0.03
     , _setExpSmoothParamsTo1 = True
@@ -67,7 +67,11 @@ nnConfig =
 
 alg :: Algorithm s
 alg = -- AlgBORLVOnly (ByMovAvg 1000)
-  AlgBORL defaultGamma0 defaultGamma1 ByStateValues False Nothing
+  AlgBORL defaultGamma0 defaultGamma1
+  -- ByStateValues
+  -- (ByStateValuesAndReward 0.5 NoDecay)
+  (ByMovAvg 5000)
+  False Nothing
 
 initVals :: InitValues
 initVals = InitValues 0 0 0 0 0
