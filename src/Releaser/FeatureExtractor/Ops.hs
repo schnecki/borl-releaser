@@ -7,6 +7,7 @@ module Releaser.FeatureExtractor.Ops
     , featExtractorSimple
     , featExtractorSimpleWithQueueCounts
     , featExtractorSimpleWipWithQueueCounts
+    , featExtractorSimpleWipWithQueueCountsAndMachineCount
     , featExtractorFullWoMachines
     , featExtractorWipAsQueueCounters
     ) where
@@ -46,6 +47,7 @@ featExtractorSimple useReduce = ConfigFeatureExtractor "PLTS-OP-Shipped aggregat
         [mkOrderPoolList currentTime (incOrds ++ simOrdersOrderPool sim)]
         []
         []
+        []
         [mkBackorderDueList currentTime (simOrdersShipped sim)]
         useReduce
       where
@@ -60,6 +62,7 @@ featExtractorSimpleWithQueueCounts useReduce = ConfigFeatureExtractor "PLTS-OP-Q
         [mkOrderPoolList currentTime (incOrds ++ simOrdersOrderPool sim)]
         (map (return . return . fromIntegral . length) (M.elems $ simOrdersQueue sim))
         []
+        []
         [mkBackorderDueList currentTime (simOrdersShipped sim)]
         useReduce
       where currentTime = simCurrentTime sim
@@ -72,6 +75,22 @@ featExtractorSimpleWipWithQueueCounts useReduce = ConfigFeatureExtractor "PLTS-O
         (map timeToDouble (M.elems plts))
         [mkOrderPoolList currentTime (incOrds ++ simOrdersOrderPool sim)]
         (map (return . return . fromIntegral . length) (M.elems $ simOrdersQueue sim))
+        []
+        [mkFgiList currentTime (simOrdersFgi sim)]
+        [mkBackorderDueList currentTime (simOrdersShipped sim)]
+        useReduce
+      where
+        currentTime = simCurrentTime sim
+
+featExtractorSimpleWipWithQueueCountsAndMachineCount :: ReduceValues -> ConfigFeatureExtractor
+featExtractorSimpleWipWithQueueCountsAndMachineCount useReduce = ConfigFeatureExtractor "PLTS-OP-QueueCounters-MachineCounter-Shipped aggregated over product types" featExt
+  where
+    featExt (St sim incOrds _ plts) =
+      Extraction
+        (map timeToDouble (M.elems plts))
+        [mkOrderPoolList currentTime (incOrds ++ simOrdersOrderPool sim)]
+        (map (return . return . genericLength) (M.elems $ simOrdersQueue sim))
+        [genericLength (M.elems $ simOrdersMachine sim)]
         [mkFgiList currentTime (simOrdersFgi sim)]
         [mkBackorderDueList currentTime (simOrdersShipped sim)]
         useReduce
@@ -87,6 +106,7 @@ featExtractorWipAsQueueCounters useReduce = ConfigFeatureExtractor "PLTS-OP-Queu
         (map timeToDouble (M.elems plts))
         (foreachPt (mkOrderPoolList currentTime) (incOrds ++ simOrdersOrderPool sim))
         (M.elems $ fmap (foreachPt (return . fromIntegral . length)) (simOrdersQueue sim))
+        []
         (foreachPt (mkFgiList currentTime) (simOrdersFgi sim))
         (foreachPt (mkBackorderDueList currentTime) (simOrdersShipped sim))
         useReduce
@@ -103,6 +123,7 @@ featExtractorFullWoMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-F
         (map timeToDouble (M.elems plts))
         (foreachPt (mkOrderPoolList currentTime) (incOrds ++ simOrdersOrderPool sim))
         (M.elems $ fmap (foreachPt mkFromList) (simOrdersQueue sim))
+        []
         (foreachPt (mkFgiList currentTime) (simOrdersFgi sim))
         (foreachPt (mkBackorderDueList currentTime) (simOrdersShipped sim))
         useReduce

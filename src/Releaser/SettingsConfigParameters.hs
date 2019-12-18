@@ -41,9 +41,11 @@ nnConfig =
     { _replayMemoryMaxSize = 10000
     , _trainBatchSize = 8
     , _grenadeLearningParams = LearningParameters 0.01 0.0 0.0001
-    , _learningParamsDecay = ExponentialDecay (Just 5e-5) 0.50 100000
+    , _learningParamsDecay = ExponentialDecay (Just 0) 0.05 100000
     , _prettyPrintElems = [] -- is set just before printing
-    , _scaleParameters = scalingByMaxAbsReward False 510
+    , _scaleParameters =
+      ScalingNetOutParameters (-400) 400 (-5000) 5000 (-300) 300 (-300) 300
+      -- scalingByMaxAbsReward False 3000
     , _stabilizationAdditionalRho = 0
     , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 100000
     , _updateTargetInterval = 1

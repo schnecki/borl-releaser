@@ -5,6 +5,10 @@ module Releaser.SettingsFeatureExtractor
     , ReduceValues
     , extractFeatures
     , ConfigFeatureExtractor (..)
+    , scalePltsMin
+    , scalePltsMax
+    , scaleOrderMin
+    , scaleOrderMax
     ) where
 
 import           Releaser.FeatureExtractor.Ops
@@ -13,7 +17,8 @@ import           Releaser.Type
 
 featureExtractor :: ReduceValues -> ConfigFeatureExtractor
 featureExtractor = -- featExtractorSimple
-  featExtractorSimpleWipWithQueueCounts
+  -- featExtractorSimpleWipWithQueueCounts
+  featExtractorSimpleWipWithQueueCountsAndMachineCount
   -- featExtractorSimpleWithQueueCounts (not FGI does not make sense)
   -- featExtractorWipAsQueueCounters
 

@@ -160,13 +160,13 @@ netInp = extractionToList . extractFeatures True
 
 netInpTbl :: St -> [Double]
 netInpTbl st = case extractFeatures False st of
-  Extraction plts op que fgi shipped _ -> plts ++ map reduce (concat $ op ++ map (map (fromIntegral . ceiling . (/9))) (concat que) ++ fgi ++ shipped)
+  Extraction plts op que _ fgi shipped _ -> plts ++ map reduce (concat $ op ++ map (map (fromIntegral . ceiling . (/9))) (concat que) ++ fgi ++ shipped)
   where
     reduce x = 7 * fromIntegral (ceiling (x / 7))
 
 netInpTblBinary :: St -> [Double]
 netInpTblBinary st = case extractFeatures False st of
-  Extraction plts op que fgi shipped _ -> plts ++ map reduce (concat op) ++ map (fromIntegral . ceiling . (/9)) (concat (concat que)) ++ map reduce (concat $ fgi ++ shipped)
+  Extraction plts op que _ fgi shipped _ -> plts ++ map reduce (concat op) ++ map (fromIntegral . ceiling . (/9)) (concat (concat que)) ++ map reduce (concat $ fgi ++ shipped)
   where
     reduce x | x == 0 = x
              | otherwise = 1
@@ -176,17 +176,17 @@ modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> Int64 -> m TensorflowMo
 modelBuilder actions initState cols =
   buildModel $
   inputLayer1D lenIn >>
-  fullyConnected [3 * lenIn] TF.relu' >>
-  fullyConnected [2 * lenIn] TF.relu' >>
-  fullyConnected [1 * lenIn] TF.relu' >>
-  fullyConnected [max lenOut $ ceiling $ 0.7 * fromIntegral (lenIn + lenOut)] TF.relu' >>
-  fullyConnected [max lenOut $ ceiling $ 0.3 * fromIntegral (lenIn + lenOut)] TF.relu' >>
-  fullyConnected [max lenOut $ ceiling $ 0.2 * fromIntegral (lenIn + lenOut)] TF.relu' >>
+  fullyConnected [5 * lenIn] TF.relu' >>
+  -- fullyConnected [5 * lenIn] TF.relu' >>
+  -- fullyConnected [1 * lenIn] TF.relu' >>
+  fullyConnected [max lenOut $ ceiling $ 2 * fromIntegral lenOut] TF.relu' >>
+  fullyConnected [max lenOut $ ceiling $ 1 * fromIntegral lenOut] TF.relu' >>
+  -- fullyConnected [max lenOut $ ceiling $ 0.2 * fromIntegral (lenIn + lenOut)] TF.relu' >>
   fullyConnected [genericLength actions, cols] TF.tanh' >>
   trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.0001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
   where
     lenIn = genericLength (netInp initState)
-    lenOut = genericLength actions + cols
+    lenOut = genericLength actions * cols
 
 
 mkInitSt :: SimSim -> [Order] -> (St, [Action St], St -> [Bool])

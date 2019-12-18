@@ -8,7 +8,7 @@ import           Control.Monad               (foldM, unless, when)
 import           Control.Monad.IO.Class
 import qualified Data.ByteString             as BS
 import           Data.Function               (on)
-import           Data.List                   (find, sortBy)
+import           Data.List                   (find, genericLength, sortBy)
 import           Data.Serialize              as S
 import qualified Data.Text                   as T
 import           Data.Time.Clock             (diffUTCTime, getCurrentTime)
@@ -170,22 +170,11 @@ mkPrettyPrintElems st = zipWith (++) plts (replicate (length plts) base)
 mkMiniPrettyPrintElems :: St -> [[Double]]
 mkMiniPrettyPrintElems st
   | length xs /= length base' = error $ "wrong length in mkMiniPrettyPrintElems: " ++ show (length xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show base'
-  | otherwise = zipWith (++) plts (replicate (length plts) xs)
+  | otherwise = zipWith (++) plts (replicate (length plts) (map (scaleValue (Just (scaleOrderMin, scaleOrderMax))) xs))
   where
     base' = drop (length productTypes) (netInp st)
-    base = replicate (length base') 0.0
     minVal = configActFilterMin actionFilterConfig
     maxVal = configActFilterMax actionFilterConfig
-    actList = map (scaleValue (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal, minVal + maxVal `div` 2, maxVal]
+    actList = map (scaleValue (Just (scalePltsMin, scaleOrderMax)) . fromIntegral) [minVal, minVal + maxVal `div` 2, maxVal]
     plts = [[x, y] | x <- actList, y <- actList, x == y]
-
-    -- xs = [-1.000,-0.833,-0.500,-0.333,-0.667,0.167,-0.667,-0.333,0,0,0,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.000]
-    -- xs = [-1.000,-1.000,-1.000,-1.000,-1.000,-0.333,-0.167,0.500,1.833,
-    --       -1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,-1.000,0.500]
-    -- xs' :: [Double]
-    -- xs' =  [[ 0,11, 5,13, 5,12, 4,12],[[21]],[[1]],[[2]],[ 0, 0, 0, 0, 0, 1, 6, 1, 0]]
-    xs = [-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,0.5,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0]
-
-    -- test-- -0.667,-0.833,
-
-
+    xs = [0, 0, 0, 4, 9, 9, 9] ++ concat ([[16]] ++ [[6]] ++ [[0]]) ++ [2 / genericLength machines * scaleOrderMax] ++ [5, 3, 0, 0, 0, 0] ++ [0, 0, 0] :: [Double]
