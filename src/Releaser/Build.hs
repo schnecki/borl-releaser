@@ -358,8 +358,8 @@ instance ExperimentDef (BORL St) where
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
   parameters borl =
-    [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [ AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 1000) False Nothing
-                                                                                         , AlgBORL defaultGamma0 defaultGamma1 ByStateValues   False Nothing
+    [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [ AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 1000) OffPolicy Nothing
+                                                                                         , AlgBORL defaultGamma0 defaultGamma1 ByStateValues   OffPolicy Nothing
                                                                                          -- , AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) Normal True
                                                                                          -- , AlgBORLVOnly (ByMovAvg 1000)
                                                                                          -- , AlgDQN 0.5

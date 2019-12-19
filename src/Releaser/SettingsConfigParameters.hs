@@ -27,6 +27,7 @@ borlParams = Parameters
   , _gamma              = 0.01
   , _gammaANN           = 1.0
   , _epsilon            = 0.5
+  , _explorationStrategy = EpsilonGreedy
   , _exploration        = 1.0
   , _learnRandomAbove   = 0.50
   , _zeta               = 0.01
@@ -44,7 +45,7 @@ nnConfig =
     , _learningParamsDecay = ExponentialDecay (Just 1e-5) 0.05 100000
     , _prettyPrintElems = [] -- is set just before printing
     , _scaleParameters =
-      ScalingNetOutParameters (-500) 500 (-5000) 5000 (-3000) 3000 (-3000) 3000
+      ScalingNetOutParameters (-500) 500 (-5000) 5000 (-5000) 5000 (-5000) 5000
       -- scalingByMaxAbsReward False 500
     , _stabilizationAdditionalRho = 0
     , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 100000
@@ -71,9 +72,10 @@ alg :: Algorithm s
 alg =
 
   -- AlgDQNAvgRewardFree 0.75 0.995 ByStateValues
-  AlgBORL defaultGamma0 defaultGamma1 ByStateValues False Nothing
+  -- AlgBORL defaultGamma0 defaultGamma1 ByStateValues OffPolicy Nothing
   -- (ByStateValuesAndReward 0.5 NoDecay)
   -- (ByMovAvg 5000)
+  algDQN
 
 initVals :: InitValues
 initVals = InitValues 0 0 0 0 0
