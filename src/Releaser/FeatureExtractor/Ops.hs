@@ -35,7 +35,7 @@ type ReduceValues = Bool
 
 
 maxBackorderPeriod :: Integer
-maxBackorderPeriod = 3
+maxBackorderPeriod = 2
 
 
 featExtractorSimple :: ReduceValues -> ConfigFeatureExtractor
@@ -133,7 +133,7 @@ featExtractorFullWoMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-F
         foreachPt f xs = map (\pt -> f (filter ((== pt) . productType) xs)) productTypes
 
 mkBackorderDueList :: CurrentTime -> [Order] -> [Double]
-mkBackorderDueList t xs = init $ map genericLength (init $ sortByTimeUntilDue (-maxBackorderPeriod) 0 t xs)
+mkBackorderDueList t xs = init $ map genericLength (sortByTimeUntilDue (-maxBackorderPeriod) 0 t xs)
 
 mkOrderPoolList :: CurrentTime -> [Order] -> [Double]
 mkOrderPoolList t = tail . mkUntilDueList t

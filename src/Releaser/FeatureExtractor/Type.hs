@@ -69,6 +69,7 @@ scaleOrder scale
   | otherwise = id
 
 scaleMachines :: Bool -> [Double] -> [Double]
+scaleMachines _ [] =[]
 scaleMachines scale xs
   | scale && length xs == 1 = map (scaleValue (Just (0, genericLength machines))) xs
   | scale && length xs == length machines = map (scaleValue (Just (0, 1))) xs
@@ -84,6 +85,7 @@ unscaleOrder scale
   | scale = unscaleValue (Just (scaleOrderMin, scaleOrderMax))
   | otherwise = id
 unscaleMachines :: Bool -> [Double] -> [Double]
+unscaleMachines _ [] = []
 unscaleMachines scale xs
   | scale && length xs == 1 = map (unscaleValue (Just (0, genericLength machines))) xs
   | scale && length xs == length machines = map (unscaleValue (Just (0, 1))) xs

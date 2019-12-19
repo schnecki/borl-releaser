@@ -92,7 +92,8 @@ buildSim =
     procTimes
     periodLength
     -- releaseImmediate
-    -- (releaseBIL $ M.fromList [(Product 1, 2), (Product 2, 2)])
+    -- (releaseBIL $ M.fromList [(Product 1, 1), (Product 2, 1)])
+    -- (releaseBIL $ M.fromList [(Product 1, 7), (Product 2, 7)])
     (mkReleasePLT initialPLTS)
     dispatchFirstComeFirstServe
     shipOnDueDate

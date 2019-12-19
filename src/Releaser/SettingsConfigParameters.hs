@@ -28,7 +28,7 @@ borlParams = Parameters
   , _gammaANN           = 1.0
   , _epsilon            = 0.5
   , _exploration        = 1.0
-  , _learnRandomAbove   = 0.1
+  , _learnRandomAbove   = 0.50
   , _zeta               = 0.01
   , _xi                 = 0.01
   , _disableAllLearning = False
@@ -38,14 +38,14 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-    { _replayMemoryMaxSize = 10000
-    , _trainBatchSize = 8
+    { _replayMemoryMaxSize = 30000
+    , _trainBatchSize = 24
     , _grenadeLearningParams = LearningParameters 0.01 0.0 0.0001
-    , _learningParamsDecay = ExponentialDecay (Just 0) 0.05 100000
+    , _learningParamsDecay = ExponentialDecay (Just 1e-5) 0.05 100000
     , _prettyPrintElems = [] -- is set just before printing
     , _scaleParameters =
-      ScalingNetOutParameters (-400) 400 (-5000) 5000 (-300) 300 (-300) 300
-      -- scalingByMaxAbsReward False 3000
+      ScalingNetOutParameters (-500) 500 (-5000) 5000 (-3000) 3000 (-3000) 3000
+      -- scalingByMaxAbsReward False 500
     , _stabilizationAdditionalRho = 0
     , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 100000
     , _updateTargetInterval = 1

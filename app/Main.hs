@@ -175,6 +175,7 @@ mkMiniPrettyPrintElems st
     base' = drop (length productTypes) (netInp st)
     minVal = configActFilterMin actionFilterConfig
     maxVal = configActFilterMax actionFilterConfig
-    actList = map (scaleValue (Just (scalePltsMin, scaleOrderMax)) . fromIntegral) [minVal, minVal + maxVal `div` 2, maxVal]
-    plts = [[x, y] | x <- actList, y <- actList, x == y]
-    xs = [0, 0, 0, 4, 9, 9, 9] ++ concat ([[16]] ++ [[6]] ++ [[0]]) ++ [2 / genericLength machines * scaleOrderMax] ++ [5, 3, 0, 0, 0, 0] ++ [0, 0, 0] :: [Double]
+    actList = map (scaleValue (Just (scalePltsMin, scalePltsMax)) . fromIntegral) [minVal, minVal + maxVal `div` 2]
+    plts = map (scaleValue (Just (scalePltsMin, scalePltsMax))) [1, 2] : [[x, y] | x <- actList, y <- actList, x == y]
+    xs = [0, 0, 0, 4, 9, 9, 9] ++ concat ([[16]] ++ [[6]] ++ [[0]]) ++ [2 / genericLength machines * scaleOrderMax]
+      ++ [5, 3, 0, 0, 0, 0] ++ [0, 0, 0] :: [Double]
