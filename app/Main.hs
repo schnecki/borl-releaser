@@ -1,5 +1,7 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE Strict       #-}
+{-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE Strict              #-}
 module Main where
 
 import           Control.DeepSeq             (NFData, force)
@@ -45,14 +47,14 @@ askUser :: (MonadBorl' m) => Bool -> [(String,String)] -> [(String, ActionIndexe
 askUser showHelp addUsage cmds ql = do
   let usage =
         sortBy (compare `on` fst) $
-        [ ("v", "Print V+W tables")
+        [ ("l", "Load from file savedModel")
         , ("p", "Print everything")
+        , ("param", "Change parameters")
         , ("q", "Exit program (unsaved state will be lost)")
         , ("r", "Run for X times")
-        , ("m", "Multiply all state values by X")
         , ("s", "Save to file savedModel (overwrites the file if it exists)")
         , ("sim", "Print the simulation")
-        , ("l", "Load from file savedModel")
+        , ("v", "Print V+W tables")
         , ("_", "Any other input starts another learning round\n")
         ] ++
         addUsage
@@ -74,6 +76,23 @@ askUser showHelp addUsage cmds ql = do
     "h" -> do
       liftIO $ prettyBORLHead True (Just $ mInverse ql) ql >>= print
       askUser False addUsage cmds ql
+    "param" -> do
+      e <-
+        liftIO $ do
+          putStrLn "Which settings to change:"
+          putStrLn $ unlines $ map (\(c, h) -> c ++ ": " ++ h) [("exp", "exploration rate"), ("eps", "epsilon")]
+          liftIO $ putStr "Enter value: " >> hFlush stdout >> getLine
+      ql' <- do
+        let modifyDecayFun f v' = decayFunction .~ (\t p -> f .~ v' $ (ql ^. decayFunction) t p)
+        case e of
+             "exp" -> do
+               liftIO $ putStr "New value: " >> hFlush stdout
+               liftIO $ maybe ql (\v' -> modifyDecayFun exploration v' $ parameters . exploration .~ v' $ ql) <$> getIOWithDefault Nothing
+             "eps" -> do
+               liftIO $ putStr "New value: " >> hFlush stdout
+               liftIO $ maybe ql (\v' -> modifyDecayFun epsilon v' $ parameters . epsilon .~ v' $ ql) <$> getIOWithDefault Nothing
+             _ -> liftIO $ putStrLn "Did not understand the input" >> return ql
+      askUser False addUsage cmds ql'
     "l" -> do
       bs <- liftIO $ BS.readFile "savedModel"
       case S.runGet S.get bs of
@@ -103,18 +122,20 @@ askUser showHelp addUsage cmds ql = do
           l <- liftIO getLine
           case reads l :: [(Integer, String)] of
             [(often, _)] -> do
-              ql' <- foldM (\q _ -> do
-                        !q' <- mkTime (stepsM q nr)
-                        output <- prettyBORLMWithStateInverse (Just $ mInverse ql) q'
-                        liftIO $ print output >> hFlush stdout
-                        return $! force q'
-                    ) ql [1 .. often]
+              ql' <-
+                foldM
+                  (\q _ -> do
+                     !q' <- mkTime (stepsM q nr)
+                     output <- prettyBORLMWithStateInverse (Just $ mInverse ql) q'
+                     liftIO $ print output >> hFlush stdout
+                     return $! force q')
+                  ql
+                  [1 .. often]
               askUser False addUsage cmds ql'
             _ -> stepsM ql nr >>= askUser False addUsage cmds
         _ -> do
           liftIO $ putStr "Could not read your input :( You are supposed to enter an Integer.\n"
           askUser False addUsage cmds ql
-
       -- liftIO $ putStr "How many learning rounds should I execute: " >> hFlush stdout
       -- l <- liftIO getLine
       -- case reads l :: [(Integer, String)] of
@@ -124,7 +145,7 @@ askUser showHelp addUsage cmds ql = do
       --     askUser False addUsage cmds ql
     "p" -> do
       let ppElems = mkPrettyPrintElems (ql ^. s)
-          setPrettyPrintElems = setAllProxies (proxyNNConfig.prettyPrintElems) ppElems
+          setPrettyPrintElems = setAllProxies (proxyNNConfig . prettyPrintElems) ppElems
       liftIO $ prettyBORLWithStInverse (Just $ mInverse ql) (setPrettyPrintElems ql) >>= print
       askUser False addUsage cmds ql
     "v" -> do
@@ -148,6 +169,17 @@ askUser showHelp addUsage cmds ql = do
           case find isTensorflow (allProxies $ ql ^. proxies) of
             Nothing -> liftIO $ stepExecute (ql, False, cmd) >>= askUser False addUsage cmds
             Just _ -> liftTensorflow (stepExecute (ql, False, cmd) >>= saveTensorflowModels) >>= askUser False addUsage cmds
+
+
+getIOWithDefault ::
+     forall m a. (Monad m, Read a)
+  => m a
+  -> IO (m a)
+getIOWithDefault def = do
+  line <- getLine
+  case reads line :: [(a,String)] of
+    [(x,_)] -> return $ return x
+    _       -> return def
 
 
 mkTime :: (MonadBorl' m, NFData t) => m t -> m t

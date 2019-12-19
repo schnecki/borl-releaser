@@ -180,14 +180,15 @@ modelBuilder actions initState cols =
   fullyConnected [5 * lenIn] TF.relu' >>
   -- fullyConnected [5 * lenIn] TF.relu' >>
   -- fullyConnected [1 * lenIn] TF.relu' >>
-  fullyConnected [max lenOut $ ceiling $ 2 * fromIntegral lenOut] TF.relu' >>
-  fullyConnected [max lenOut $ ceiling $ 1 * fromIntegral lenOut] TF.relu' >>
+  fullyConnected [max lenOut $ 2 * lenOut] TF.relu' >>
+  fullyConnected [max lenOut $ max 1 (cols `div` 2) * fromIntegral lenActs] TF.relu' >>
   -- fullyConnected [max lenOut $ ceiling $ 0.2 * fromIntegral (lenIn + lenOut)] TF.relu' >>
   fullyConnected [genericLength actions, cols] TF.tanh' >>
   trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.0001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
   where
     lenIn = genericLength (netInp initState)
     lenOut = genericLength actions * cols
+    lenActs = genericLength actions
 
 
 mkInitSt :: SimSim -> [Order] -> (St, [Action St], St -> [Bool])
