@@ -54,15 +54,18 @@ expSetting borl =
 
 main :: IO ()
 main = do
-
+  hostName <- getHostName
+  if hostName /= "c437-pc141"
+    then
   -- run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
-  -- run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+    run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
 
+    else
   -- Generate results only
   -- loadAndEval runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
 
   -- Generate CSV only
-  loadAndWriteCsv runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+    loadAndWriteCsv runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
 
 
 run :: (ExperimentDef a, a ~ BORL St, InputState a ~ ()) => (ExpM a (Bool, Experiments a) -> IO (Bool, Experiments a)) -> (ExpM a (Experiments a) -> IO (Experiments a)) -> ExpM a a -> IO ()
