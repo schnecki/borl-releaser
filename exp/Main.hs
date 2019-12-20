@@ -8,14 +8,15 @@ module Main where
 import           Control.Lens
 import           Control.Monad.IO.Class
 import           Network.HostName
-import           Releaser.Build
-import           Releaser.Type
+import           System.Environment (getArgs)
 
 import           Experimenter
 import           ML.BORL                hiding (featureExtractor)
 import           TensorFlow.Session     hiding (run)
 
 import           Releaser.Settings
+import           Releaser.Build
+import           Releaser.Type
 
 
 databaseSetting :: IO DatabaseSetting
@@ -54,8 +55,9 @@ expSetting borl =
 
 main :: IO ()
 main = do
+  args <- getArgs
   hostName <- getHostName
-  if hostName /= "c437-pc141"
+  if hostName /= "c437-pc141" || any (== "run") args
     then
   -- run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
     run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
