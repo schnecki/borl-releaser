@@ -27,7 +27,7 @@ borlParams = Parameters
   , _gamma              = 0.01
   , _gammaANN           = 1.0
   , _epsilon            = 0.5
-  , _explorationStrategy = SoftmaxBoltzmann 2 -- EpsilonGreedy
+  , _explorationStrategy = SoftmaxBoltzmann 2
   , _exploration        = 1.0
   , _learnRandomAbove   = 0.50
   , _zeta               = 0.01
@@ -39,33 +39,19 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-    { _replayMemoryMaxSize = 30000
-    , _trainBatchSize = 24
-    , _grenadeLearningParams = LearningParameters 0.01 0.0 0.0001
-    , _learningParamsDecay = ExponentialDecay (Just 1e-5) 0.05 100000
-    , _prettyPrintElems = [] -- is set just before printing
-    , _scaleParameters =
-      ScalingNetOutParameters (-500) 500 (-5000) 5000 (-5000) 5000 (-5000) 5000
-      -- scalingByMaxAbsReward False 500
-    , _stabilizationAdditionalRho = 0
+    { _replayMemoryMaxSize             = 30000
+    , _trainBatchSize                  = 24
+    , _grenadeLearningParams           = LearningParameters 0.01 0.0 0.0001
+    , _learningParamsDecay             = ExponentialDecay (Just 1e-5) 0.05 100000
+    , _prettyPrintElems                = [] -- is set just before printing
+    , _scaleParameters                 = ScalingNetOutParameters (-500) 500 (-5000) 5000 (-5000) 5000 (-5000) 5000
+    , _stabilizationAdditionalRho      = 0
     , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 100000
-    , _updateTargetInterval = 1
-    , _trainMSEMax = Nothing -- Just 0.03
-    , _setExpSmoothParamsTo1 = True
+    , _updateTargetInterval            = 1
+    , _trainMSEMax                     = Nothing -- Just 0.03
+    , _setExpSmoothParamsTo1           = True
     }
 
-
--- nnConfig :: NNConfig
--- nnConfig =
---   NNConfig
---     { _replayMemoryMaxSize = 30000
---     , _trainBatchSize = 32
---     , _grenadeLearningParams = LearningParameters 0.01 0.9 0.0001
---     , _prettyPrintElems = []    -- is set just before printing
---     , _scaleParameters = scalingByMaxAbsReward False 60
---     , _updateTargetInterval = 10000
---     , _trainMSEMax = Nothing -- Just 0.04 -- this makes only sense when using the simple extractor
---     }
 
 alg :: Algorithm s
 alg =
@@ -79,4 +65,4 @@ initVals :: InitValues
 initVals = InitValues 0 0 0 0 0
 
 experimentName :: T.Text
-experimentName = "30.7. Adaptive BORL Order Releaser with exp procTimes, unif demand"
+experimentName = "20.12. Adaptive BORL Order Releaser with unif procTimes, unif demand"

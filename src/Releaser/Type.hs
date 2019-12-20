@@ -15,13 +15,9 @@ import qualified Data.Map.Strict            as M
 import           Data.Serialize
 import           GHC.Generics
 
-import           ML.BORL                    as B
 import           SimSim                     as S
 
 import           Releaser.Reward.Type
-
-import           Debug.Trace
-
 
 mkConfig :: Reader r a -> r -> a
 mkConfig = runReader
@@ -76,7 +72,7 @@ type Releaser m a = StateT St m a
 
 
 serializeSt :: St -> StSerialisable
-serializeSt (St ql incOrders rewOrders plts) = StSerialisable (S.toSerialisable ql) incOrders rewOrders plts
+serializeSt (St sim incOrders rewOrders plts) = StSerialisable (S.toSerialisable sim) incOrders rewOrders plts
 
 deserializeSt :: Release -> Dispatch -> Shipment -> ProcessingTimes -> StSerialisable -> St
 deserializeSt rel disp ship procTimes (StSerialisable sim incOrders rewOrders plts) = St (S.fromSerialisable rel disp ship procTimes sim) incOrders rewOrders plts

@@ -93,6 +93,8 @@ buildSim =
     periodLength
     -- releaseImmediate
     -- (releaseBIL $ M.fromList [(Product 1, 1), (Product 2, 1)])
+    -- (releaseBIL $ M.fromList [(Product 1, 3), (Product 2, 3)])
+    -- (releaseBIL $ M.fromList [(Product 1, 4), (Product 2, 4)])
     -- (releaseBIL $ M.fromList [(Product 1, 7), (Product 2, 7)])
     (mkReleasePLT initialPLTS)
     dispatchFirstComeFirstServe
@@ -261,21 +263,20 @@ copyIfFileExists fn target = do
 
 
 instance ExperimentDef (BORL St) where
-
   type ExpM (BORL St) = TF.SessionT IO
-  -- type ExpM (BORL St) = IO
-
-
+--  type ExpM (BORL St) = IO
   type Serializable (BORL St) = BORLSerialisable StSerialisable
-  serialisable = toSerialisableWith serializeSt id
+  serialisable = trace ("serialisable") $ do
+    res <- toSerialisableWith (trace "serializeSt build" serializeSt) id
+    return res
   deserialisable ser =
     unsafePerformIO $ runMonadBorlTF $ do
-      borl <- liftTensorflow buildBORLTensorflow
+      borl <- buildBORLTensorflow
       let (St sim _ _ _) = borl ^. s
       let (_, actions) = mkConfig (action (borl ^. s)) actionConfig
       return $
-        fromSerialisableWith
-          (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
+        trace "fromSerialisableWith" $ fromSerialisableWith
+          (trace ("deserializeSt") deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
           id
           actions
           (borl ^. B.actionFilter)
@@ -284,16 +285,13 @@ instance ExperimentDef (BORL St) where
           netInp
           (modelBuilder actions (borl ^. s))
           ser
-
   type InputValue (BORL St) = [Order]
   type InputState (BORL St) = ()
-
   -- ^ Generate some input values and possibly modify state. This function can be used to change the state. It is called
   -- before `runStep` and its output is used to call `runStep`.
   generateInput _ borl _ _ = do
     let (St _ inc _ _) = borl ^. s
     return (inc, ())
-
   -- ^ Run a step of the environment and return new state and result.
   -- runStep :: (MonadBorl' m) => a -> InputValue a -> E.Period -> m ([StepResult], a)
   runStep borl incOrds _ = do
@@ -307,68 +305,105 @@ instance ExperimentDef (BORL St) where
     -- cost related measures
     let (StatsOrderCost earnOld wipOld boOld fgiOld) = simStatsOrderCosts $ simStatistics (borl ^. s . simulation)
     let (StatsOrderCost earn wip bo fgi) = simStatsOrderCosts $ simStatistics (borl' ^. s . simulation)
-    let cEarn = StepResult "EARN" (Just simT) (fromIntegral (earn - earnOld))
-    let cBoc = StepResult "BOC" (Just simT) (boCosts costConfig * fromIntegral (bo - boOld))
-    let cWip = StepResult "WIPC" (Just simT) (wipCosts costConfig * fromIntegral (wip - wipOld))
-    let cFgi = StepResult "FGIC" (Just simT) (fgiCosts costConfig * fromIntegral (fgi - fgiOld))
-    let cSum = StepResult "SUMC" (Just simT) (cBoc ^. resultYValue + cWip ^. resultYValue + cFgi ^. resultYValue)
-    let curOp = StepResult "op" (Just simT) (fromIntegral $ length $ simOrdersOrderPool $ borl' ^. s . simulation)
+    let cEarn  = StepResult "EARN" (Just simT) (fromIntegral (earn - earnOld))
+    let cBoc   = StepResult "BOC" (Just simT) (boCosts costConfig * fromIntegral (bo - boOld))
+    let cWip   = StepResult "WIPC" (Just simT) (wipCosts costConfig * fromIntegral (wip - wipOld))
+    let cFgi   = StepResult "FGIC" (Just simT) (fgiCosts costConfig * fromIntegral (fgi - fgiOld))
+    let cSum   = StepResult "SUMC" (Just simT) (cBoc ^. resultYValue + cWip ^. resultYValue + cFgi ^. resultYValue)
+    let curOp  = StepResult "op" (Just simT) (fromIntegral $ length $ simOrdersOrderPool $ borl' ^. s . simulation)
     let curWip = StepResult "wip" (Just simT) (fromIntegral $ wip - wipOld)
-    let curBo = StepResult "bo" (Just simT) (fromIntegral $ bo - boOld)
+    let curBo  = StepResult "bo" (Just simT) (fromIntegral $ bo - boOld)
     let curFgi = StepResult "fgi" (Just simT) (fromIntegral $ fgi - fgiOld)
     -- time related measures
     let (StatsFlowTime ftNrFloorAndFgi (StatsOrderTime sumTimeFloorAndFgi stdDevFloorAndFgi _) mTardFloorAndFgi) = simStatsShopFloorAndFgi $ simStatistics (borl' ^. s . simulation)
-    let tFtMeanFloorAndFgi = StepResult "FTMeanFloorAndFgi" (Just simT) (fromRational sumTimeFloorAndFgi / fromIntegral ftNrFloorAndFgi)
-    let tFtStdDevFloorAndFgi = StepResult "FTStdDevFloorAndFgi" (Just simT) (maybe 0 fromRational $ getWelfordStdDev stdDevFloorAndFgi)
-    let tTardPctFloorAndFgi = StepResult "TARDPctFloorAndFgi" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromIntegral nrTard / fromIntegral ftNrFloorAndFgi) mTardFloorAndFgi)
-    let tTardMeanFloorAndFgi = StepResult "TARDMeanFloorAndFGI" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard) mTardFloorAndFgi)
+    let tFtMeanFloorAndFgi     = StepResult "FTMeanFloorAndFgi" (Just simT) (fromRational sumTimeFloorAndFgi / fromIntegral ftNrFloorAndFgi)
+    let tFtStdDevFloorAndFgi   = StepResult "FTStdDevFloorAndFgi" (Just simT) (maybe 0 fromRational $ getWelfordStdDev stdDevFloorAndFgi)
+    let tTardPctFloorAndFgi    = StepResult "TARDPctFloorAndFgi" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromIntegral nrTard / fromIntegral ftNrFloorAndFgi) mTardFloorAndFgi)
+    let tTardMeanFloorAndFgi   = StepResult "TARDMeanFloorAndFGI" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard) mTardFloorAndFgi)
     let tTardStdDevFloorAndFgi = StepResult "TARDStdDevFloorAndFGI" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard) mTardFloorAndFgi)
     let (StatsFlowTime ftNrFloor (StatsOrderTime sumTimeFloor stdDevFloor _) mTardFloor) = simStatsShopFloor $ simStatistics (borl' ^. s . simulation)
-    let tFtMeanFloor = StepResult "FTMeanFloor" (Just simT) (fromRational sumTimeFloor / fromIntegral ftNrFloor)
-    let tFtStdDevFloor = StepResult "FTStdDevFloor" (Just simT) (maybe 0 fromRational $ getWelfordStdDev stdDevFloor)
-    let tTardPctFloor = StepResult "TARDPctFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromIntegral nrTard / fromIntegral ftNrFloor) mTardFloor)
-    let tTardMeanFloor = StepResult "TARDMeanFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard) mTardFloor)
-    let tTardStdDevFloor =
-          StepResult "TARDStdDevFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard) mTardFloor)
+    let tFtMeanFloor     = StepResult "FTMeanFloor" (Just simT) (fromRational sumTimeFloor / fromIntegral ftNrFloor)
+    let tFtStdDevFloor   = StepResult "FTStdDevFloor" (Just simT) (maybe 0 fromRational $ getWelfordStdDev stdDevFloor)
+    let tTardPctFloor    = StepResult "TARDPctFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromIntegral nrTard / fromIntegral ftNrFloor) mTardFloor)
+    let tTardMeanFloor   = StepResult "TARDMeanFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard) mTardFloor)
+    let tTardStdDevFloor = StepResult "TARDStdDevFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard) mTardFloor)
     -- BORL' related measures
-    let avgRew = StepResult "AvgReward" (Just $ fromIntegral borlT) (borl' ^?! proxies . rho . proxyScalar)
+    let avgRew    = StepResult "AvgReward" (Just $ fromIntegral borlT) (borl' ^?! proxies . rho . proxyScalar)
         avgRewMin = StepResult "MinAvgReward" (Just $ fromIntegral borlT) (borl' ^?! proxies . rhoMinimum . proxyScalar)
-        pltP1 = StepResult "PLT P1" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 1) (borl' ^. s . plannedLeadTimes))
-        pltP2 = StepResult "PLT P2" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 2) (borl' ^. s . plannedLeadTimes))
-        psiRho = StepResult "PsiRho" (Just $ fromIntegral borlT) (borl' ^. psis . _1)
-        psiV = StepResult "PsiV" (Just $ fromIntegral borlT) (borl' ^. psis . _2)
-        psiW = StepResult "PsiW" (Just $ fromIntegral borlT) (borl' ^. psis . _3)
-        vAvg = StepResult "VAvg" (Just $ fromIntegral borlT) (avg $ borl' ^. lastRewards)
-        reward = StepResult "Reward" (Just $ fromIntegral borlT) (headWithDefault 0 $ borl' ^. lastRewards)
-        avg xs = sum xs / fromIntegral (length xs)
+        pltP1     = StepResult "PLT P1" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 1) (borl' ^. s . plannedLeadTimes))
+        pltP2     = StepResult "PLT P2" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 2) (borl' ^. s . plannedLeadTimes))
+        psiRho    = StepResult "PsiRho" (Just $ fromIntegral borlT) (borl' ^. psis . _1)
+        psiV      = StepResult "PsiV" (Just $ fromIntegral borlT) (borl' ^. psis . _2)
+        psiW      = StepResult "PsiW" (Just $ fromIntegral borlT) (borl' ^. psis . _3)
+        vAvg      = StepResult "VAvg" (Just $ fromIntegral borlT) (avg $ borl' ^. lastRewards)
+        reward    = StepResult "Reward" (Just $ fromIntegral borlT) (headWithDefault 0 $ borl' ^. lastRewards)
+        avg xs    = sum xs / fromIntegral (length xs)
         headWithDefault d []    = d
         headWithDefault _ (x:_) = x
     return -- cost related measures
-      ( [ cSum , cEarn , cBoc , cWip , cFgi
+      ( [ cSum
+        , cEarn
+        , cBoc
+        , cWip
+        , cFgi
              -- floor
-        , curOp , curWip , curBo , curFgi , demand
+        , curOp
+        , curWip
+        , curBo
+        , curFgi
+        , demand
              -- time related measures
-        , tFtMeanFloorAndFgi , tFtStdDevFloorAndFgi , tTardPctFloorAndFgi , tTardMeanFloorAndFgi , tTardStdDevFloorAndFgi , tFtMeanFloor , tFtStdDevFloor , tTardPctFloor , tTardMeanFloor , tTardStdDevFloor
+        , tFtMeanFloorAndFgi
+        , tFtStdDevFloorAndFgi
+        , tTardPctFloorAndFgi
+        , tTardMeanFloorAndFgi
+        , tTardStdDevFloorAndFgi
+        , tFtMeanFloor
+        , tFtStdDevFloor
+        , tTardPctFloor
+        , tTardMeanFloor
+        , tTardStdDevFloor
              -- BORL related measures
-        , avgRew , avgRewMin , pltP1 , pltP2 , psiRho , psiV , psiW , vAvg , reward
+        , avgRew
+        , avgRewMin
+        , pltP1
+        , pltP2
+        , psiRho
+        , psiV
+        , psiW
+        , vAvg
+        , reward
         ]
       , borl')
-
-
   -- ^ Provides the parameter setting.
   -- parameters :: a -> [ParameterSetup a]
   parameters borl =
-    [ ParameterSetup "Algorithm" (set algorithm) (view algorithm) (Just $ return . const [ AlgBORL defaultGamma0 defaultGamma1 (ByMovAvg 1000) Nothing
-                                                                                         , AlgBORL defaultGamma0 defaultGamma1 ByStateValues   Nothing
-                                                                                         -- , AlgBORL defaultGamma0 defaultGamma1 (Fixed 120) Normal True
-                                                                                         -- , AlgBORLVOnly (ByMovAvg 1000)
-                                                                                         -- , AlgDQN 0.5
-                                                                                         -- , AlgDQN 0.99
-
-                                                                      ]) Nothing Nothing Nothing
-    , ParameterSetup "RewardType" (set (s . rewardFunctionOrders)) (view (s . rewardFunctionOrders)) (Just $ return . const [ RewardInFuture configRewardFutureOpOrds ByOrderPoolOrders
-                                                                                                                            , RewardPeriodEndSimple configRewardPeriodEnd
-                                                                                                                            ]) Nothing Nothing Nothing
+    [ ParameterSetup
+        "Algorithm"
+        (set algorithm)
+        (view algorithm)
+        (Just $ return .
+         const
+           [ AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
+           , AlgDQN 0.99
+           , AlgDQN 0.8
+           ])
+        Nothing
+        Nothing
+        Nothing
+    , ParameterSetup
+        "RewardType"
+        (set (s . rewardFunctionOrders))
+        (view (s . rewardFunctionOrders))
+        (Just $ return .
+         const
+           [ RewardPeriodEndSimple configReward500
+             -- , RewardInFuture configRewardFutureOpOrds ByOrderPoolOrders
+             -- , RewardPeriodEndSimple configRewardPeriodEnd
+           ])
+        Nothing
+        Nothing
+        Nothing
     , ParameterSetup
         "ReleaseAlgorithm"
         (\r -> over (s . simulation) (\sim -> sim {simRelease = r}))
@@ -377,12 +412,12 @@ instance ExperimentDef (BORL St) where
          const
            [ mkReleasePLT initialPLTS
            , releaseImmediate
-           -- , releaseBIL (M.fromList [(Product 1, 6), (Product 2, 6)])
-           -- , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
+           , releaseBIL (M.fromList [(Product 1, 6), (Product 2, 6)])
+           , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
            , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
            , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
            , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
-           -- , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
+           , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
            ])
         Nothing
         (Just (\x -> uniqueReleaseName x /= pltReleaseName)) -- drop preparation phase for all release algorithms but the BORL releaser
@@ -390,18 +425,81 @@ instance ExperimentDef (BORL St) where
            (\x ->
               if uniqueReleaseName x == pltReleaseName
                 then FullFactory
-                else SingleInstance)) -- only evaluate once if ImRe or BIL
+                else SingleInstance -- only evaluate once if ImRe or BIL
+            ))
     ] ++
-    [ParameterSetup "Training Batch Size" (setAllProxies  (proxyNNConfig.trainBatchSize)) (^?! proxies.v.proxyNNConfig.trainBatchSize) (Just $ return . const [128]) Nothing Nothing Nothing | isNN] ++
-    [ParameterSetup "Replay Memory Size" (setAllProxies  (proxyNNConfig.replayMemoryMaxSize)) (^?! proxies.v.proxyNNConfig.replayMemoryMaxSize) (Just $ return . const [100000]) Nothing Nothing Nothing | isNN] ++
-    [ParameterSetup "Train MSE Max" (setAllProxies  (proxyNNConfig.trainMSEMax)) (^?! proxies.v.proxyNNConfig.trainMSEMax) (Just $ return . const [Nothing]) Nothing Nothing Nothing | isNN] ++
-    [ParameterSetup "ScaleParameters" (setAllProxies  (proxyNNConfig.scaleParameters)) (^?! proxies.v.proxyNNConfig.scaleParameters) (Just $ return . const [ scalingByMaxAbsReward False 60
-                                                                                                                                                            , scalingByMaxAbsReward False 30
-                                                                                                                                                            ]) Nothing Nothing Nothing | isNN]
-
+    [ ParameterSetup
+        "Learn Random Above until Exploration hits"
+        (set (B.parameters . learnRandomAbove))
+        (^. B.parameters . learnRandomAbove)
+        (Just $ return . const [0.5])
+        Nothing
+        Nothing
+        Nothing
+    ] ++
+    [ ParameterSetup
+      "Xi (at period 0)"
+      (set (B.parameters . xi))
+      (^. B.parameters . xi)
+      (Just $ return . const [0.01])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Zeta (at period 0)"
+      (set (B.parameters . zeta))
+      (^. B.parameters . zeta)
+      (Just $ return . const [0.01])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Epsilon (at period 0)"
+      (set (B.parameters . epsilon))
+      (^. B.parameters . epsilon)
+      (Just $ return . const [0.5])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Training Batch Size"
+      (setAllProxies (proxyNNConfig . trainBatchSize))
+      (^?! proxies . v . proxyNNConfig . trainBatchSize)
+      (Just $ return . const [32])
+      Nothing
+      Nothing
+      Nothing
+    | isNN
+    ] ++
+    [ ParameterSetup
+      "Replay Memory Size"
+      (setAllProxies (proxyNNConfig . replayMemoryMaxSize))
+      (^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
+      (Just $ return . const [50000])
+      Nothing
+      Nothing
+      Nothing
+    | isNN
+    ] ++
+    [ ParameterSetup
+      "Train MSE Max"
+      (setAllProxies (proxyNNConfig . trainMSEMax))
+      (^?! proxies . v . proxyNNConfig . trainMSEMax)
+      (Just $ return . const [Nothing])
+      Nothing
+      Nothing
+      Nothing
+    | isNN
+    ] ++
+    [ ParameterSetup
+      "ScaleParameters"
+      (setAllProxies (proxyNNConfig . scaleParameters))
+      (^?! proxies . v . proxyNNConfig . scaleParameters)
+      (Just $ return . const [ScalingNetOutParameters (-500) 500 (-5000) 5000 (-5000) 5000 (-5000) 5000])
+      Nothing
+      Nothing
+      Nothing
+    | isNN
+    ]
     where
       isNN = isNeuralNetwork (borl ^. proxies . v)
-
   -- HOOKS
   beforePreparationHook _ _ g borl =
     liftIO $ do
@@ -418,7 +516,8 @@ instance ExperimentDef (BORL St) where
         set (B.parameters . zeta) 0 $
         set (B.parameters . xi) 0 borl
   beforeEvaluationHook _ _ _ g borl -- in case warm up phase is 0 periods
-   = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
+   =
+    liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
     set (B.parameters . disableAllLearning) True $
     set (B.parameters . gamma) 0 $
     set (B.parameters . zeta) 0 $
@@ -426,5 +525,4 @@ instance ExperimentDef (BORL St) where
   afterPreparationHook _ expNr repetNr = liftIO $ copyFiles "prep_" expNr repetNr Nothing
   afterWarmUpHook _ expNr repetNr repliNr = liftIO $ copyFiles "warmup_" expNr repetNr (Just repliNr)
   afterEvaluationHook _ expNr repetNr repliNr = liftIO $ copyFiles "eval_" expNr repetNr (Just repliNr)
-
 

@@ -13,7 +13,7 @@ import           Releaser.Type
 
 import           Experimenter
 import           ML.BORL                hiding (featureExtractor)
-import           TensorFlow.Session
+import           TensorFlow.Session     hiding (run)
 
 import           Releaser.Settings
 
@@ -29,12 +29,12 @@ expSetting :: BORL St -> ExperimentSetting
 expSetting borl =
   ExperimentSetting
     { _experimentBaseName = experimentName
-    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf] ++ concat [[updateTarget] | isNNFlag]
+    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf, pol] ++ concat [[updateTarget] | isNNFlag]
     , _experimentRepetitions = 1
     , _preparationSteps = 3000000
     , _evaluationWarmUpSteps = 1000
-    , _evaluationSteps = 5000
-    , _evaluationReplications = 20
+    , _evaluationSteps = 10000
+    , _evaluationReplications = 30
     , _maximumParallelEvaluations = 1
     }
   where
@@ -49,6 +49,7 @@ expSetting borl =
     dem = ExperimentInfoParameter "Demand" (configDemandName demand)
     ftExtr = ExperimentInfoParameter "Feature Extractor (State Representation)" (configFeatureExtractorName $ featureExtractor True)
     rout = ExperimentInfoParameter "Routing (Simulation Setup)" (configRoutingName routing)
+    pol = ExperimentInfoParameter "Policy Exploration Strategy" (borl ^. ML.BORL.parameters . explorationStrategy)
 
 
 main :: IO ()
