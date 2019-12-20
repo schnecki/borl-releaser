@@ -27,7 +27,7 @@ borlParams = Parameters
   , _gamma              = 0.01
   , _gammaANN           = 1.0
   , _epsilon            = 0.5
-  , _explorationStrategy = EpsilonGreedy
+  , _explorationStrategy = SoftmaxBoltzmann 2 -- EpsilonGreedy
   , _exploration        = 1.0
   , _learnRandomAbove   = 0.50
   , _zeta               = 0.01
@@ -67,15 +67,13 @@ nnConfig =
 --     , _trainMSEMax = Nothing -- Just 0.04 -- this makes only sense when using the simple extractor
 --     }
 
-
 alg :: Algorithm s
 alg =
-
   -- AlgDQNAvgRewardFree 0.75 0.995 ByStateValues
-  -- AlgBORL defaultGamma0 defaultGamma1 ByStateValues OffPolicy Nothing
+  AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
   -- (ByStateValuesAndReward 0.5 NoDecay)
   -- (ByMovAvg 5000)
-  algDQN
+  -- algDQN
 
 initVals :: InitValues
 initVals = InitValues 0 0 0 0 0
