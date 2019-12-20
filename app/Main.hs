@@ -201,7 +201,10 @@ mkPrettyPrintElems st = zipWith (++) plts (replicate (length plts) base)
 
 mkMiniPrettyPrintElems :: St -> [[Double]]
 mkMiniPrettyPrintElems st
-  | length xs /= length base' = error $ "wrong length in mkMiniPrettyPrintElems: " ++ show (length xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show base'
+  | length xs /= length base' =
+    error $
+    "wrong length in mkMiniPrettyPrintElems: " ++
+    show (length xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (scaleValue (Just (scaleOrderMin, scaleOrderMax))) base')
   | otherwise = zipWith (++) plts (replicate (length plts) (map (scaleValue (Just (scaleOrderMin, scaleOrderMax))) xs))
   where
     base' = drop (length productTypes) (netInp st)
@@ -209,5 +212,121 @@ mkMiniPrettyPrintElems st
     maxVal = configActFilterMax actionFilterConfig
     actList = map (scaleValue (Just (scalePltsMin, scalePltsMax)) . fromIntegral) [minVal, minVal + maxVal `div` 2]
     plts = map (scaleValue (Just (scalePltsMin, scalePltsMax))) [1, 2] : [[x, y] | x <- actList, y <- actList, x == y]
-    xs = [0, 0, 0, 4, 9, 9, 9] ++ concat ([[16]] ++ [[6]] ++ [[0]]) ++ [2 / genericLength machines * scaleOrderMax]
-      ++ [5, 3, 0, 0, 0, 0] ++ [0, 0, 0] :: [Double]
+    -- xs = [0, 0, 0, 4, 9, 9, 9] ++ concat ([[16]] ++ [[6]] ++ [[0]])
+    --   ++ [2 / genericLength machines * scaleOrderMax]
+    --   ++ [5, 3, 0, 0, 0, 0] ++ [0, 0, 0] :: [Double]
+    xs = xsFull
+    xsFull =
+      [ -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -0.16666666666666663
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -0.33333333333333337
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      , -1.0
+      ]
