@@ -57,16 +57,17 @@ main :: IO ()
 main = do
   args <- getArgs
   hostName <- getHostName
-  if hostName `notElem` ["schnecki-zenbook", "c437-pc141"] || "run" `elem` args
+  if "eval" `elem` args
+  then
+    -- Generate results only
+    loadAndEval runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+  else if hostName `notElem` ["schnecki-zenbook", "c437-pc141"] || "run" `elem` args
     then
-  -- run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
+    -- run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
     run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
 
     else
-  -- Generate results only
-  -- loadAndEval runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
-
-  -- Generate CSV only
+    -- Generate CSV only
     loadAndWriteCsv runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
 
 
@@ -91,7 +92,7 @@ loadAndWriteCsv :: (SessionT IO (Maybe (Experiments (BORL St))) -> IO (Maybe (Ex
 loadAndWriteCsv runner runner2 mkInitSt = do
   dbSetting <- databaseSetting
   Just res <- loadExperimentsResultsM False runner dbSetting expSetting () mkInitSt 1
-  writeCsvMeasure runner2 dbSetting res (SmoothMovAvg 300) ["AvgReward"]
+  writeCsvMeasure runner2 dbSetting res (SmoothMovAvg 300) ["AvgReward", "SUMC"]
 
 
 eval dbSetting runner2 res = do

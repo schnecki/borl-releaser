@@ -81,9 +81,6 @@ import           Releaser.Type
 import           Releaser.Util
 
 
-import           Debug.Trace
-
-
 buildSim :: IO SimSim
 buildSim =
   newSimSimIO
@@ -266,8 +263,8 @@ instance ExperimentDef (BORL St) where
   type ExpM (BORL St) = TF.SessionT IO
 --  type ExpM (BORL St) = IO
   type Serializable (BORL St) = BORLSerialisable StSerialisable
-  serialisable = trace ("serialisable") $ do
-    res <- toSerialisableWith (trace "serializeSt build" serializeSt) id
+  serialisable = do
+    res <- toSerialisableWith serializeSt id
     return res
   deserialisable ser =
     unsafePerformIO $ runMonadBorlTF $ do
@@ -275,8 +272,8 @@ instance ExperimentDef (BORL St) where
       let (St sim _ _ _) = borl ^. s
       let (_, actions) = mkConfig (action (borl ^. s)) actionConfig
       return $
-        trace "fromSerialisableWith" $ fromSerialisableWith
-          (trace ("deserializeSt") deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
+        fromSerialisableWith
+          (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
           id
           actions
           (borl ^. B.actionFilter)
