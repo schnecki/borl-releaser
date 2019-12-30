@@ -40,3 +40,6 @@ test/bil3/
 /test/stateWAllStates
 /test/statePsiW2AllStates
 /test/stateW2AllStates
+/exp.aux
+/exp.hp
+/exp.ps

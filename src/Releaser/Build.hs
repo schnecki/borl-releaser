@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE Unsafe              #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE FlexibleInstances   #-}
@@ -21,32 +22,25 @@ module Releaser.Build
     , actionConfig
     , experimentName
     , mInverse
+    , databaseSetting
+    , expSetting
     ) where
 
-import           Control.DeepSeq
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.IO.Class
-import           Data.Constraint                   (Dict (..), withDict)
-import           Data.Function                     (on)
 import           Data.Int                          (Int64)
-import           Data.List                         (find, foldl', genericLength, groupBy,
-                                                    nub, sort, sortBy)
+import           Data.List                         (genericLength)
+
 import qualified Data.Map                          as M
-import           Data.Maybe                        (fromJust)
-import           Data.Proxy                        as P
 import           Data.Serialize                    as S
-import           Data.Singletons.Prelude.List      (Head)
 import qualified Data.Text                         as T
-import           GHC.TypeLits                      (KnownNat, SomeNat (..), someNatVal)
-import           GHC.TypeLits.Witnesses
+import           Network.HostName
 import           Statistics.Distribution
 import           Statistics.Distribution.Uniform
 import           System.Directory
 import           System.IO.Unsafe                  (unsafePerformIO)
-import           System.Random.MWC
-import           Text.Printf
-import           Unsafe.Coerce
+
 
 -- ANN modules
 import           Grenade
@@ -61,7 +55,6 @@ import           ML.BORL                           as B hiding (actionFilter,
 import qualified ML.BORL                           as B
 import           SimSim                            hiding (productTypes)
 
-import           Releaser.ActionFilter.Type
 import           Releaser.Costs.Type
 import           Releaser.Decay.Type
 import           Releaser.FeatureExtractor.Type
@@ -254,9 +247,45 @@ copyIfFileExists fn target = do
   when exists $ copyFileWithMetadata fn target
 
 
+databaseSetting :: IO DatabaseSetting
+databaseSetting = do
+  hostName <- getHostName
+  return $ DatabaseSetting ("host=" <> getPsqlHost hostName <> " dbname=experimenter user=experimenter password=experimenter port=5432") 10
+  where
+    getPsqlHost h
+      | h `elem` ["schnecki-zenbook", "schnecki-laptop"] = "192.168.1.110"
+      | otherwise = "c437-pc141"
+
+
 ------------------------------------------------------------
 ------------------ ExperimentDef instance ------------------
 ------------------------------------------------------------
+
+expSetting :: BORL St -> ExperimentSetting
+expSetting borl =
+  ExperimentSetting
+    { _experimentBaseName = experimentName
+    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf, pol] ++ concat [[updateTarget] | isNNFlag]
+    , _experimentRepetitions = 1
+    , _preparationSteps = 300
+    , _evaluationWarmUpSteps = 10
+    , _evaluationSteps = 10
+    , _evaluationReplications = 1
+    , _maximumParallelEvaluations = 1
+    }
+  where
+    isNNFlag = isNeuralNetwork (borl ^. proxies . v)
+    isNN = ExperimentInfoParameter "Is Neural Network" isNNFlag
+    isTf = ExperimentInfoParameter "Is Tensorflow Network" (isTensorflow (borl ^. proxies . v))
+    updateTarget = ExperimentInfoParameter "Target Network Update Interval" (nnConfig ^. updateTargetInterval)
+    dec = ExperimentInfoParameter "Decay" (configDecayName decay)
+    actBounds = ExperimentInfoParameter "Action Bounds" (configActLower actionConfig, configActUpper actionConfig)
+    pltBounds = ExperimentInfoParameter "Action Filter (Min/Max PLT)" (configActFilterMin actionFilterConfig, configActFilterMax actionFilterConfig)
+    csts = ExperimentInfoParameter "Costs" costConfig
+    dem = ExperimentInfoParameter "Demand" (configDemandName demand)
+    ftExtr = ExperimentInfoParameter "Feature Extractor (State Representation)" (configFeatureExtractorName $ featureExtractor True)
+    rout = ExperimentInfoParameter "Routing (Simulation Setup)" (configRoutingName routing)
+    pol = ExperimentInfoParameter "Policy Exploration Strategy" (borl ^. B.parameters . explorationStrategy)
 
 
 instance ExperimentDef (BORL St) where
@@ -412,9 +441,9 @@ instance ExperimentDef (BORL St) where
            , releaseBIL (M.fromList [(Product 1, 6), (Product 2, 6)])
            , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
            , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
-           , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
-           , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
-           , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
+           -- , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
+           -- , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
+           -- , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
            ])
         Nothing
         (Just (\x -> uniqueReleaseName x /= pltReleaseName)) -- drop preparation phase for all release algorithms but the BORL releaser

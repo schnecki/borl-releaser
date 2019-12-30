@@ -19,3 +19,6 @@ fi
 # set term wxt 1
 # plot for [col=2:6] 'stateValues' using 0:col with lines
 # pause mouse close
+
+# DELETE ALL CONTENT OF THE FILES
+# sed -i -n '1p' {episodeLength,plts,stateValues,costs,reward,stateVAllStates,stateWAllStates,statePsiVAllStates,statePsiWAllStates}
