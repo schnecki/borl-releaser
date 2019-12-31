@@ -40,7 +40,7 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-  { _replayMemoryMaxSize               = 100000 -- was 30k
+  {   _replayMemoryMaxSize             = 100000 -- was 30k
     , _trainBatchSize                  = 24
     , _grenadeLearningParams           = LearningParameters 0.01 0.0 0.0001
     , _learningParamsDecay             = ExponentialDecay Nothing 0.15 100000 -- was (Just 10^-5)

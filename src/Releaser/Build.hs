@@ -476,7 +476,7 @@ instance ExperimentDef (BORL St) where
         "Learn Random Above until Exploration hits"
         (set (B.parameters . learnRandomAbove))
         (^. B.parameters . learnRandomAbove)
-        (Just $ return . const [0.5])
+        (Just $ return . const [0.10])
         Nothing
         Nothing
         Nothing
@@ -492,14 +492,14 @@ instance ExperimentDef (BORL St) where
       "Zeta (at period 0)"
       (set (B.parameters . zeta))
       (^. B.parameters . zeta)
-      (Just $ return . const [0.01])
+      (Just $ return . const [0.03])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Epsilon (at period 0)"
       (set (B.parameters . epsilon))
       (^. B.parameters . epsilon)
-      (Just $ return . const [0.5])
+      (Just $ return . const [5])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -516,7 +516,7 @@ instance ExperimentDef (BORL St) where
       "Replay Memory Size"
       (setAllProxies (proxyNNConfig . replayMemoryMaxSize))
       (^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
-      (Just $ return . const [50000])
+      (Just $ return . const [100000])
       Nothing
       Nothing
       Nothing
