@@ -66,5 +66,5 @@ initVals :: InitValues
 initVals = InitValues 0 0 0 0 0
 
 experimentName :: T.Text
-experimentName = "31.12.2019 Adaptive BORL Order Releaser with unif procTimes, unif demand"
+experimentName = "31.12. Adaptive BORL Order Releaser with unif procTimes, unif demand"
 
