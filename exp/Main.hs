@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs             #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Strict            #-}
 {-# LANGUAGE TypeFamilies      #-}
@@ -26,8 +27,7 @@ main = do
     then do
       name <- getProgName
       putStrLn $ "Usage: " <> name <> " [run,eval,csv]"
-    else forM_ args $ \x ->
-           case x of
+    else forM_ args $ \case
              "eval" -- Generate results only
               -> loadAndEval runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
              "run"

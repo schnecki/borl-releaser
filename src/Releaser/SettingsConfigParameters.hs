@@ -30,8 +30,8 @@ borlParams = Parameters
   , _epsilon             = 5    -- was 2
   , _explorationStrategy = SoftmaxBoltzmann 2
   , _exploration         = 1.0
-  , _learnRandomAbove    = 0.50
-  , _zeta                = 0.01
+  , _learnRandomAbove    = 0.15
+  , _zeta                = 0.03
   , _xi                  = 0.01
   , _disableAllLearning  = False
   }
@@ -40,7 +40,7 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-    { _replayMemoryMaxSize             = 100000 -- was 30k
+  { _replayMemoryMaxSize               = 100000 -- was 30k
     , _trainBatchSize                  = 24
     , _grenadeLearningParams           = LearningParameters 0.01 0.0 0.0001
     , _learningParamsDecay             = ExponentialDecay Nothing 0.15 100000 -- was (Just 10^-5)
@@ -66,5 +66,5 @@ initVals :: InitValues
 initVals = InitValues 0 0 0 0 0
 
 experimentName :: T.Text
-experimentName = "31.12. Adaptive BORL Order Releaser with unif procTimes, unif demand"
+experimentName = "31.12.2019 Adaptive BORL Order Releaser with unif procTimes, unif demand"
 

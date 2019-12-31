@@ -227,6 +227,11 @@ askUser showHelp addUsage cmds ql = do
           setPrettyPrintElems = setAllProxies (proxyNNConfig . prettyPrintElems) ppElems
       prettyBORLMWithStInverse (Just $ mInverse ql) (setPrettyPrintElems ql) >>= liftIO . print
       askUser False addUsage cmds ql
+    "pm" -> do
+      let ppElems = mkPrettyPrintElems True (ql ^. s)
+          setPrettyPrintElems = setAllProxies (proxyNNConfig . prettyPrintElems) ppElems
+      prettyBORLTables (Just $ mInverse ql) True False False (setPrettyPrintElems ql) >>= liftIO . print
+      askUser False addUsage cmds ql
     "v" -> do
       case find isTensorflow (allProxies $ ql ^. proxies) of
         Nothing -> liftIO $ prettyBORLTables Nothing True False False ql >>= print
@@ -241,8 +246,11 @@ askUser showHelp addUsage cmds ql = do
                case find isTensorflow (allProxies $ ql' ^. proxies) of
                  Nothing -> prettyBORLHead True Nothing ql' >>= liftIO . print >> askUser False addUsage cmds ql'
                  Just _ -> do
-                   b <- liftTensorflow (prettyBORLHead True Nothing ql')
-                   liftIO $ print b
+                   -- b <- liftTensorflow (prettyBORLHead True Nothing ql')
+                   -- liftIO $ print b
+                   let ppElems = mkPrettyPrintElems True (ql ^. s)
+                       setPrettyPrintElems = setAllProxies (proxyNNConfig . prettyPrintElems) ppElems
+                   prettyBORLTables (Just $ const (Just $ Left "[...]")) True False False (setPrettyPrintElems ql) >>= liftIO . print
                    askUser False addUsage cmds ql')
         Just (_, cmd) ->
           case find isTensorflow (allProxies $ ql ^. proxies) of
@@ -284,153 +292,3 @@ mkPrettyPrintElems usePlts st
     actList = map (scaleValue (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal .. maxVal]
     plts = [[x, y] | x <- actList, y <- actList]
 
-mkMiniPrettyPrintElems :: St -> [[Double]]
-mkMiniPrettyPrintElems st
-  | length xs /= length base' =
-    error $
-    "wrong length in mkMiniPrettyPrintElems: " ++
-    show (length xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (scaleValue (Just (scaleOrderMin, scaleOrderMax))) base')
-  | otherwise = zipWith (++) plts (replicate (length plts) (map (scaleValue (Just (scaleOrderMin, scaleOrderMax))) xs))
-  where
-    base' = drop (length productTypes) (netInp st)
-    minVal = configActFilterMin actionFilterConfig
-    maxVal = configActFilterMax actionFilterConfig
-    actList = map (scaleValue (Just (scalePltsMin, scalePltsMax)) . fromIntegral) [minVal, minVal + maxVal `div` 2]
-    plts = return $ map (scaleValue (Just (scalePltsMin, scalePltsMax))) [4,7]
-
-    -- [1, 2] : [[x, y] | x <- actList, y <- actList, x == y]
-    -- xs = [0, 0, 0, 4, 9, 9, 9] ++ concat ([[16]] ++ [[6]] ++ [[0]])
-    --   ++ [2 / genericLength machines * scaleOrderMax]
-    --   ++ [5, 3, 0, 0, 0, 0] ++ [0, 0, 0] :: [Double]
-    xs :: [Double]
-    xs = xsFull
-    xsFull =
-      concat
-        [ [0, 0, 0, 3, 5, 5, 6]
-        , [0, 0, 0, 0, 0, 0, 7]
-        , concat [[0, 0, 9, 3, 0, 0, 0, 0], [0, 0, 0, 0, 3, 6, 4, 0]]
-        , concat [[0, 2, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]]
-        , concat [[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 1, 2, 0, 0, 0]]
-        , [0, 0, 0, 0, 1, 0, 0, 0]
-        , [1, 0, 0, 0, 0, 0, 0, 0]
-        , [0, 0, 0, 0, 1, 0, 0, 0]
-        , [0, 0, 0, 1, 0, 0, 0, 0]
-        , [0, 0, 0, 0, 0, 0]
-        , [4, 2, 2, 0, 0, 0]
-        , [0, 0, 0]
-        , [0, 0, 0]
-        ]
-    -- xsFull =
-    --   [ -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -0.16666666666666663
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -0.33333333333333337
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   , -1.0
-    --   ]

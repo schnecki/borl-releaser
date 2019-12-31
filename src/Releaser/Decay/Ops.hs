@@ -46,7 +46,7 @@ decayRate50PctStepsk150k = ConfigDecay ("Exponential decay with rate " <> tshow 
           , _xi               = NoDecay
           -- Exploration
           , _epsilon          = NoDecay -- ExponentialDecay (Just 0.50) rate steps
-          , _exploration      = ExponentialDecay (Just 0.02) 0.50 steps -- was (Just 0.20)
+          , _exploration      = ExponentialDecay (Just 0.20) 0.9 steps -- was (Just 0.20)
           , _learnRandomAbove = NoDecay
           -- ANN
           , _alphaANN         = ExponentialDecay Nothing rate steps
@@ -54,6 +54,33 @@ decayRate50PctStepsk150k = ConfigDecay ("Exponential decay with rate " <> tshow 
           , _deltaANN         = ExponentialDecay Nothing rate steps
           , _gammaANN         = ExponentialDecay Nothing rate steps
           }
+
+
+-- | Decay function of parameters.
+decayRateStepsWith :: DecayRate -> DecaySteps -> ConfigDecay
+decayRateStepsWith rate steps = ConfigDecay ("Exponential decay with rate " <> tshow rate <> " in " <> tshow steps <> " steps") dec
+  where
+    dec =
+      decaySetupParameters
+        Parameters
+          { _alpha            = ExponentialDecay (Just 1e-4) 0.01 75000
+          , _beta             = ExponentialDecay (Just 1e-4) rate steps
+          , _delta            = ExponentialDecay (Just 5e-4) rate steps
+          , _gamma            = ExponentialDecay (Just 1e-3) rate steps
+          , _zeta             = ExponentialDecay (Just 1e-3) rate steps -- was (Just 1e-5)
+          , _xi               = NoDecay
+          -- Exploration
+          , _epsilon          = NoDecay -- ExponentialDecay (Just 0.50) rate steps
+          , _exploration      = ExponentialDecay (Just 0.10) 0.9 steps -- was (Just 0.20)
+          , _learnRandomAbove = NoDecay
+          -- ANN
+          , _alphaANN         = ExponentialDecay Nothing rate steps
+          , _betaANN          = ExponentialDecay Nothing rate steps
+          , _deltaANN         = ExponentialDecay Nothing rate steps
+          , _gammaANN         = ExponentialDecay Nothing rate steps
+          }
+
+
 -- decayRate10PctSteps300k :: ConfigDecay
 -- decayRate10PctSteps300k = ConfigDecay ("Exponential decay with rate " <> tshow rate <> " in " <> tshow rate <> " steps") dec
 --   where rate = 0.10

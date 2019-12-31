@@ -24,6 +24,7 @@ module Releaser.Build
     , mInverse
     , databaseSetting
     , expSetting
+    , mkMiniPrettyPrintElems
     ) where
 
 import           Control.Lens
@@ -233,7 +234,11 @@ buildBORLTensorflow = do
   sim <- liftIO buildSim
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
-  mkUnichainTensorflowCombinedNetM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
+  setPrettyPrintElems <$> mkUnichainTensorflowCombinedNetM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
+  where
+    ppElems borl = mkMiniPrettyPrintElems (borl ^. s)
+    setPrettyPrintElems borl = setAllProxies (proxyNNConfig . prettyPrintElems) (ppElems borl) borl
+
 
 copyFiles :: String -> ExperimentNumber -> RepetitionNumber -> Maybe ReplicationNumber -> IO ()
 copyFiles pre expNr repetNr mRepliNr = do
@@ -257,6 +262,44 @@ databaseSetting = do
     getPsqlHost h
       | h `elem` ["schnecki-zenbook", "schnecki-laptop"] = "192.168.1.110"
       | otherwise = "c437-pc141"
+
+
+mkMiniPrettyPrintElems :: St -> [[Double]]
+mkMiniPrettyPrintElems st
+  | length xs /= length base' =
+    error $
+    "wrong length in mkMiniPrettyPrintElems: " ++
+    show (length xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (scaleValue (Just (scaleOrderMin, scaleOrderMax))) base')
+  | otherwise = zipWith (++) plts (replicate (length plts) (map (scaleValue (Just (scaleOrderMin, scaleOrderMax))) xs))
+  where
+    base' = drop (length productTypes) (netInp st)
+    minVal = configActFilterMin actionFilterConfig
+    maxVal = configActFilterMax actionFilterConfig
+    actList = map (scaleValue (Just (scalePltsMin, scalePltsMax)) . fromIntegral) [minVal, minVal + maxVal `div` 2]
+    plts = return $ map (scaleValue (Just (scalePltsMin, scalePltsMax))) [4,7]
+
+    -- [1, 2] : [[x, y] | x <- actList, y <- actList, x == y]
+    -- xs = [0, 0, 0, 4, 9, 9, 9] ++ concat ([[16]] ++ [[6]] ++ [[0]])
+    --   ++ [2 / genericLength machines * scaleOrderMax]
+    --   ++ [5, 3, 0, 0, 0, 0] ++ [0, 0, 0] :: [Double]
+    xs :: [Double]
+    xs = xsFull
+    xsFull =
+      concat
+        [ [0, 0, 0, 3, 5, 5, 6]
+        , [0, 0, 0, 0, 0, 0, 7]
+        , concat [[0, 0, 9, 3, 0, 0, 0, 0], [0, 0, 0, 0, 3, 6, 4, 0]]
+        , concat [[0, 2, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]]
+        , concat [[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 1, 2, 0, 0, 0]]
+        , [0, 0, 0, 0, 1, 0, 0, 0]
+        , [1, 0, 0, 0, 0, 0, 0, 0]
+        , [0, 0, 0, 0, 1, 0, 0, 0]
+        , [0, 0, 0, 1, 0, 0, 0, 0]
+        , [0, 0, 0, 0, 0, 0]
+        , [4, 2, 2, 0, 0, 0]
+        , [0, 0, 0]
+        , [0, 0, 0]
+        ]
 
 
 ------------------------------------------------------------
