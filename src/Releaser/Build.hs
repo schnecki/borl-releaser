@@ -387,7 +387,7 @@ instance ExperimentDef (BORL St) where
          const
            [ AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
            -- , AlgDQN 0.99
-           -- , AlgDQN 0.8
+           , AlgDQN 0.8
            ])
         Nothing
         Nothing

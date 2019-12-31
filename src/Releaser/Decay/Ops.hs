@@ -42,7 +42,7 @@ decayRate50PctStepsk150k = ConfigDecay ("Exponential decay with rate " <> tshow 
           , _beta             = ExponentialDecay (Just 1e-4) rate steps
           , _delta            = ExponentialDecay (Just 5e-4) rate steps
           , _gamma            = ExponentialDecay (Just 1e-3) rate steps
-          , _zeta             = ExponentialDecay (Just 1e-3) rate steps
+          , _zeta             = ExponentialDecay (Just 1e-3) rate steps -- was (Just 1e-5)
           , _xi               = NoDecay
           -- Exploration
           , _epsilon          = NoDecay -- ExponentialDecay (Just 0.50) rate steps
