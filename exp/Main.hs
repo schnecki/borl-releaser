@@ -6,9 +6,8 @@ module Main where
 
 
 import           Control.Lens
-import           Control.Monad          (void)
+import           Control.Monad          (forM_, void)
 import           Control.Monad.IO.Class
-import           Network.HostName
 import           System.Environment     (getArgs, getProgName)
 
 import           Experimenter
@@ -25,22 +24,23 @@ main = do
   args <- getArgs
   if null args
     then do
-    name <- getProgName
-    putStrLn $ "Usage: " <> name <> " [run,eval,csv]"
-    else case head args of
-    "eval" -> -- Generate results only
-      loadAndEval runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
-    "run" -> do
-      -- run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
-      run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
-
-    "csv" ->
-      -- Generate CSV only
-      loadAndWriteCsv runMonadBorlTF buildBORLTensorflow -- ANN version
-    _ -> do
-      putStrLn "Unkown command\n"
       name <- getProgName
       putStrLn $ "Usage: " <> name <> " [run,eval,csv]"
+    else forM_ args $ \x ->
+           case x of
+             "eval" -- Generate results only
+              -> loadAndEval runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+             "run"
+              ->
+               -- run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
+               run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+             "csv"
+               -- Generate CSV only
+              -> loadAndWriteCsv runMonadBorlTF buildBORLTensorflow -- ANN version
+             _ -> do
+               putStrLn "Unkown command\n"
+               name <- getProgName
+               putStrLn $ "Usage: " <> name <> " [run,eval,csv]"
 
 
 run :: (SessionT IO (Bool, Experiments (BORL St)) -> IO (Bool, Experiments (BORL St))) -> (SessionT IO (Evals (BORL St)) -> IO (Evals (BORL St))) -> SessionT IO (BORL St) -> IO ()
@@ -70,15 +70,12 @@ loadAndWriteCsv runner mkInitSt = do
 
 eval :: ExperimentDef a => DatabaseSetting -> (ExpM a (Evals a) -> IO (Evals a)) -> Experiments a -> IO ()
 eval dbSetting runner2 res = do
-  let evals = [
-        -- Sum OverPeriods $ Of "SUMC",
-        Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")
-
-              --   Sum OverPeriods $ Of "EARN", Mean OverReplications (Stats $ Sum OverPeriods $ Of "EARN")
-              -- , Sum OverPeriods $ Of "BOC" , Mean OverReplications (Stats $ Sum OverPeriods $ Of "BOC")
-              -- , Sum OverPeriods $ Of "WIPC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "WIPC")
-              -- , Sum OverPeriods $ Of "FGIC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "FGIC")
-              -- , Sum OverPeriods $ Of "SUMC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")
+  let evals = [ Sum OverPeriods $ Of "SUMC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")
+              , Sum OverPeriods $ Of "EARN", Mean OverReplications (Stats $ Sum OverPeriods $ Of "EARN")
+              , Sum OverPeriods $ Of "BOC" , Mean OverReplications (Stats $ Sum OverPeriods $ Of "BOC")
+              , Sum OverPeriods $ Of "WIPC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "WIPC")
+              , Sum OverPeriods $ Of "FGIC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "FGIC")
+              , Sum OverPeriods $ Of "SUMC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")
 
               -- -- , Id $ EveryXthElem 4 $ Of "demand"
               -- -- , Id $ EveryXthElem 4 $ Of "op"

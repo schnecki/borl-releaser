@@ -186,7 +186,6 @@ askUser showHelp addUsage cmds ql = do
               (ql ^. actionFilter)
               (ql ^. decayFunction)
               netInp
-              netInp
               (modelBuilder actions (ql ^. s))
               ser
           askUser showHelp addUsage cmds ql'

@@ -239,7 +239,9 @@ copyFiles :: String -> ExperimentNumber -> RepetitionNumber -> Maybe Replication
 copyFiles pre expNr repetNr mRepliNr = do
   let dir = "results/" <> T.unpack (T.replace " " "_" experimentName) <> "/data/"
   createDirectoryIfMissing True dir
-  mapM_ (\fn -> copyIfFileExists fn (dir <> pre <> fn <> "_exp_" <> show expNr <> "_rep_" <> show repetNr <> maybe "" (\x -> "_repl_" <> show x) mRepliNr)) ["reward", "stateValues"]
+  mapM_
+    (\fn -> copyIfFileExists fn (dir <> pre <> fn <> "_exp_" <> show expNr <> "_rep_" <> show repetNr <> maybe "" (\x -> "_repl_" <> show x) mRepliNr))
+    ["reward", "stateValues", "episodeLength", "plts", "costs", "stateVAllStates", "stateWAllStates", "statePsiVAllStates", "statePsiWAllStates"]
 
 copyIfFileExists :: FilePath -> FilePath -> IO ()
 copyIfFileExists fn target = do
@@ -260,32 +262,6 @@ databaseSetting = do
 ------------------------------------------------------------
 ------------------ ExperimentDef instance ------------------
 ------------------------------------------------------------
-
-expSetting :: BORL St -> ExperimentSetting
-expSetting borl =
-  ExperimentSetting
-    { _experimentBaseName = experimentName
-    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf, pol] ++ concat [[updateTarget] | isNNFlag]
-    , _experimentRepetitions = 1
-    , _preparationSteps = 300
-    , _evaluationWarmUpSteps = 10
-    , _evaluationSteps = 10
-    , _evaluationReplications = 1
-    , _maximumParallelEvaluations = 1
-    }
-  where
-    isNNFlag = isNeuralNetwork (borl ^. proxies . v)
-    isNN = ExperimentInfoParameter "Is Neural Network" isNNFlag
-    isTf = ExperimentInfoParameter "Is Tensorflow Network" (isTensorflow (borl ^. proxies . v))
-    updateTarget = ExperimentInfoParameter "Target Network Update Interval" (nnConfig ^. updateTargetInterval)
-    dec = ExperimentInfoParameter "Decay" (configDecayName decay)
-    actBounds = ExperimentInfoParameter "Action Bounds" (configActLower actionConfig, configActUpper actionConfig)
-    pltBounds = ExperimentInfoParameter "Action Filter (Min/Max PLT)" (configActFilterMin actionFilterConfig, configActFilterMax actionFilterConfig)
-    csts = ExperimentInfoParameter "Costs" costConfig
-    dem = ExperimentInfoParameter "Demand" (configDemandName demand)
-    ftExtr = ExperimentInfoParameter "Feature Extractor (State Representation)" (configFeatureExtractorName $ featureExtractor True)
-    rout = ExperimentInfoParameter "Routing (Simulation Setup)" (configRoutingName routing)
-    pol = ExperimentInfoParameter "Policy Exploration Strategy" (borl ^. B.parameters . explorationStrategy)
 
 
 instance ExperimentDef (BORL St) where
@@ -308,7 +284,6 @@ instance ExperimentDef (BORL St) where
           (borl ^. B.actionFilter)
           (borl ^. decayFunction)
           netInp
-          netInp
           (modelBuilder actions (borl ^. s))
           ser
   type InputValue (BORL St) = [Order]
@@ -323,7 +298,7 @@ instance ExperimentDef (BORL St) where
   runStep borl incOrds _ = do
     borl' <- stepM (set (s . nextIncomingOrders) incOrds borl)
     -- helpers
-    when (borl ^. t `mod` 10000 == 0) $ liftIO $ prettyBORLHead True Nothing borl >>= print
+    when (borl ^. t `mod` 5000 == 0) $ liftIO $ prettyBORLHead True (Just $ mInverse borl) borl >>= print
     let simT = timeToDouble $ simCurrentTime $ borl' ^. s . simulation
     let borlT = borl' ^. t
     -- demand
@@ -411,8 +386,8 @@ instance ExperimentDef (BORL St) where
         (Just $ return .
          const
            [ AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
-           , AlgDQN 0.99
-           , AlgDQN 0.8
+           -- , AlgDQN 0.99
+           -- , AlgDQN 0.8
            ])
         Nothing
         Nothing
@@ -441,9 +416,9 @@ instance ExperimentDef (BORL St) where
            , releaseBIL (M.fromList [(Product 1, 6), (Product 2, 6)])
            , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
            , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
-           -- , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
-           -- , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
-           -- , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
+           , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
+           , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
+           , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
            ])
         Nothing
         (Just (\x -> uniqueReleaseName x /= pltReleaseName)) -- drop preparation phase for all release algorithms but the BORL releaser
@@ -551,4 +526,31 @@ instance ExperimentDef (BORL St) where
   afterPreparationHook _ expNr repetNr = liftIO $ copyFiles "prep_" expNr repetNr Nothing
   afterWarmUpHook _ expNr repetNr repliNr = liftIO $ copyFiles "warmup_" expNr repetNr (Just repliNr)
   afterEvaluationHook _ expNr repetNr repliNr = liftIO $ copyFiles "eval_" expNr repetNr (Just repliNr)
+
+
+expSetting :: BORL St -> ExperimentSetting
+expSetting borl =
+  ExperimentSetting
+    { _experimentBaseName = experimentName
+    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf, pol] ++ concat [[updateTarget] | isNNFlag]
+    , _experimentRepetitions = 1
+    , _preparationSteps = 10^6
+    , _evaluationWarmUpSteps = 1000
+    , _evaluationSteps = 10000
+    , _evaluationReplications = 1
+    , _maximumParallelEvaluations = 1
+    }
+  where
+    isNNFlag = isNeuralNetwork (borl ^. proxies . v)
+    isNN = ExperimentInfoParameter "Is Neural Network" isNNFlag
+    isTf = ExperimentInfoParameter "Is Tensorflow Network" (isTensorflow (borl ^. proxies . v))
+    updateTarget = ExperimentInfoParameter "Target Network Update Interval" (nnConfig ^. updateTargetInterval)
+    dec = ExperimentInfoParameter "Decay" (configDecayName decay)
+    actBounds = ExperimentInfoParameter "Action Bounds" (configActLower actionConfig, configActUpper actionConfig)
+    pltBounds = ExperimentInfoParameter "Action Filter (Min/Max PLT)" (configActFilterMin actionFilterConfig, configActFilterMax actionFilterConfig)
+    csts = ExperimentInfoParameter "Costs" costConfig
+    dem = ExperimentInfoParameter "Demand" (configDemandName demand)
+    ftExtr = ExperimentInfoParameter "Feature Extractor (State Representation)" (configFeatureExtractorName $ featureExtractor True)
+    rout = ExperimentInfoParameter "Routing (Simulation Setup)" (configRoutingName routing)
+    pol = ExperimentInfoParameter "Policy Exploration Strategy" (borl ^. B.parameters . explorationStrategy)
 
