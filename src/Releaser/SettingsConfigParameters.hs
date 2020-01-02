@@ -19,7 +19,7 @@ import           SimSim
 -- | BORL Parameters.
 borlParams :: Parameters Double
 borlParams = Parameters
-  { _alpha               = 0.01
+  { _alpha               = 0.001
   , _alphaANN            = 1.0
   , _beta                = 0.03
   , _betaANN             = 1.0
@@ -27,11 +27,11 @@ borlParams = Parameters
   , _deltaANN            = 1.0
   , _gamma               = 0.01
   , _gammaANN            = 1.0
-  , _epsilon             = 5    -- was 2
+  , _epsilon             = 0.5    -- was 2
   , _explorationStrategy = SoftmaxBoltzmann 2
-  , _exploration         = 1.0
+  , _exploration         = 0.5 -- 1.0
   , _learnRandomAbove    = 0.15
-  , _zeta                = 0.03
+  , _zeta                = 0.01
   , _xi                  = 0.01
   , _disableAllLearning  = False
   }
@@ -40,10 +40,10 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-  {   _replayMemoryMaxSize             = 100000 -- was 30k
+  {   _replayMemoryMaxSize             = 30000 -- was 30k
     , _trainBatchSize                  = 24
     , _grenadeLearningParams           = LearningParameters 0.01 0.0 0.0001
-    , _learningParamsDecay             = ExponentialDecay (Just 1e-5) 0.15 100000
+    , _learningParamsDecay             = ExponentialDecay (Just 1e-5) 0.05 100000
     , _prettyPrintElems                = [] -- is set just before printing
     , _scaleParameters                 = ScalingNetOutParameters (-500) 500 (-5000) 5000 (-5000) 5000 (-5000) 5000
     , _stabilizationAdditionalRho      = 0

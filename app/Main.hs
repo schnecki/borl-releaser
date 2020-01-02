@@ -37,18 +37,18 @@ import           Releaser.Type
 
 main :: IO ()
 main
-  -- runMonadBorlIO $ do
-  --   -- borl <- liftIO buildBORLGrenade
-  --   borl <- liftIO buildBORLTable
-  --   askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
  = do
   putStr "Load state from experiment [Leave empty to skip]: " >> hFlush stdout
   mExpNr <- getIOMWithDefault Nothing
   case mExpNr of
     Nothing ->
+      -- runMonadBorlIO $ do
+      --   -- borl <- liftIO buildBORLGrenade
+      --   borl <- liftIO buildBORLTable
+      --   askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
       runMonadBorlTF $ do
         borl <- buildBORLTensorflow
-        askUser True usage cmds (setPrettyPrintElems borl) -- maybe increase learning by setting estimate of rho
+        askUser True usage cmds borl -- maybe increase learning by setting estimate of rho
     Just expNr -> do
       liftIO $ putStr "Experiment replication: [1]" >> hFlush stdout
       repNr <- liftIO $ getIOWithDefault 1
@@ -64,48 +64,10 @@ main
           repNr
           (\borl0 -> do
              borl <- saveTensorflowModels borl0
-             -- liftIO $ print (expNr, repNr)
-             -- doc <- prettyBORLM borl
-             -- liftIO $ print doc
-             askUser True usage cmds (setPrettyPrintElems borl))
-      -- borl0 <- buildBORLTensorflow
-      -- saveTensorflowModels borl0
-      -- let targets = map checkpointBaseFileName (allProxies (borl0 ^. proxies) ^.. traversed.proxyTFTarget)
-      -- liftIO $ print targets
-      -- Just borl <- loadStateAfterPreparation dbSetting expNr repNr 1
-      --     workers = map checkpointBaseFileName (allProxies (borl ^. proxies) ^.. traversed.proxyTFWorker)
-      -- let borl = overAllProxies (proxyTFTarget %~ (\x -> x { checkpointBaseFileName = head targets})) borl
-      -- borl' <- buildBORLTensorflow
-      -- liftIO $ print "Restored"
-      -- askUser True usage cmds (setPrettyPrintElems borl) -- maybe increase learning by setting estimate of rho
+             askUser True usage cmds borl)
   where
     cmds = []
     usage = []
-    ppElems borl = mkMiniPrettyPrintElems (borl ^. s)
-    setPrettyPrintElems borl = setAllProxies (proxyNNConfig . prettyPrintElems) (ppElems borl) borl
-
--- mkBorl :: SessionT IO (BORL St) -> SessionT IO (BORL St)
--- mkBorl mkInitSt = do
---   liftIO $ putStr "Load state from experiment [Leave empty to skip]: " >> hFlush stdout
---   mExpNr <- liftIO $ getIOMWithDefault Nothing
---   borlLoaded <-
---     liftIO $
---     case mExpNr of
---       Nothing -> return Nothing
---       Just expNr -> do
---         putStr "Experiment replication: [1]" >> hFlush stdout
---         repNr <- getIOWithDefault 1
---         dbSetting <- databaseSetting
---         loadStateAfterPreparation runMonadBorlTF dbSetting expSetting () mkInitSt expNr repNr
---   case borlLoaded of
---     Nothing -> do
---       liftIO $ putStrLn "Creating a new BORL state"
---       mkInitSt
---     Just borl -> do
---       liftIO $ putStrLn "Loaded BORL from the database"
---       restoreTensorflowModels True borl
---       return borl
-
 
 askUser :: (MonadBorl' m) => Bool -> [(String,String)] -> [(String, ActionIndexed St)] -> BORL St -> m ()
 askUser showHelp addUsage cmds ql = do

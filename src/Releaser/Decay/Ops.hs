@@ -42,11 +42,11 @@ decayRate50PctStepsk150k = ConfigDecay ("Exponential decay with rate " <> tshow 
           , _beta             = ExponentialDecay (Just 1e-4) rate steps
           , _delta            = ExponentialDecay (Just 5e-4) rate steps
           , _gamma            = ExponentialDecay (Just 1e-3) rate steps
-          , _zeta             = ExponentialDecay (Just 1e-3) rate steps -- was (Just 1e-5)
+          , _zeta             = ExponentialDecay (Just 1e-5) rate steps
           , _xi               = NoDecay
           -- Exploration
           , _epsilon          = NoDecay -- ExponentialDecay (Just 0.50) rate steps
-          , _exploration      = ExponentialDecay (Just 0.20) 0.9 steps -- was (Just 0.20)
+          , _exploration      = ExponentialDecay (Just 0.20) 0.5 steps -- was (Just 0.20)
           , _learnRandomAbove = NoDecay
           -- ANN
           , _alphaANN         = ExponentialDecay Nothing rate steps
@@ -67,11 +67,11 @@ decayRateStepsWith rate steps = ConfigDecay ("Exponential decay with rate " <> t
           , _beta             = ExponentialDecay (Just 1e-4) rate steps
           , _delta            = ExponentialDecay (Just 5e-4) rate steps
           , _gamma            = ExponentialDecay (Just 1e-3) rate steps
-          , _zeta             = ExponentialDecay (Just 1e-3) rate steps -- was (Just 1e-5)
+          , _zeta             = ExponentialDecay (Just 1e-5) rate steps -- was (Just 1e-5)
           , _xi               = NoDecay
           -- Exploration
           , _epsilon          = NoDecay -- ExponentialDecay (Just 0.50) rate steps
-          , _exploration      = ExponentialDecay (Just 0.10) rate 150000 -- was (Just 0.20)
+          , _exploration      = ExponentialDecay (Just 0.01) 0.5 steps -- was (Just 0.20)
           , _learnRandomAbove = NoDecay
           -- ANN
           , _alphaANN         = ExponentialDecay Nothing rate steps

@@ -171,17 +171,14 @@ modelBuilder actions initState cols =
   buildModel $
   inputLayer1D lenIn >>
   fullyConnected [5 * lenIn] TF.relu' >>
-  -- fullyConnected [5 * lenIn] TF.relu' >>
-  -- fullyConnected [1 * lenIn] TF.relu' >>
-  fullyConnected [max lenOut $ 2 * lenOut] TF.relu' >>
-  fullyConnected [max lenOut $ max 1 (cols `div` 2) * fromIntegral lenActs] TF.relu' >>
-  -- fullyConnected [max lenOut $ ceiling $ 0.2 * fromIntegral (lenIn + lenOut)] TF.relu' >>
-  fullyConnected [genericLength actions, cols] TF.tanh' >>
-  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.0001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
+  fullyConnected [3 * lenOut] TF.relu' >>
+  fullyConnected [2 * lenOut] TF.relu' >>
+  fullyConnected [lenActs, cols] TF.tanh' >>
+  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 1e-4, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
   where
     lenIn = genericLength (netInp initState)
-    lenOut = genericLength actions * cols
     lenActs = genericLength actions
+    lenOut = lenActs * cols
 
 
 mkInitSt :: SimSim -> [Order] -> (St, [Action St], St -> [Bool])
@@ -235,6 +232,7 @@ buildBORLTensorflow = do
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
   setPrettyPrintElems <$> mkUnichainTensorflowCombinedNetM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
+  -- setPrettyPrintElems <$> mkUnichainTensorflowM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
   where
     ppElems borl = mkMiniPrettyPrintElems (borl ^. s)
     setPrettyPrintElems borl = setAllProxies (proxyNNConfig . prettyPrintElems) (ppElems borl) borl
@@ -269,21 +267,17 @@ mkMiniPrettyPrintElems st
   | length xs /= length base' =
     error $
     "wrong length in mkMiniPrettyPrintElems: " ++
-    show (length xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (scaleValue (Just (scaleOrderMin, scaleOrderMax))) base')
+    show (length xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (unscaleValue (Just (scaleOrderMin, scaleOrderMax))) base')
   | otherwise = zipWith (++) plts (replicate (length plts) (map (scaleValue (Just (scaleOrderMin, scaleOrderMax))) xs))
   where
     base' = drop (length productTypes) (netInp st)
     minVal = configActFilterMin actionFilterConfig
     maxVal = configActFilterMax actionFilterConfig
     actList = map (scaleValue (Just (scalePltsMin, scalePltsMax)) . fromIntegral) [minVal, minVal + maxVal `div` 2]
-    plts = return $ map (scaleValue (Just (scalePltsMin, scalePltsMax))) [4,7]
-
-    -- [1, 2] : [[x, y] | x <- actList, y <- actList, x == y]
-    -- xs = [0, 0, 0, 4, 9, 9, 9] ++ concat ([[16]] ++ [[6]] ++ [[0]])
-    --   ++ [2 / genericLength machines * scaleOrderMax]
-    --   ++ [5, 3, 0, 0, 0, 0] ++ [0, 0, 0] :: [Double]
+    plts = return $ map (scaleValue (Just (scalePltsMin, scalePltsMax))) [4, 7]
     xs :: [Double]
-    xs = xsFull
+    xs = xsFeatSimple
+    xsFeatSimple = [0, 0, 0, 3, 5, 5, 13, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0]
     xsFull =
       concat
         [ [0, 0, 0, 3, 5, 5, 6]
@@ -476,7 +470,7 @@ instance ExperimentDef (BORL St) where
         "Learn Random Above until Exploration hits"
         (set (B.parameters . learnRandomAbove))
         (^. B.parameters . learnRandomAbove)
-        (Just $ return . const [0.10])
+        (Just $ return . const [0.50])
         Nothing
         Nothing
         Nothing
@@ -492,21 +486,21 @@ instance ExperimentDef (BORL St) where
       "Zeta (at period 0)"
       (set (B.parameters . zeta))
       (^. B.parameters . zeta)
-      (Just $ return . const [0.03])
+      (Just $ return . const [0.01])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Epsilon (at period 0)"
       (set (B.parameters . epsilon))
       (^. B.parameters . epsilon)
-      (Just $ return . const [5])
+      (Just $ return . const [0.5])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Training Batch Size"
       (setAllProxies (proxyNNConfig . trainBatchSize))
       (^?! proxies . v . proxyNNConfig . trainBatchSize)
-      (Just $ return . const [16])
+      (Just $ return . const [32])
       Nothing
       Nothing
       Nothing
@@ -516,7 +510,7 @@ instance ExperimentDef (BORL St) where
       "Replay Memory Size"
       (setAllProxies (proxyNNConfig . replayMemoryMaxSize))
       (^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
-      (Just $ return . const [10000])
+      (Just $ return . const [50000])
       Nothing
       Nothing
       Nothing
@@ -526,7 +520,7 @@ instance ExperimentDef (BORL St) where
     "ANN Learning Rate Decay"
       (setAllProxies (proxyNNConfig . learningParamsDecay))
       (^?! proxies . v . proxyNNConfig . learningParamsDecay)
-      (Just $ return . const [ExponentialDecay (Just 1e-5) 0.75 100000])
+      (Just $ return . const [ExponentialDecay (Just 1e-5) 0.15 100000])
       Nothing
       Nothing
       Nothing
