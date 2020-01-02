@@ -506,7 +506,7 @@ instance ExperimentDef (BORL St) where
       "Training Batch Size"
       (setAllProxies (proxyNNConfig . trainBatchSize))
       (^?! proxies . v . proxyNNConfig . trainBatchSize)
-      (Just $ return . const [32])
+      (Just $ return . const [16])
       Nothing
       Nothing
       Nothing
@@ -516,7 +516,17 @@ instance ExperimentDef (BORL St) where
       "Replay Memory Size"
       (setAllProxies (proxyNNConfig . replayMemoryMaxSize))
       (^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
-      (Just $ return . const [100000])
+      (Just $ return . const [10000])
+      Nothing
+      Nothing
+      Nothing
+    | isNN
+    ] ++
+    [ ParameterSetup
+    "ANN Learning Rate Decay"
+      (setAllProxies (proxyNNConfig . learningParamsDecay))
+      (^?! proxies . v . proxyNNConfig . learningParamsDecay)
+      (Just $ return . const [ExponentialDecay (Just 1e-5) 0.75 100000])
       Nothing
       Nothing
       Nothing
@@ -575,7 +585,7 @@ expSetting :: BORL St -> ExperimentSetting
 expSetting borl =
   ExperimentSetting
     { _experimentBaseName = experimentName
-    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf, pol] ++ concat [[updateTarget] | isNNFlag]
+    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf, pol] ++ concat [[updateTarget, annxpSmth] | isNNFlag]
     , _experimentRepetitions = 1
     , _preparationSteps = 2*10^6
     , _evaluationWarmUpSteps = 1000
@@ -596,4 +606,4 @@ expSetting borl =
     ftExtr = ExperimentInfoParameter "Feature Extractor (State Representation)" (configFeatureExtractorName $ featureExtractor True)
     rout = ExperimentInfoParameter "Routing (Simulation Setup)" (configRoutingName routing)
     pol = ExperimentInfoParameter "Policy Exploration Strategy" (borl ^. B.parameters . explorationStrategy)
-
+    annxpSmth = ExperimentInfoParameter "Setting Exp Smooth to 1" (nnConfig ^. setExpSmoothParamsTo1)
