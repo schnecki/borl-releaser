@@ -170,11 +170,11 @@ modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> Int64 -> m TensorflowMo
 modelBuilder actions initState cols =
   buildModel $
   inputLayer1D lenIn >>
-  fullyConnected [5 * lenIn] TF.relu' >>
-  fullyConnected [3 * lenOut] TF.relu' >>
-  fullyConnected [2 * lenOut] TF.relu' >>
+  fullyConnected [10 * lenIn] TF.relu' >>
+  fullyConnected [5 * lenOut] TF.relu' >>
+  -- fullyConnected [2 * lenOut] TF.relu' >>
   fullyConnected [lenActs, cols] TF.tanh' >>
-  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 1e-4, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
+  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.01, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
   where
     lenIn = genericLength (netInp initState)
     lenActs = genericLength actions
@@ -222,8 +222,8 @@ buildBORLGrenade = do
   sim <- buildSim
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
-  nn <- randomNetworkInitWith UniformInit :: IO (NN 58 9)
-  mkUnichainGrenade alg initSt netInp actions actFilter borlParams (configDecay decay) nn nnConfig (Just initVals)
+  nn <- randomNetworkInitWith UniformInit :: IO (NN 22 9)
+  setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp actions actFilter borlParams (configDecay decay) nn nnConfig (Just initVals)
 
 
 buildBORLTensorflow :: (MonadBorl' m) => m (BORL St)
@@ -233,10 +233,10 @@ buildBORLTensorflow = do
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
   setPrettyPrintElems <$> mkUnichainTensorflowCombinedNetM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
   -- setPrettyPrintElems <$> mkUnichainTensorflowM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
-  where
-    ppElems borl = mkMiniPrettyPrintElems (borl ^. s)
-    setPrettyPrintElems borl = setAllProxies (proxyNNConfig . prettyPrintElems) (ppElems borl) borl
 
+setPrettyPrintElems :: BORL St -> BORL St
+setPrettyPrintElems borl = setAllProxies (proxyNNConfig . prettyPrintElems) (ppElems borl) borl
+  where ppElems borl = mkMiniPrettyPrintElems (borl ^. s)
 
 copyFiles :: String -> ExperimentNumber -> RepetitionNumber -> Maybe ReplicationNumber -> IO ()
 copyFiles pre expNr repetNr mRepliNr = do
@@ -264,10 +264,8 @@ databaseSetting = do
 
 mkMiniPrettyPrintElems :: St -> [[Double]]
 mkMiniPrettyPrintElems st
-  | length xs /= length base' =
-    error $
-    "wrong length in mkMiniPrettyPrintElems: " ++
-    show (length xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (unscaleValue (Just (scaleOrderMin, scaleOrderMax))) base')
+  | length xs /= length base' = error $ "wrong length in mkMiniPrettyPrintElems: " ++
+                                show (length xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (unscaleValue (Just (scaleOrderMin, scaleOrderMax))) base')
   | otherwise = zipWith (++) plts (replicate (length plts) (map (scaleValue (Just (scaleOrderMin, scaleOrderMax))) xs))
   where
     base' = drop (length productTypes) (netInp st)
@@ -276,8 +274,8 @@ mkMiniPrettyPrintElems st
     actList = map (scaleValue (Just (scalePltsMin, scalePltsMax)) . fromIntegral) [minVal, minVal + maxVal `div` 2]
     plts = return $ map (scaleValue (Just (scalePltsMin, scalePltsMax))) [4, 7]
     xs :: [Double]
-    xs = xsFeatSimple
-    xsFeatSimple = [0, 0, 0, 3, 5, 5, 13, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0]
+    xs = xsSimple
+    xsSimple = concat [[0, 0, 0, 0, 7, 10, 6], concat [[26]], concat [[0]], concat [[7]], [2], [3, 1, 0, 0, 0, 0], [0, 0, 0]]
     xsFull =
       concat
         [ [0, 0, 0, 3, 5, 5, 6]
@@ -423,8 +421,9 @@ instance ExperimentDef (BORL St) where
         (Just $ return .
          const
            [ AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
+           , AlgDQNAvgRewardFree 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
            -- , AlgDQN 0.99
-           , AlgDQN 0.8
+           -- , AlgDQN 0.8
            ])
         Nothing
         Nothing

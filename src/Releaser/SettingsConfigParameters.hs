@@ -27,11 +27,11 @@ borlParams = Parameters
   , _deltaANN            = 1.0
   , _gamma               = 0.01
   , _gammaANN            = 1.0
-  , _epsilon             = 0.5    -- was 2
+  , _epsilon             = 5.0    -- was 2
   , _explorationStrategy = SoftmaxBoltzmann 2
   , _exploration         = 0.5 -- 1.0
-  , _learnRandomAbove    = 0.15
-  , _zeta                = 0.01
+  , _learnRandomAbove    = 1.0    -- RESET TO 0.15?
+  , _zeta                = 0.0001 -- RESET TO 0.01?
   , _xi                  = 0.01
   , _disableAllLearning  = False
   }
@@ -43,7 +43,9 @@ nnConfig =
   {   _replayMemoryMaxSize             = 30000 -- was 30k
     , _trainBatchSize                  = 24
     , _grenadeLearningParams           = LearningParameters 0.01 0.0 0.0001
-    , _learningParamsDecay             = ExponentialDecay (Just 1e-5) 0.05 100000
+    , _learningParamsDecay             =
+      ExponentialDecay (Just 1e-4) 0.05 150000
+      -- ExponentialDecay (Just 1e-5) 0.05 100000
     , _prettyPrintElems                = [] -- is set just before printing
     , _scaleParameters                 = ScalingNetOutParameters (-500) 500 (-5000) 5000 (-5000) 5000 (-5000) 5000
     , _stabilizationAdditionalRho      = 0
@@ -66,5 +68,5 @@ initVals :: InitValues
 initVals = InitValues 0 0 0 0 0
 
 experimentName :: T.Text
-experimentName = "31.12. Adaptive BORL Order Releaser with unif procTimes, unif demand"
+experimentName = "03.01.2020 Adaptive BORL Order Releaser with unif procTimes, unif demand"
 

@@ -42,10 +42,10 @@ main
   mExpNr <- getIOMWithDefault Nothing
   case mExpNr of
     Nothing ->
-      -- runMonadBorlIO $ do
-      --   -- borl <- liftIO buildBORLGrenade
-      --   borl <- liftIO buildBORLTable
-      --   askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
+      runMonadBorlIO $ do
+        -- borl <- liftIO buildBORLGrenade
+        -- -- borl <- liftIO buildBORLTable
+        -- askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
       runMonadBorlTF $ do
         borl <- buildBORLTensorflow
         askUser True usage cmds borl -- maybe increase learning by setting estimate of rho

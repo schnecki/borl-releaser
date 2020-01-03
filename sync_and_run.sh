@@ -49,7 +49,7 @@ function syncLoop() {
 
 # Sync  & Run
 echo "RUNNING ON  $USER@$PC:$DIR"
-rsync -tarz --del --force --exclude=.git --exclude=.stack-work --exclude=state* --exclude=costs --exclude=plts --exclude=.state* --exclude=psiValues --exclude=.psiValues  --exclude=episodeLength --exclude=queueLength --exclude=reward $DIR $USER@$PC:$DIR
+rsync -tarz --del --force --exclude=.git --exclude=results --exclude=.stack-work --exclude=state* --exclude=costs --exclude=plts --exclude=.state* --exclude=psiValues --exclude=.psiValues  --exclude=episodeLength --exclude=queueLength --exclude=reward $DIR $USER@$PC:$DIR
 if [ $? -ne 0 ]; then
     ssh -t $USER@$PC "mkdir -p $DIR 1>/dev/null"
     rsync -tarz --del --force --exclude=.git --exclude=.stack-work --exclude=state*  --exclude=costs --exclude=plts --exclude=.state* --exclude=psiValues --exclude=.psiValues --exclude=episodeLength --exclude=queueLength --exclude=reward $DIR $USER@$PC:$DIR/
