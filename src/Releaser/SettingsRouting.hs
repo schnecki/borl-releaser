@@ -24,7 +24,7 @@ productTypes = sort $ nub $ map (fst . fst) (configRoutingRoutes routing)
 
 
 allBlocks :: [Block]
-allBlocks = map (snd . fst) (configRoutingRoutes routing)
+allBlocks = nub $ map (snd . fst) (configRoutingRoutes routing)
 
 queues :: [Block]
 queues = filter isQueue allBlocks

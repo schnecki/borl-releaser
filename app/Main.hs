@@ -42,7 +42,7 @@ main
   mExpNr <- getIOMWithDefault Nothing
   case mExpNr of
     Nothing ->
-      runMonadBorlIO $ do
+      -- runMonadBorlIO $ do
         -- borl <- liftIO buildBORLGrenade
         -- -- borl <- liftIO buildBORLTable
         -- askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
@@ -102,11 +102,15 @@ askUser showHelp addUsage cmds ql = do
       e <-
         liftIO $ do
           putStrLn "Which settings to change:"
-          putStrLn $ unlines $ map (\(c, h) -> c ++ ": " ++ h) [("exp", "exploration rate"), ("eps", "epsilon"), ("lr", "learning rate"), ("dislearn", "Disable/Enable all learning")]
+          putStrLn $ unlines $ map (\(c, h) -> c ++ ": " ++ h) $
+            sortBy (compare `on` fst) [("alpha", "alpha"), ("exp", "exploration rate"), ("eps", "epsilon"), ("lr", "learning rate"), ("dislearn", "Disable/Enable all learning")]
           liftIO $ putStr "Enter value: " >> hFlush stdout >> getLine
       ql' <-
         do let modifyDecayFun f v' = decayFunction .~ (\t p -> f .~ v' $ (ql ^. decayFunction) t p)
            case e of
+             "alpha" -> do
+               liftIO $ putStr "New value: " >> hFlush stdout
+               liftIO $ maybe ql (\v' -> modifyDecayFun alpha v' $ parameters . alpha .~ v' $ ql) <$> getIOMWithDefault Nothing
              "exp" -> do
                liftIO $ putStr "New value: " >> hFlush stdout
                liftIO $ maybe ql (\v' -> modifyDecayFun exploration v' $ parameters . exploration .~ v' $ ql) <$> getIOMWithDefault Nothing
@@ -207,12 +211,13 @@ askUser showHelp addUsage cmds ql = do
             (stepM ql >>= \ql' ->
                case find isTensorflow (allProxies $ ql' ^. proxies) of
                  Nothing -> prettyBORLHead True Nothing ql' >>= liftIO . print >> askUser False addUsage cmds ql'
-                 Just _ -> do
+                 Just _
                    -- b <- liftTensorflow (prettyBORLHead True Nothing ql')
                    -- liftIO $ print b
-                   let ppElems = mkPrettyPrintElems True (ql ^. s)
+                  -> do
+                   let ppElems = mkPrettyPrintElems True (ql' ^. s)
                        setPrettyPrintElems = setAllProxies (proxyNNConfig . prettyPrintElems) ppElems
-                   prettyBORLTables (Just $ const (Just $ Left "[...]")) True False False (setPrettyPrintElems ql) >>= liftIO . print
+                   prettyBORLTables (Just $ const (Just $ Left "[...]")) True False False (setPrettyPrintElems ql') >>= liftIO . print
                    askUser False addUsage cmds ql')
         Just (_, cmd) ->
           case find isTensorflow (allProxies $ ql ^. proxies) of

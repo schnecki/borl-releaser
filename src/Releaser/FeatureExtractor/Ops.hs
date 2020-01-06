@@ -10,6 +10,7 @@ module Releaser.FeatureExtractor.Ops
     , featExtractorSimpleWipWithQueueCountsAndMachineCount
     , featExtractorWipAsQueueCounters
     , featExtractorFullWoMachines
+    , featExtractorFullMachinesToQueue
     , featExtractorFullWithMachines
     ) where
 
@@ -133,8 +134,27 @@ featExtractorFullWoMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-F
         mkFromList = mkUntilDueList currentTime
         foreachPt f xs = map (\pt -> f (filter ((== pt) . productType) xs)) productTypes
 
+
+featExtractorFullMachinesToQueue :: ReduceValues -> ConfigFeatureExtractor
+featExtractorFullMachinesToQueue useReduce = ConfigFeatureExtractor "PLTS-OP-(Queues+Machines)-FGI-Shipped" featExt
+  where
+    featExt (St sim incOrds _ plts) =
+      Extraction
+        (map timeToDouble (M.elems plts))
+        (foreachPt (mkOrderPoolList currentTime) (incOrds ++ simOrdersOrderPool sim))
+        (M.elems $ fmap (foreachPt mkFromList) (foldl' (\m (b, (o, _)) -> M.insertWith (++) b [o] m) (simOrdersQueue sim) (M.toList $ simOrdersMachine sim)))
+        []
+        (foreachPt (mkFgiList currentTime) (simOrdersFgi sim))
+        (foreachPt (mkBackorderDueList currentTime) (simOrdersShipped sim))
+        useReduce
+      where
+        currentTime = simCurrentTime sim
+        mkFromList = mkUntilDueList currentTime
+        foreachPt f xs = map (\pt -> f (filter ((== pt) . productType) xs)) productTypes
+
+
 featExtractorFullWithMachines :: ReduceValues -> ConfigFeatureExtractor
-featExtractorFullWithMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-FGI-Shipped" featExt
+featExtractorFullWithMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-Machines-FGI-Shipped" featExt
   where
     featExt (St sim incOrds _ plts) =
       Extraction
@@ -151,6 +171,19 @@ featExtractorFullWithMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues
         foreachPt f xs = map (\pt -> f (filter ((== pt) . productType) xs)) productTypes
         foreachMachine f xs = map (\machine -> f . map (fst . snd) $ filter ((== machine) . fst) xs) machines
 
+test =
+  [ newOrder (Product 1) 0 600865.0
+  , newOrder (Product 1) 0 600864.0
+  , newOrder (Product 1) 0 600865.0
+  , newOrder (Product 1) 0 600864.0
+  , newOrder (Product 1) 0 600865.0
+  , newOrder (Product 1) 0 600865.0
+  , newOrder (Product 1) 0 600865.0
+  , newOrder (Product 1) 0 600865.0
+  , newOrder (Product 1) 0 600866.0
+  , newOrder (Product 1) 0 600865.0
+  , newOrder (Product 1) 0 600866.0
+  ]
 
 mkBackorderDueList :: CurrentTime -> [Order] -> [Double]
 mkBackorderDueList t xs = init $ map genericLength (sortByTimeUntilDue (-maxBackorderPeriod) 0 t xs)

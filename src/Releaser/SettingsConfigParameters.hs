@@ -19,20 +19,22 @@ import           SimSim
 -- | BORL Parameters.
 borlParams :: Parameters Double
 borlParams = Parameters
-  { _alpha               = 0.001
-  , _alphaANN            = 1.0
+  { _alpha               = 1e-3
   , _beta                = 0.03
+  , _delta               = 0.03
+  , _gamma               = 0.005
+  -- ANN
+  , _alphaANN            = 0.5  -- not used as unichain
   , _betaANN             = 1.0
-  , _delta               = 0.01
   , _deltaANN            = 1.0
-  , _gamma               = 0.01
   , _gammaANN            = 1.0
-  , _epsilon             = 5.0    -- was 2
-  , _explorationStrategy = SoftmaxBoltzmann 2
-  , _exploration         = 0.5 -- 1.0
-  , _learnRandomAbove    = 1.0    -- RESET TO 0.15?
-  , _zeta                = 0.0001 -- RESET TO 0.01?
-  , _xi                  = 0.01
+  -- Rest
+  , _epsilon             = 0.5    -- was 2
+  , _explorationStrategy = SoftmaxBoltzmann 1
+  , _exploration         = 1.0
+  , _learnRandomAbove    = 0.15
+  , _zeta                = 0.10
+  , _xi                  = 5e-3
   , _disableAllLearning  = False
   }
 
@@ -41,31 +43,32 @@ nnConfig :: NNConfig
 nnConfig =
   NNConfig
   {   _replayMemoryMaxSize             = 30000 -- was 30k
-    , _trainBatchSize                  = 24
+    , _trainBatchSize                  = 4
     , _grenadeLearningParams           = LearningParameters 0.01 0.0 0.0001
-    , _learningParamsDecay             =
-      ExponentialDecay (Just 1e-4) 0.05 150000
-      -- ExponentialDecay (Just 1e-5) 0.05 100000
+    , _learningParamsDecay             = ExponentialDecay (Just 1e-4) 0.05 150000
     , _prettyPrintElems                = [] -- is set just before printing
-    , _scaleParameters                 = ScalingNetOutParameters (-500) 500 (-5000) 5000 (-5000) 5000 (-5000) 5000
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-5000) 5000 (-5000) 5000
     , _stabilizationAdditionalRho      = 0
-    , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 100000
+    , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 75000
     , _updateTargetInterval            = 1
-    , _trainMSEMax                     = Nothing -- Just 0.03
+    , _trainMSEMax                     = Nothing
     , _setExpSmoothParamsTo1           = True
     }
 
-
+------------------------------ ###########################################
+-- |!!!!! TODO: initial states for experiments have to be independent on this selection!!!!!
+------------------------------ ###########################################
 alg :: Algorithm s
 alg =
-  -- AlgDQNAvgRewardFree 0.75 0.995 ByStateValues
   AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
+  -- AlgDQNAvgRewardFree 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
+  -- AlgDQNAvgRewardFree 0.75 0.995 ByStateValues
   -- (ByStateValuesAndReward 0.5 NoDecay)
   -- (ByMovAvg 5000)
   -- algDQN
 
 initVals :: InitValues
-initVals = InitValues 0 0 0 0 0
+initVals = InitValues {defaultRhoMinimum = 0, defaultRho = 0, defaultV = 0, defaultW = 0, defaultR0 = 0, defaultR1 = 0}
 
 experimentName :: T.Text
 experimentName = "03.01.2020 Adaptive BORL Order Releaser with unif procTimes, unif demand"

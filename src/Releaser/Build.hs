@@ -152,6 +152,9 @@ instance Show St where
 netInp :: St -> [Double]
 netInp = extractionToList . extractFeatures True
 
+mInverse :: BORL St -> [Double] -> Maybe (Either String St)
+mInverse borl = return . Left . show . fromListToExtraction (borl ^. s) (featureExtractor True)
+
 netInpTbl :: St -> [Double]
 netInpTbl st = case extractFeatures False st of
   Extraction plts op que _ fgi shipped _ -> plts ++ map reduce (concat $ op ++ map (map (fromIntegral . ceiling . (/9))) (concat que) ++ fgi ++ shipped)
@@ -170,9 +173,12 @@ modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> Int64 -> m TensorflowMo
 modelBuilder actions initState cols =
   buildModel $
   inputLayer1D lenIn >>
-  fullyConnected [10 * lenIn] TF.relu' >>
-  fullyConnected [5 * lenOut] TF.relu' >>
-  -- fullyConnected [2 * lenOut] TF.relu' >>
+  -- fullyConnected [10 * lenIn] TF.relu' >>
+  fullyConnected [round (5 * fromIntegral lenActs)] TF.relu' >>
+  fullyConnected [round (2.5 * fromIntegral lenActs)] TF.relu' >>
+  fullyConnected [round (2.5 * fromIntegral lenActs)] TF.relu' >>
+  -- fullyConnected [lenActs, cols] TF.relu' >>
+  -- fullyConnected [lenActs, cols] TF.relu' >>
   fullyConnected [lenActs, cols] TF.tanh' >>
   trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.01, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
   where
@@ -196,10 +202,6 @@ buildBORLTable = do
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
   return $ mkUnichainTabular alg initSt netInpTbl -- netInpTblBinary
     actions actFilter borlParams (configDecay decay) (Just initVals)
-
-
-mInverse :: BORL St -> [Double] -> Maybe (Either String St)
-mInverse borl xs = return $ Left $ show $ fromListToExtraction (borl ^. s) (featureExtractor True) xs
 
 
 -- makeNN ::
@@ -272,21 +274,21 @@ mkMiniPrettyPrintElems st
     minVal = configActFilterMin actionFilterConfig
     maxVal = configActFilterMax actionFilterConfig
     actList = map (scaleValue (Just (scalePltsMin, scalePltsMax)) . fromIntegral) [minVal, minVal + maxVal `div` 2]
-    plts = return $ map (scaleValue (Just (scalePltsMin, scalePltsMax))) [4, 7]
+    plts = return $ map (scaleValue (Just (scalePltsMin, scalePltsMax))) [3, 5]
     xs :: [Double]
-    xs = xsSimple
-    xsSimple = concat [[0, 0, 0, 0, 7, 10, 6], concat [[26]], concat [[0]], concat [[7]], [2], [3, 1, 0, 0, 0, 0], [0, 0, 0]]
+    xs = xsFull
+    xsSimple =
+      concat [[ 0, 0, 1,14,14, 9, 4],concat [[12]],concat [[ 1]],concat [[ 4]],[ 3],[ 6, 1, 0, 0, 0, 0],[ 0, 0, 1]]
     xsFull =
       concat
-        [ [0, 0, 0, 3, 5, 5, 6]
+        [ [0, 0, 0, 0, 3, 5, 5]
         , [0, 0, 0, 0, 0, 0, 7]
         , concat [[0, 0, 9, 3, 0, 0, 0, 0], [0, 0, 0, 0, 3, 6, 4, 0]]
         , concat [[0, 2, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]]
         , concat [[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 1, 2, 0, 0, 0]]
-        , [0, 0, 0, 0, 1, 0, 0, 0]
-        , [1, 0, 0, 0, 0, 0, 0, 0]
-        , [0, 0, 0, 0, 1, 0, 0, 0]
-        , [0, 0, 0, 1, 0, 0, 0, 0]
+        -- , [0, 0, 0, 0, 1, 0, 0, 0]
+        -- , [1, 0, 0, 0, 0, 0, 0, 0]
+        -- , [0, 0, 0, 1, 0, 0, 0, 0]
         , [0, 0, 0, 0, 0, 0]
         , [4, 2, 2, 0, 0, 0]
         , [0, 0, 0]
@@ -421,7 +423,7 @@ instance ExperimentDef (BORL St) where
         (Just $ return .
          const
            [ AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
-           , AlgDQNAvgRewardFree 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
+           -- , AlgDQNAvgRewardFree 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
            -- , AlgDQN 0.99
            -- , AlgDQN 0.8
            ])
@@ -448,13 +450,13 @@ instance ExperimentDef (BORL St) where
         (Just $ return .
          const
            [ mkReleasePLT initialPLTS
-           , releaseImmediate
-           , releaseBIL (M.fromList [(Product 1, 6), (Product 2, 6)])
-           , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
+           -- , releaseImmediate
+           -- , releaseBIL (M.fromList [(Product 1, 6), (Product 2, 6)])
+           -- , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
            , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
            , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
            , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
-           , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
+           -- , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
            ])
         Nothing
         (Just (\x -> uniqueReleaseName x /= pltReleaseName)) -- drop preparation phase for all release algorithms but the BORL releaser
@@ -469,7 +471,7 @@ instance ExperimentDef (BORL St) where
         "Learn Random Above until Exploration hits"
         (set (B.parameters . learnRandomAbove))
         (^. B.parameters . learnRandomAbove)
-        (Just $ return . const [0.50])
+        (Just $ return . const [0.15])
         Nothing
         Nothing
         Nothing
@@ -478,14 +480,14 @@ instance ExperimentDef (BORL St) where
       "Xi (at period 0)"
       (set (B.parameters . xi))
       (^. B.parameters . xi)
-      (Just $ return . const [0.01])
+      (Just $ return . const [5e-3])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Zeta (at period 0)"
       (set (B.parameters . zeta))
       (^. B.parameters . zeta)
-      (Just $ return . const [0.01])
+      (Just $ return . const [0.10])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -496,20 +498,20 @@ instance ExperimentDef (BORL St) where
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
-      "Training Batch Size"
-      (setAllProxies (proxyNNConfig . trainBatchSize))
-      (^?! proxies . v . proxyNNConfig . trainBatchSize)
-      (Just $ return . const [32])
+      "Replay Memory Size"
+      (setAllProxies (proxyNNConfig . replayMemoryMaxSize))
+      (^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
+      (Just $ return . const [30000])
       Nothing
       Nothing
       Nothing
     | isNN
     ] ++
     [ ParameterSetup
-      "Replay Memory Size"
-      (setAllProxies (proxyNNConfig . replayMemoryMaxSize))
-      (^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
-      (Just $ return . const [50000])
+      "Training Batch Size"
+      (setAllProxies (proxyNNConfig . trainBatchSize))
+      (^?! proxies . v . proxyNNConfig . trainBatchSize)
+      (Just $ return . const [4])
       Nothing
       Nothing
       Nothing
@@ -519,7 +521,7 @@ instance ExperimentDef (BORL St) where
     "ANN Learning Rate Decay"
       (setAllProxies (proxyNNConfig . learningParamsDecay))
       (^?! proxies . v . proxyNNConfig . learningParamsDecay)
-      (Just $ return . const [ExponentialDecay (Just 1e-5) 0.15 100000])
+      (Just $ return . const [ExponentialDecay (Just 1e-4) 0.05 150000])
       Nothing
       Nothing
       Nothing
@@ -539,7 +541,7 @@ instance ExperimentDef (BORL St) where
       "ScaleParameters"
       (setAllProxies (proxyNNConfig . scaleParameters))
       (^?! proxies . v . proxyNNConfig . scaleParameters)
-      (Just $ return . const [ScalingNetOutParameters (-500) 500 (-5000) 5000 (-5000) 5000 (-5000) 5000])
+      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-5000) 5000 (-5000) 5000 (-5000) 5000])
       Nothing
       Nothing
       Nothing
@@ -554,17 +556,16 @@ instance ExperimentDef (BORL St) where
       createDirectoryIfMissing True dir
       writeFile (dir ++ "plot.sh") gnuplot
       mapMOf (s . simulation) (setSimulationRandomGen g) borl
-  beforeWarmUpHook expNr repetNr repliNr g borl =
-    liftIO $ do
-      when (repliNr == 1) $ copyFiles "prep_" expNr repetNr Nothing -- afterPreparationHook seems not to be executed. Why? ***TODO***
-      mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
+  beforeWarmUpHook _ _ _ g borl =
+    liftIO $
+      mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.05 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
         set (B.parameters . disableAllLearning) True $
         set (B.parameters . gamma) 0 $
         set (B.parameters . zeta) 0 $
         set (B.parameters . xi) 0 borl
   beforeEvaluationHook _ _ _ g borl -- in case warm up phase is 0 periods
    =
-    liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
+    liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.05 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
     set (B.parameters . disableAllLearning) True $
     set (B.parameters . gamma) 0 $
     set (B.parameters . zeta) 0 $
@@ -580,7 +581,7 @@ expSetting borl =
     { _experimentBaseName = experimentName
     , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf, pol] ++ concat [[updateTarget, annxpSmth] | isNNFlag]
     , _experimentRepetitions = 1
-    , _preparationSteps = 10^6
+    , _preparationSteps = 3*10^6
     , _evaluationWarmUpSteps = 1000
     , _evaluationSteps = 10000
     , _evaluationReplications = 1
@@ -600,3 +601,4 @@ expSetting borl =
     rout = ExperimentInfoParameter "Routing (Simulation Setup)" (configRoutingName routing)
     pol = ExperimentInfoParameter "Policy Exploration Strategy" (borl ^. B.parameters . explorationStrategy)
     annxpSmth = ExperimentInfoParameter "Setting Exp Smooth to 1" (nnConfig ^. setExpSmoothParamsTo1)
+

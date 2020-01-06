@@ -12,8 +12,10 @@ module Releaser.FeatureExtractor.Type
     ) where
 
 
+import           Control.Concurrent.MVar
 import           Data.List                     (foldl', genericLength)
 import           Data.Text                     (Text)
+import           System.IO.Unsafe
 import           Text.Printf
 
 
@@ -33,7 +35,7 @@ scaleOrderMin :: Double
 scaleOrderMin = 0
 
 scaleOrderMax :: Double
-scaleOrderMax = 12
+scaleOrderMax = 5 -- 12
 
 
 data Extraction = Extraction
@@ -49,14 +51,27 @@ data Extraction = Extraction
 instance Show Extraction where
   show (Extraction plts op que mac fgi shipped _) =
     filter (\x -> x /= '"' && x /= '\\') $
-    show $ map printFloat plts ++ map (show . map printFloat) op ++ map (show . map (map printFloat)) que ++ map (show . map printFloat) mac ++ map (show . map printFloat) fgi ++ map (show . map printFloat) shipped
+    show $ [map printFloat plts] ++ [map (show . map printFloat) op] ++ [map (show . map (map printFloat)) que] ++ [map (show . map printFloat) mac] ++ [map (show . map printFloat) fgi] ++ [map (show . map printFloat) shipped]
     where
       printFloat :: Double -> String
       printFloat = printf "%2.0f"
 
+cacheMVar :: MVar Int
+cacheMVar = unsafePerformIO $ newMVar (-1)
+{-# NOINLINE cacheMVar #-}
+
+checkSize :: [Double] ->  [Double]
+checkSize xs = unsafePerformIO $ do
+  Just nr <- tryReadMVar cacheMVar
+  if nr < 0
+    then modifyMVar_ cacheMVar (const $ return $ length xs) >> return xs
+    else if length xs /= nr
+    then error $ "the feature length changed: " ++ show xs
+    else return xs
+
 
 extractionToList :: Extraction -> [Double]
-extractionToList (Extraction plts op que mac fgi shipped scale) =
+extractionToList (Extraction plts op que mac fgi shipped scale) = checkSize $
   map (scalePlts scale) plts ++ map (scaleOrder scale) (concat op ++ concat (concat que)) ++ concat (scaleMachines scale mac) ++ map (scaleOrder scale) (concat fgi ++ concat shipped)
 
 

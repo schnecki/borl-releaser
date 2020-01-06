@@ -65,7 +65,7 @@ loadAndWriteCsv :: (SessionT IO (Maybe (Experiments (BORL St))) -> IO (Maybe (Ex
 loadAndWriteCsv runner mkInitSt = do
   dbSetting <- databaseSetting
   Just res <- loadExperimentsResultsM False runner dbSetting expSetting () mkInitSt 1
-  liftIO $ writeCsvMeasure dbSetting res (SmoothingMovAvg 100) ["AvgReward", "BOC", "WIPC", "FGIC", "SUMC", "VAvg", "PsiV", "PsiW"]
+  liftIO $ writeCsvMeasure dbSetting res (SmoothingMovAvg 300) ["AvgReward", "BOC", "WIPC", "FGIC", "SUMC", "VAvg", "PsiV", "PsiW"]
 
 
 eval :: ExperimentDef a => DatabaseSetting -> (ExpM a (Evals a) -> IO (Evals a)) -> Experiments a -> IO ()
