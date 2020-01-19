@@ -46,7 +46,7 @@ decayRate50PctStepsk150k = ConfigDecay ("Exponential decay with rate " <> tshow 
           , _xi               = NoDecay
           -- Exploration
           , _epsilon          = NoDecay -- ExponentialDecay (Just 0.50) rate steps
-          , _exploration      = ExponentialDecay (Just 0.20) 0.5 steps -- was (Just 0.20)
+          , _exploration      = ExponentialDecay (Just 0.03) 0.5 steps -- was (Just 0.20)
           , _learnRandomAbove = NoDecay
           -- ANN
           , _alphaANN         = ExponentialDecay Nothing rate steps

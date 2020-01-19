@@ -30,7 +30,7 @@ borlParams = Parameters
   , _gammaANN            = 1.0
   -- Rest
   , _epsilon             = 0.5    -- was 2
-  , _explorationStrategy = SoftmaxBoltzmann 1
+  , _explorationStrategy = SoftmaxBoltzmann 10
   , _exploration         = 1.0
   , _learnRandomAbove    = 0.15
   , _zeta                = 0.10
@@ -61,8 +61,8 @@ nnConfig =
 alg :: Algorithm s
 alg =
   AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
-  -- AlgDQNAvgRewardFree 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
-  -- AlgDQNAvgRewardFree 0.75 0.995 ByStateValues
+  -- AlgDQNAvgRewAdjusted 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
+  -- AlgDQNAvgRewAdjusted 0.75 0.995 ByStateValues
   -- (ByStateValuesAndReward 0.5 NoDecay)
   -- (ByMovAvg 5000)
   -- algDQN
