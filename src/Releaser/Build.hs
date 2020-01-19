@@ -28,10 +28,13 @@ module Releaser.Build
     ) where
 
 import           Control.Lens
+import qualified Data.Text.Encoding as E
+import qualified Data.Text as T
 import           Control.Monad
+import           Data.Maybe (isJust)
 import           Control.Monad.IO.Class
 import           Data.Int                          (Int64)
-import           Data.List                         (genericLength)
+import           Data.List                         (genericLength, find)
 
 import qualified Data.Map                          as M
 import           Data.Serialize                    as S
@@ -40,6 +43,7 @@ import           Network.HostName
 import           Statistics.Distribution
 import           Statistics.Distribution.Uniform
 import           System.Directory
+import           System.Environment     (getArgs)
 import           System.IO.Unsafe                  (unsafePerformIO)
 
 
@@ -257,11 +261,18 @@ copyIfFileExists fn target = do
 databaseSetting :: IO DatabaseSetting
 databaseSetting = do
   hostName <- getHostName
+  args <- getArgs
+  let mHostArg = case find ((== "--host=") . take 7) args of 
+                   x@Just{} -> drop 7 <$> x
+                   Nothing -> drop 3 <$> find ((== "-h=") . take 3) args 
+  let getPsqlHost h
+        | isJust mHostArg = maybe "" (E.encodeUtf8 .T.pack) mHostArg
+        | h `elem` ["schnecki-zenbook", "schnecki-laptop"] = "192.168.1.110"
+        | otherwise = "c437-pc141"
+  putStrLn $ "Using DB-Host: " <> show (getPsqlHost hostName)
   return $ DatabaseSetting ("host=" <> getPsqlHost hostName <> " dbname=experimenter user=experimenter password=experimenter port=5432") 10
-  where
-    getPsqlHost h
-      | h `elem` ["schnecki-zenbook", "schnecki-laptop"] = "192.168.1.110"
-      | otherwise = "c437-pc141"
+
+
 
 
 mkMiniPrettyPrintElems :: St -> [[Double]]
@@ -581,7 +592,7 @@ expSetting borl =
     { _experimentBaseName = experimentName
     , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf, pol] ++ concat [[updateTarget, annxpSmth] | isNNFlag]
     , _experimentRepetitions = 1
-    , _preparationSteps = 3*10^6
+    , _preparationSteps = 20*10^6
     , _evaluationWarmUpSteps = 1000
     , _evaluationSteps = 10000
     , _evaluationReplications = 1
