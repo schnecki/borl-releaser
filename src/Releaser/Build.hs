@@ -180,7 +180,8 @@ modelBuilder actions initState cols =
   -- fullyConnected [lenActs, cols] TF.relu' >>
   -- fullyConnected [lenActs, cols] TF.relu' >>
   fullyConnected [lenActs, cols] TF.tanh' >>
-  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.01, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
+  -- trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.01, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
+  trainingByGradientDescent 0.01
   where
     lenIn = genericLength (netInp initState)
     lenActs = genericLength actions
@@ -332,7 +333,7 @@ instance ExperimentDef (BORL St) where
     return (inc, ())
   -- ^ Run a step of the environment and return new state and result.
   -- runStep :: (MonadBorl' m) => a -> InputValue a -> E.Period -> m ([StepResult], a)
-  runStep borl incOrds _ = do
+  runStep phase borl incOrds _ = do
     borl' <- stepM (set (s . nextIncomingOrders) incOrds borl)
     -- helpers
     when (borl ^. t `mod` 5000 == 0) $ liftIO $ prettyBORLHead True (Just $ mInverse borl) borl >>= print
@@ -378,8 +379,20 @@ instance ExperimentDef (BORL St) where
         avg xs    = sum xs / fromIntegral (length xs)
         headWithDefault d []    = d
         headWithDefault _ (x:_) = x
-    return -- cost related measures
-      ( [ cSum
+    return $
+
+      if phase /= EvaluationPhase
+      then ([
+          avgRew
+        , avgRewMin
+        -- , vAvg
+        , reward
+
+        ], borl')
+
+      else
+      ( [-- cost related measures
+          cSum
         , cEarn
         , cBoc
         , cWip
@@ -423,7 +436,8 @@ instance ExperimentDef (BORL St) where
         (Just $ return .
          const
            [ AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
-           -- , AlgDQNAvgRewardFree 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
+           , AlgDQNAvgRewAdjusted 0.6 1.0 ByStateValues
+           -- , AlgDQNAvgRewAdjusted 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
            -- , AlgDQN 0.99
            -- , AlgDQN 0.8
            ])
