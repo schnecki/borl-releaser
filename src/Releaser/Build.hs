@@ -28,13 +28,13 @@ module Releaser.Build
     ) where
 
 import           Control.Lens
-import qualified Data.Text.Encoding as E
-import qualified Data.Text as T
 import           Control.Monad
-import           Data.Maybe (isJust)
 import           Control.Monad.IO.Class
 import           Data.Int                          (Int64)
-import           Data.List                         (genericLength, find)
+import           Data.List                         (find, genericLength)
+import           Data.Maybe                        (isJust)
+import qualified Data.Text                         as T
+import qualified Data.Text.Encoding                as E
 
 import qualified Data.Map                          as M
 import           Data.Serialize                    as S
@@ -43,7 +43,7 @@ import           Network.HostName
 import           Statistics.Distribution
 import           Statistics.Distribution.Uniform
 import           System.Directory
-import           System.Environment     (getArgs)
+import           System.Environment                (getArgs)
 import           System.IO.Unsafe                  (unsafePerformIO)
 
 
@@ -184,8 +184,8 @@ modelBuilder actions initState cols =
   -- fullyConnected [lenActs, cols] TF.relu' >>
   -- fullyConnected [lenActs, cols] TF.relu' >>
   fullyConnected [lenActs, cols] TF.tanh' >>
-  -- trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.01, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
-  trainingByGradientDescent 0.01
+  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.01, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
+  -- trainingByGradientDescent 0.01
   where
     lenIn = genericLength (netInp initState)
     lenActs = genericLength actions
@@ -263,17 +263,15 @@ databaseSetting :: IO DatabaseSetting
 databaseSetting = do
   hostName <- getHostName
   args <- getArgs
-  let mHostArg = case find ((== "--host=") . take 7) args of 
+  let mHostArg = case find ((== "--host=") . take 7) args of
                    x@Just{} -> drop 7 <$> x
-                   Nothing -> drop 3 <$> find ((== "-h=") . take 3) args 
+                   Nothing  -> drop 3 <$> find ((== "-h=") . take 3) args
   let getPsqlHost h
         | isJust mHostArg = maybe "" (E.encodeUtf8 .T.pack) mHostArg
         | h `elem` ["schnecki-zenbook", "schnecki-laptop"] = "192.168.1.110"
         | otherwise = "c437-pc141"
   putStrLn $ "Using DB-Host: " <> show (getPsqlHost hostName)
   return $ DatabaseSetting ("host=" <> getPsqlHost hostName <> " dbname=experimenter user=experimenter password=experimenter port=5432") 10
-
-
 
 
 mkMiniPrettyPrintElems :: St -> [[Double]]
