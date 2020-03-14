@@ -31,8 +31,6 @@ import           Releaser.SettingsPeriod
 import           Releaser.SettingsRouting
 import           Releaser.Type
 
-import           Debug.Trace
-
 type ReduceValues = Bool
 
 
@@ -92,13 +90,13 @@ featExtractorSimpleWipWithQueueCountsAndMachineCount useReduce = ConfigFeatureEx
         (map timeToDouble (M.elems plts))
         [mkOrderPoolList currentTime (incOrds ++ simOrdersOrderPool sim)]
         (map (return . return . genericLength) (M.elems $ simOrdersQueue sim))
-        [[genericLength (M.elems $ simOrdersMachine sim)]]
+        [[sum $ foreachMachine genericLength (M.toList (simOrdersMachine sim))]]
         [mkFgiList currentTime (simOrdersFgi sim)]
         [mkBackorderDueList currentTime (simOrdersShipped sim)]
         useReduce
       where
         currentTime = simCurrentTime sim
-
+        foreachMachine f xs = map (\machine -> f . map (fst . snd) $ filter ((== machine) . fst) xs) machines
 
 featExtractorWipAsQueueCounters :: ReduceValues -> ConfigFeatureExtractor
 featExtractorWipAsQueueCounters useReduce = ConfigFeatureExtractor "PLTS-OP-QueueCounters-FGI-Shipped" featExt
