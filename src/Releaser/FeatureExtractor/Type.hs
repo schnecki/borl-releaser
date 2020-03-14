@@ -56,24 +56,24 @@ instance Show Extraction where
       printFloat :: Double -> String
       printFloat = printf "%2.0f"
 
-cacheMVar :: MVar Int
-cacheMVar = unsafePerformIO $ newMVar (-1)
-{-# NOINLINE cacheMVar #-}
-
-checkSize :: [Double] ->  [Double]
-checkSize xs = unsafePerformIO $ do
-  Just nr <- tryReadMVar cacheMVar
-  if nr < 0
-    then modifyMVar_ cacheMVar (const $ return $ length xs) >> return xs
-    else if length xs /= nr
-    then error $ "the feature length changed: " ++ show xs
-    else return xs
-
 
 extractionToList :: Extraction -> [Double]
-extractionToList (Extraction plts op que mac fgi shipped scale) = checkSize $
+extractionToList (Extraction plts op que mac fgi shipped scale) =
+  -- checkSize $
   map (scalePlts scale) plts ++ map (scaleOrder scale) (concat op ++ concat (concat que)) ++ concat (scaleMachines scale mac) ++ map (scaleOrder scale) (concat fgi ++ concat shipped)
-
+  where
+    checkSize :: [Double] -> [Double]
+    checkSize xs =
+      unsafePerformIO $ do
+        Just nr <- tryReadMVar cacheMVar
+        if nr < 0
+          then modifyMVar_ cacheMVar (const $ return $ length xs) >> return xs
+          else if length xs /= nr
+                 then error $ "the feature length changed: " ++ show xs
+                 else return xs
+    cacheMVar :: MVar Int
+    cacheMVar = unsafePerformIO $ newMVar (-1)
+    {-# NOINLINE cacheMVar #-}
 
 scalePlts, scaleOrder :: Bool -> Double -> Double
 scalePlts scale

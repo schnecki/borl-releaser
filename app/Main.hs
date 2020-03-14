@@ -31,7 +31,7 @@ import           Experimenter                (Availability (..), endState,
                                               preparationResults, repetitionNumber)
 import           Releaser.Build
 import           Releaser.Release.ReleasePlt
-import           Releaser.Settings           hiding (actionFilter)
+import           Releaser.Settings           hiding (actionFilter, featureExtractor)
 import           Releaser.Type
 
 
@@ -43,9 +43,9 @@ main
   case mExpNr of
     Nothing ->
       -- runMonadBorlIO $ do
-        -- borl <- liftIO buildBORLGrenade
-        -- -- borl <- liftIO buildBORLTable
-        -- askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
+      --   borl <- liftIO buildBORLGrenade
+      --   -- borl <- liftIO buildBORLTable
+      --   askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
       runMonadBorlTF $ do
         borl <- buildBORLTensorflow
         askUser True usage cmds borl -- maybe increase learning by setting estimate of rho
@@ -168,7 +168,9 @@ askUser showHelp addUsage cmds ql = do
                 foldM
                   (\q _ -> do
                      !q' <- mkTime (stepsM q nr)
-                     output <- prettyBORLMWithStInverse (Just $ mInverse ql) q'
+                     let ppElems = mkPrettyPrintElems True (ql ^. s) ++ mkPrettyPrintElems True (q' ^. s)
+                         qPP = overAllProxies (proxyNNConfig . prettyPrintElems) (\pp -> pp ++ [(q' ^. featureExtractor) (ql ^. s), (q' ^. featureExtractor) (q' ^. s)]) q'
+                     output <- prettyBORLMWithStInverse (Just $ mInverse ql) qPP
                      liftIO $ print output >> hFlush stdout
                      return $! force q')
                   ql

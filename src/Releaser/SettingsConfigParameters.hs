@@ -19,10 +19,14 @@ import           SimSim
 -- | BORL Parameters.
 borlParams :: Parameters Double
 borlParams = Parameters
-  { _alpha               = 0.01
-  , _beta                = 0.03
-  , _delta               = 0.03
-  , _gamma               = 0.005
+  -- { _alpha               = 0.01
+  -- , _beta                = 0.03
+  -- , _delta               = 0.03
+  -- , _gamma               = 0.005
+  { _alpha               = 0.03
+  , _beta                = 0.01
+  , _delta               = 0.005
+  , _gamma               = 0.01
   -- ANN
   , _alphaANN            = 0.5  -- not used as unichain
   , _betaANN             = 1.0
@@ -32,7 +36,8 @@ borlParams = Parameters
   , _epsilon             = 5
   , _explorationStrategy = SoftmaxBoltzmann 10
   , _exploration         = 1.0
-  , _learnRandomAbove    = 0.15
+  , _learnRandomAbove    = 0.5
+  -- Multichain NBORL and etc.
   , _zeta                = 0.10
   , _xi                  = 5e-3
   , _disableAllLearning  = False
@@ -42,16 +47,16 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-  {   _replayMemoryMaxSize             = 30000 -- was 30k
-    , _trainBatchSize                  = 4
+  {   _replayMemoryMaxSize             = 10000 -- was 30k
+    , _trainBatchSize                  = 8
     , _grenadeLearningParams           = LearningParameters 0.01 0.0 0.0001
     , _learningParamsDecay             = ExponentialDecay (Just 1e-5) 0.80 150000
     , _prettyPrintElems                = [] -- is set just before printing
-    , _scaleParameters                 = ScalingNetOutParameters (-1600) 1600 (-5000) 5000 (-5000) 5000 (-5000) 5000
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-50) 50 (-100) 100
     , _stabilizationAdditionalRho      = 0
     , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 75000
     , _updateTargetInterval            = 1
-    , _updateTargetIntervalDecay = StepWiseIncrease (Just 500) 0.1 10000
+    , _updateTargetIntervalDecay       = StepWiseIncrease (Just 500) 0.1 10000
     , _trainMSEMax                     = Nothing
     , _setExpSmoothParamsTo1           = True
     }
@@ -64,6 +69,7 @@ alg =
   -- AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
   -- AlgDQNAvgRewAdjusted 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
   AlgDQNAvgRewAdjusted 0.75 1.0 ByStateValues
+  -- AlgDQNAvgRewAdjusted 0.75 0.995 ByStateValues
   -- (ByStateValuesAndReward 0.5 NoDecay)
   -- (ByMovAvg 5000)
   -- algDQN

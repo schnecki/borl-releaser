@@ -36,6 +36,7 @@ import           Data.Maybe                        (isJust)
 import qualified Data.Text                         as T
 import qualified Data.Text.Encoding                as E
 
+import           Control.Arrow                     (second)
 import qualified Data.Map                          as M
 import           Data.Serialize                    as S
 import qualified Data.Text                         as T
@@ -78,13 +79,14 @@ import           Releaser.SettingsRouting
 import           Releaser.Type
 import           Releaser.Util
 
+import           Debug.Trace
 
 buildSim :: IO SimSim
 buildSim =
   newSimSimIO
     (configRoutingRoutes routing)
-    -- procTimesConst
-    procTimes
+    procTimesConst
+    -- procTimes
     periodLength
     -- releaseImmediate
     -- (releaseBIL $ M.fromList [(Product 1, 1), (Product 2, 1)])
@@ -99,18 +101,21 @@ initialPLTS :: M.Map ProductType Time
 initialPLTS = M.fromList $ zip productTypes [1 ..]
 
 procTimes :: ProcTimes
-procTimes = [(Machine 1,[(Product 1, fmap timeFromDouble . genContVar (uniformDistr (70/960) (130/960)))
-                        ,(Product 2, fmap timeFromDouble . genContVar (uniformDistr (70/960) (130/960)))])
-            ,(Machine 2,[(Product 1, fmap timeFromDouble . genContVar (uniformDistr (130/960) (170/960)))])
-            ,(Machine 3,[(Product 2, fmap timeFromDouble . genContVar (uniformDistr (180/960) (200/960)))])
-            ]
+procTimes =
+  map (second $ filter ((`elem` productTypes) . fst)) $ filter ((`elem` allBlocks) . fst)
+  [ (Machine 1, [ (Product 1, fmap timeFromDouble . genContVar (uniformDistr (70 / 960) (130 / 960)))
+                , (Product 2, fmap timeFromDouble . genContVar (uniformDistr (70 / 960) (130 / 960)))])
+  , (Machine 2, [(Product 1, fmap timeFromDouble . genContVar (uniformDistr (130 / 960) (170 / 960)))])
+  , (Machine 3, [(Product 2, fmap timeFromDouble . genContVar (uniformDistr (180 / 960) (200 / 960)))])
+  ]
 
 procTimesConst :: ProcTimes
 procTimesConst =
-  [ (Machine 1, [(Product 1, return . const (timeFromDouble (100 / 960))), (Product 2, return . const (timeFromDouble (100 / 960)))])
-  , (Machine 2, [(Product 1, return . const (timeFromDouble (150 / 960)))])
-  , (Machine 3, [(Product 2, return . const (timeFromDouble (190 / 960)))])
-  ]
+  map (second $ filter ((`elem` productTypes) . fst)) $ filter ((`elem` allBlocks) . fst)
+    [ (Machine 1, [(Product 1, return . const (timeFromDouble (100 / 960))), (Product 2, return . const (timeFromDouble (100 / 960)))])
+    , (Machine 2, [(Product 1, return . const (timeFromDouble (150 / 960)))])
+    , (Machine 3, [(Product 2, return . const (timeFromDouble (190 / 960)))])
+    ]
 
 
 -- testDemand :: IO ()
@@ -178,14 +183,14 @@ modelBuilder actions initState cols =
   buildModel $
   inputLayer1D lenIn >>
   -- fullyConnected [10 * lenIn] TF.relu' >>
-  fullyConnected [round (5 * fromIntegral lenActs)] TF.relu' >>
-  fullyConnected [round (2.5 * fromIntegral lenActs)] TF.relu' >>
-  fullyConnected [round (2.5 * fromIntegral lenActs)] TF.relu' >>
+  fullyConnected [10 * fromIntegral lenIn] TF.relu' >>
+  fullyConnected [5 * fromIntegral lenIn] TF.relu' >>
+  fullyConnected [5 * fromIntegral lenIn] TF.relu' >>
   -- fullyConnected [lenActs, cols] TF.relu' >>
   -- fullyConnected [lenActs, cols] TF.relu' >>
   fullyConnected [lenActs, cols] TF.tanh' >>
   trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.01, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
-  -- trainingByGradientDescent 0.01
+  ----- trainingByGradientDescent 0.01
   where
     lenIn = genericLength (netInp initState)
     lenActs = genericLength actions
@@ -194,7 +199,7 @@ modelBuilder actions initState cols =
 
 mkInitSt :: SimSim -> [Order] -> (St, [Action St], St -> [Bool])
 mkInitSt sim startOrds =
-  let initSt = St sim startOrds rewardFunction (M.fromList $ zip productTypes (map Time [1,1 ..]))
+  let initSt = St sim startOrds rewardFunction (M.fromList $ zip productTypes (repeat (Time 1)))
       (actionList, actions) = mkConfig (action initSt) actionConfig
       actFilter = mkConfig (actionFilter actionList) actionFilterConfig
   in (initSt, actions, actFilter)
@@ -230,7 +235,7 @@ buildBORLGrenade = do
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
   nn <- randomNetworkInitWith UniformInit :: IO (NN 22 9)
-  setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp actions actFilter borlParams (configDecay decay) nn nnConfig (Just initVals)
+  flipObjective . setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp actions actFilter borlParams (configDecay decay) nn nnConfig (Just initVals)
 
 
 buildBORLTensorflow :: (MonadBorl' m) => m (BORL St)
@@ -238,7 +243,7 @@ buildBORLTensorflow = do
   sim <- liftIO buildSim
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
-  setPrettyPrintElems <$> mkUnichainTensorflowCombinedNetM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
+  flipObjective . setPrettyPrintElems <$> mkUnichainTensorflowCombinedNetM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
   -- setPrettyPrintElems <$> mkUnichainTensorflowM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
 
 setPrettyPrintElems :: BORL St -> BORL St
@@ -284,11 +289,20 @@ mkMiniPrettyPrintElems st
     minVal = configActFilterMin actionFilterConfig
     maxVal = configActFilterMax actionFilterConfig
     actList = map (scaleValue (Just (scalePltsMin, scalePltsMax)) . fromIntegral) [minVal, minVal + maxVal `div` 2]
-    plts = return $ map (scaleValue (Just (scalePltsMin, scalePltsMax))) [3, 5]
+    plts = return $ map (scaleValue (Just (scalePltsMin, scalePltsMax))) (take (length productTypes) [3, 5])
     xs :: [Double]
-    xs = xsFull
-    xsSimple =
-      concat [[ 0, 0, 1,14,14, 9, 4],concat [[12]],concat [[ 1]],concat [[ 4]],[ 3],[ 6, 1, 0, 0, 0, 0],[ 0, 0, 1]]
+    xs = xsSimple2
+    xsFullSmallPS = concat
+      [ [ 3, 5]
+      , concat [[ 0, 0, 0, 0, 0, 0, 5],[ 0, 0, 0, 0, 0, 0, 3]]
+      , concat [ concat [[ 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0]]]
+      ,[]
+      , concat [[ 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0]]
+      , concat [[ 0, 0, 0],[ 0, 0, 0]]
+      ]
+    xsSimpleSingleMachine = concat [concat [[ 0, 0, 0, 0, 0, 4, 8]], concat[ concat [[ 0, 0, 0, 8, 5,13, 0, 0]]],[], concat [[ 3, 7, 6, 0, 0, 0]], concat [[ 0, 0, 0]]]
+    xsSimple =              concat [[ 0, 0, 1,14,14, 9, 4],concat [[12]],concat [[ 1]],concat [[ 4]],[ 3],[ 6, 1, 0, 0, 0, 0],[ 0, 0, 1]]
+    xsSimple2 =             concat [concat [[ 0, 0, 0, 4,14,14, 6]], concat [ concat [[21]]], concat [[ 1]], concat[[15, 2, 0, 0, 0, 0]], concat [[ 0, 0, 0]]]
     xsFull =
       concat
         [ [0, 0, 0, 0, 3, 5, 5]
@@ -445,7 +459,7 @@ instance ExperimentDef (BORL St) where
         (Just $ return .
          const
            [ AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
-           , AlgDQNAvgRewAdjusted 0.6 1.0 ByStateValues
+           , AlgDQNAvgRewAdjusted (Just 0.01) 0.6 1.0 ByStateValues
            -- , AlgDQNAvgRewAdjusted 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
            -- , AlgDQN 0.99
            -- , AlgDQN 0.8
