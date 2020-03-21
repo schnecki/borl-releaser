@@ -14,5 +14,9 @@ data ConfigReward = ConfigReward
   { configRewardBaseline :: Double
   , configRewardScale    :: Double
   , configRewardMinimum  :: Maybe Double
-  } deriving (Generic, Serialize, NFData, Show, Eq, Ord)
+  } |
+  ConfigRewardCosts
+  { configRewardMaximum  :: Maybe Double
+  }
+  deriving (Generic, Serialize, NFData, Show, Eq, Ord)
 

@@ -90,6 +90,7 @@ buildSim =
     periodLength
     -- releaseImmediate
     -- (releaseBIL $ M.fromList [(Product 1, 1), (Product 2, 1)])
+    -- (releaseBIL $ M.fromList [(Product 1, 2), (Product 2, 2)])
     -- (releaseBIL $ M.fromList [(Product 1, 3), (Product 2, 3)])
     -- (releaseBIL $ M.fromList [(Product 1, 4), (Product 2, 4)])
     -- (releaseBIL $ M.fromList [(Product 1, 7), (Product 2, 7)])
@@ -180,16 +181,16 @@ netInpTblBinary st = case extractFeatures False st of
 
 modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> Int64 -> m TensorflowModel
 modelBuilder actions initState cols =
-  buildModel $
+  buildModelWith (BuildSetup 0.001) $
   inputLayer1D lenIn >>
   -- fullyConnected [10 * lenIn] TF.relu' >>
-  fullyConnected [10 * fromIntegral lenIn] TF.relu' >>
-  fullyConnected [5 * fromIntegral lenIn] TF.relu' >>
-  fullyConnected [5 * fromIntegral lenIn] TF.relu' >>
-  -- fullyConnected [lenActs, cols] TF.relu' >>
-  -- fullyConnected [lenActs, cols] TF.relu' >>
+  -- fullyConnected [10 * fromIntegral lenIn] TF.relu' >>
+  -- fullyConnected [5 * fromIntegral lenIn] TF.relu' >>
+  -- fullyConnected [5 * fromIntegral lenIn] TF.relu' >>
+  fullyConnected [lenActs, cols] TF.relu' >>
+  -- fullyConnected [lenActs] TF.relu' >>
   fullyConnected [lenActs, cols] TF.tanh' >>
-  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.01, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
+  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
   ----- trainingByGradientDescent 0.01
   where
     lenIn = genericLength (netInp initState)
@@ -289,7 +290,7 @@ mkMiniPrettyPrintElems st
     minVal = configActFilterMin actionFilterConfig
     maxVal = configActFilterMax actionFilterConfig
     actList = map (scaleValue (Just (scalePltsMin, scalePltsMax)) . fromIntegral) [minVal, minVal + maxVal `div` 2]
-    plts = return $ map (scaleValue (Just (scalePltsMin, scalePltsMax))) (take (length productTypes) [3, 5])
+    plts = return $ concatMap (\lts -> map (scaleValue (Just (scalePltsMin, scalePltsMax))) (take (length productTypes) lts)) [[1, 3], [3, 5]]
     xs :: [Double]
     xs = xsSimple2
     xsFullSmallPS = concat
@@ -302,7 +303,10 @@ mkMiniPrettyPrintElems st
       ]
     xsSimpleSingleMachine = concat [concat [[ 0, 0, 0, 0, 0, 4, 8]], concat[ concat [[ 0, 0, 0, 8, 5,13, 0, 0]]],[], concat [[ 3, 7, 6, 0, 0, 0]], concat [[ 0, 0, 0]]]
     xsSimple =              concat [[ 0, 0, 1,14,14, 9, 4],concat [[12]],concat [[ 1]],concat [[ 4]],[ 3],[ 6, 1, 0, 0, 0, 0],[ 0, 0, 1]]
-    xsSimple2 =             concat [concat [[ 0, 0, 0, 4,14,14, 6]], concat [ concat [[21]]], concat [[ 1]], concat[[15, 2, 0, 0, 0, 0]], concat [[ 0, 0, 0]]]
+    xsSimple2 =             concat [-- concat [[ 0, 0, 0, 4,14,14, 6]], concat [ concat [[21]]], concat [[ 1]], concat [[15, 2, 0, 0, 0, 0]], concat [[ 0, 0, 0]]
+                                    -- concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2]]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5]]
+                                    concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[23]]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 9]]
+                                   ]
     xsFull =
       concat
         [ [0, 0, 0, 0, 3, 5, 5]
@@ -459,7 +463,7 @@ instance ExperimentDef (BORL St) where
         (Just $ return .
          const
            [ AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
-           , AlgDQNAvgRewAdjusted (Just 0.01) 0.6 1.0 ByStateValues
+           , AlgDQNAvgRewAdjusted 0.6 1.0 ByStateValues
            -- , AlgDQNAvgRewAdjusted 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
            -- , AlgDQN 0.99
            -- , AlgDQN 0.8
