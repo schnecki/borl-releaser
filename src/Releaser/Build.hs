@@ -183,15 +183,16 @@ modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> Int64 -> m TensorflowMo
 modelBuilder actions initState cols =
   buildModelWith (BuildSetup 0.001) $
   inputLayer1D lenIn >>
+  fullyConnected [10 * lenIn] TF.relu' >>
   -- fullyConnected [10 * lenIn] TF.relu' >>
-  -- fullyConnected [10 * fromIntegral lenIn] TF.relu' >>
-  -- fullyConnected [5 * fromIntegral lenIn] TF.relu' >>
-  -- fullyConnected [5 * fromIntegral lenIn] TF.relu' >>
+  -- fullyConnected [5 * lenIn] TF.relu' >>
+  -- fullyConnected [5 * lenIn] TF.relu' >>
   fullyConnected [lenActs, cols] TF.relu' >>
   -- fullyConnected [lenActs] TF.relu' >>
   fullyConnected [lenActs, cols] TF.tanh' >>
-  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.001, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
-  ----- trainingByGradientDescent 0.01
+  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.00025, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
+  -- trainingByRmsPropWith TF.RmsPropConfig {TF.rmsPropLearningRate = 0.00025, TF.rmsPropRho = 0.5, TF.rmsPropMomentum = 0.95, TF.rmsPropEpsilon = 0.01}
+  -- trainingByGradientDescent 0.001
   where
     lenIn = genericLength (netInp initState)
     lenActs = genericLength actions
@@ -282,17 +283,15 @@ databaseSetting = do
 
 mkMiniPrettyPrintElems :: St -> [[Double]]
 mkMiniPrettyPrintElems st
-  | length xs /= length base' = error $ "wrong length in mkMiniPrettyPrintElems: " ++
-                                show (length xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (unscaleValue (Just (scaleOrderMin, scaleOrderMax))) base')
-  | otherwise = zipWith (++) plts (replicate (length plts) (map (scaleValue (Just (scaleOrderMin, scaleOrderMax))) xs))
+  | length (head xs) /= length base' = error $ "wrong length in mkMiniPrettyPrintElems: " ++
+                                show (length $ head xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (unscaleValue (Just (scaleOrderMin, scaleOrderMax))) base')
+  | otherwise = concatMap (zipWith (++) plts . replicate (length plts) . map (scaleValue (Just (scaleOrderMin, scaleOrderMax)))) xs
   where
     base' = drop (length productTypes) (netInp st)
-    minVal = configActFilterMin actionFilterConfig
-    maxVal = configActFilterMax actionFilterConfig
-    actList = map (scaleValue (Just (scalePltsMin, scalePltsMax)) . fromIntegral) [minVal, minVal + maxVal `div` 2]
-    plts = return $ concatMap (\lts -> map (scaleValue (Just (scalePltsMin, scalePltsMax))) (take (length productTypes) lts)) [[1, 3], [3, 5]]
-    xs :: [Double]
-    xs = xsSimple2
+    plts :: [[Double]]
+    plts = map (map (scaleValue (Just (scalePltsMin, scalePltsMax))) . take (length productTypes)) [[1, 3], [3, 5]]
+    xs :: [[Double]]
+    xs = [xsSimple, xsSimple2]
     xsFullSmallPS = concat
       [ [ 3, 5]
       , concat [[ 0, 0, 0, 0, 0, 0, 5],[ 0, 0, 0, 0, 0, 0, 3]]
@@ -301,11 +300,12 @@ mkMiniPrettyPrintElems st
       , concat [[ 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0]]
       , concat [[ 0, 0, 0],[ 0, 0, 0]]
       ]
-    xsSimpleSingleMachine = concat [concat [[ 0, 0, 0, 0, 0, 4, 8]], concat[ concat [[ 0, 0, 0, 8, 5,13, 0, 0]]],[], concat [[ 3, 7, 6, 0, 0, 0]], concat [[ 0, 0, 0]]]
-    xsSimple =              concat [[ 0, 0, 1,14,14, 9, 4],concat [[12]],concat [[ 1]],concat [[ 4]],[ 3],[ 6, 1, 0, 0, 0, 0],[ 0, 0, 1]]
+    xsSimpleSingleMachine = concat [concat [[ 0, 0, 0, 0, 0, 4, 8]], concat[ concat [[ 0, 0, 0, 8, 5,13, 0, 0]]],[], concat [[ 3, 7, 6, 0, 0, 0]], concat [[ 0, 0, 0, 4]]]
+    xsSimple =              -- concat [[ 0, 0, 1,14,14, 9, 4],concat [[12]],concat [[ 1]],concat [[ 4]],[ 3],[ 6, 1, 0, 0, 0, 0],[ 0, 0, 1]]
+                            concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2]]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5, 4]]]
     xsSimple2 =             concat [-- concat [[ 0, 0, 0, 4,14,14, 6]], concat [ concat [[21]]], concat [[ 1]], concat [[15, 2, 0, 0, 0, 0]], concat [[ 0, 0, 0]]
                                     -- concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2]]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5]]
-                                    concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[23]]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 9]]
+                                    concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[23]]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 9, 0]]
                                    ]
     xsFull =
       concat
@@ -642,4 +642,5 @@ expSetting borl =
     rout = ExperimentInfoParameter "Routing (Simulation Setup)" (configRoutingName routing)
     pol = ExperimentInfoParameter "Policy Exploration Strategy" (borl ^. B.parameters . explorationStrategy)
     annxpSmth = ExperimentInfoParameter "Setting Exp Smooth to 1" (nnConfig ^. setExpSmoothParamsTo1)
+
 

@@ -75,6 +75,7 @@ askUser showHelp addUsage cmds ql = do
   let usage =
         sortBy (compare `on` fst) $
         [ ("l", "Load from file savedModel")
+        , ("c", "Copy agent and run following commands in copy (return to original with q)")
         , ("p", "Print everything")
         , ("param", "Change parameters")
         , ("q", "Exit program (unsaved state will be lost)")
@@ -92,6 +93,11 @@ askUser showHelp addUsage cmds ql = do
   case c of
     "help" -> askUser True addUsage cmds ql
     "?" -> askUser True addUsage cmds ql
+    "c" -> do
+      liftIO $ putStrLn "\nINFO: Entering copyied agent environment. Return with quit to orignal one"
+      askUser True addUsage cmds ql
+      liftIO $ putStrLn "Returning from copy to original version"
+      askUser True addUsage cmds ql
     "sim" -> do
       let sim = ql ^. s . simulation
       liftIO $ putStrLn $ T.unpack $ prettySimSim sim

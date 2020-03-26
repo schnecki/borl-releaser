@@ -48,7 +48,7 @@ featExtractorSimple useReduce = ConfigFeatureExtractor "PLTS-OP-Shipped aggregat
         []
         []
         []
-        [mkBackorderDueList currentTime (simOrdersShipped sim)]
+        [mkShippedDueList currentTime (simOrdersShipped sim)]
         useReduce
       where
         currentTime = simCurrentTime sim
@@ -63,7 +63,7 @@ featExtractorSimpleWithQueueCounts useReduce = ConfigFeatureExtractor "PLTS-OP-Q
         (map (return . return . fromIntegral . length) (M.elems $ simOrdersQueue sim))
         []
         []
-        [mkBackorderDueList currentTime (simOrdersShipped sim)]
+        [mkShippedDueList currentTime (simOrdersShipped sim)]
         useReduce
       where currentTime = simCurrentTime sim
 
@@ -77,7 +77,7 @@ featExtractorSimpleWipWithQueueCounts useReduce = ConfigFeatureExtractor "PLTS-O
         (map (return . return . fromIntegral . length) (M.elems $ simOrdersQueue sim))
         []
         [mkFgiList currentTime (simOrdersFgi sim)]
-        [mkBackorderDueList currentTime (simOrdersShipped sim)]
+        [mkShippedDueList currentTime (simOrdersShipped sim)]
         useReduce
       where
         currentTime = simCurrentTime sim
@@ -92,7 +92,7 @@ featExtractorSimpleWipWithQueueCountsAndMachineCount useReduce = ConfigFeatureEx
         (map (return . return . genericLength) (M.elems $ simOrdersQueue sim))
         [[sum $ foreachMachine genericLength (M.toList (simOrdersMachine sim))]]
         [mkFgiList currentTime (simOrdersFgi sim)]
-        [mkBackorderDueList currentTime (simOrdersShipped sim)]
+        [mkShippedDueList currentTime (simOrdersShipped sim)]
         useReduce
       where
         currentTime = simCurrentTime sim
@@ -108,7 +108,7 @@ featExtractorWipAsQueueCounters useReduce = ConfigFeatureExtractor "PLTS-OP-Queu
         (M.elems $ fmap (foreachPt (return . fromIntegral . length)) (simOrdersQueue sim))
         []
         (foreachPt (mkFgiList currentTime) (simOrdersFgi sim))
-        (foreachPt (mkBackorderDueList currentTime) (simOrdersShipped sim))
+        (foreachPt (mkShippedDueList currentTime) (simOrdersShipped sim))
         useReduce
       where
         currentTime = simCurrentTime sim
@@ -125,7 +125,7 @@ featExtractorFullWoMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-F
         (M.elems $ fmap (foreachPt mkFromList) (simOrdersQueue sim))
         []
         (foreachPt (mkFgiList currentTime) (simOrdersFgi sim))
-        (foreachPt (mkBackorderDueList currentTime) (simOrdersShipped sim))
+        (foreachPt (mkShippedDueList currentTime) (simOrdersShipped sim))
         useReduce
       where
         currentTime = simCurrentTime sim
@@ -143,7 +143,7 @@ featExtractorFullMachinesToQueue useReduce = ConfigFeatureExtractor "PLTS-OP-(Qu
         (M.elems $ fmap (foreachPt mkFromList) (foldl' (\m (b, (o, _)) -> M.insertWith (++) b [o] m) (simOrdersQueue sim) (M.toList $ simOrdersMachine sim)))
         []
         (foreachPt (mkFgiList currentTime) (simOrdersFgi sim))
-        (foreachPt (mkBackorderDueList currentTime) (simOrdersShipped sim))
+        (foreachPt (mkShippedDueList currentTime) (simOrdersShipped sim))
         useReduce
       where
         currentTime = simCurrentTime sim
@@ -161,7 +161,7 @@ featExtractorFullWithMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues
         (M.elems $ fmap (foreachPt mkFromList) (simOrdersQueue sim))
         (foreachMachine (mkUntilDueList currentTime) (M.toList (simOrdersMachine sim)))
         (foreachPt (mkFgiList currentTime) (simOrdersFgi sim))
-        (foreachPt (mkBackorderDueList currentTime) (simOrdersShipped sim))
+        (foreachPt (mkShippedDueList currentTime) (simOrdersShipped sim))
         useReduce
       where
         currentTime = simCurrentTime sim
@@ -183,8 +183,8 @@ test =
   , newOrder (Product 1) 0 600866.0
   ]
 
-mkBackorderDueList :: CurrentTime -> [Order] -> [Double]
-mkBackorderDueList t xs = init $ map genericLength (sortByTimeUntilDue (-maxBackorderPeriod) 0 t xs)
+mkShippedDueList :: CurrentTime -> [Order] -> [Double]
+mkShippedDueList t xs = map genericLength (sortByTimeUntilDue (-maxBackorderPeriod) 0 t xs)
 
 mkOrderPoolList :: CurrentTime -> [Order] -> [Double]
 mkOrderPoolList t = tail . mkUntilDueList t
@@ -222,3 +222,10 @@ sortByTimeUntilDue min max currentTime = M.elems . foldl' sortByTimeUntilDue' st
 --                                     ]
 --   print $ map (map orderId) xs
 
+-- testSortBackorderDueList :: CurrentTime -> IO ()
+-- testSortBackorderDueList t = do
+--   let ords = [newOrder (Product 1) 0 7, newOrder (Product 1) 0 7]
+--   let xs = mkShippedDueList t ords
+--   print xs
+--   let ys = map genericLength (sortByTimeUntilDue (-maxBackorderPeriod) 0 t ords)
+--   print ys
