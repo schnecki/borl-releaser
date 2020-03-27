@@ -230,8 +230,8 @@ askUser showHelp addUsage cmds ql = do
                    askUser False addUsage cmds ql')
         Just (_, cmd) ->
           case find isTensorflow (allProxies $ ql ^. proxies) of
-            Nothing -> liftIO $ stepExecute (ql, False, cmd) >>= askUser False addUsage cmds
-            Just _ -> liftTensorflow (stepExecute (ql, False, cmd) >>= saveTensorflowModels) >>= askUser False addUsage cmds
+            Nothing -> liftIO $ stepExecute ql ((False, cmd), []) >>= askUser False addUsage cmds
+            Just _ -> liftTensorflow (stepExecute ql ((False, cmd), []) >>= saveTensorflowModels) >>= askUser False addUsage cmds
 
 
 getIOWithDefault :: forall a . (Read a) => a -> IO a

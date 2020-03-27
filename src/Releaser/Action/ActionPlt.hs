@@ -56,9 +56,9 @@ mkAction act = do
   where printInt :: Time -> String
         printInt = printf "%.2f" . timeToDouble
 
-action :: [Time] -> Reader ActionConfig (St -> IO (Reward St, St, EpisodeEnd))
+action :: [Time] -> Reader ActionConfig (AgentType -> St -> IO (Reward St, St, EpisodeEnd))
 action pltChange =
-  return $ \(St sim incomingOrders rewardFun plts) -> do
+  return $ \agentType (St sim incomingOrders rewardFun plts) -> do
     let pltsChangeMap = M.fromList $ zip productTypes pltChange
         pltsNew = M.unionWith (+) plts pltsChangeMap
     let simReleaseSet
@@ -68,7 +68,7 @@ action pltChange =
     sim' <- simulateUntil (simCurrentTime simWOrders + periodLength) simWOrders [] -- are set above
     let reward = mkReward rewardFun simWOrders sim'
     newIncomingOrders <- generateOrders sim'
-    writeFiles pltsNew simWOrders sim'
+    when (agentType == MainAgent) $ writeFiles pltsNew simWOrders sim'
     return (reward, St sim' newIncomingOrders rewardFun pltsNew, False)
 
 

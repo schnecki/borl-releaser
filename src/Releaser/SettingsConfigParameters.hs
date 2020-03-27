@@ -24,7 +24,7 @@ borlParams = Parameters
   -- , _beta                = 0.03
   -- , _delta               = 0.03
   -- , _gamma               = 0.005
-  { _alpha               = 0.001
+  { _alpha               = 0.01
   , _beta                = 0.01
   , _delta               = 0.005
   , _gamma               = 0.01
@@ -52,7 +52,7 @@ nnConfig =
     , _replayMemoryStrategy            = ReplayMemoryPerAction
     , _trainBatchSize                  = 8
     , _grenadeLearningParams           = LearningParameters 0.01 0.0 0.0001
-    , _learningParamsDecay             = ExponentialDecay (Just 1e-8) 0.9 50000
+    , _learningParamsDecay             = ExponentialDecay (Just 1e-8) 0.5 50000
     , _prettyPrintElems                = [] -- is set just before printing/at initialisation
     , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-1500) 1500 (-2500) 2500
     , _stabilizationAdditionalRho      = 0
@@ -61,6 +61,7 @@ nnConfig =
     , _updateTargetIntervalDecay       = StepWiseIncrease (Just 500) 0.1 10000
     , _trainMSEMax                     = Nothing -- Just 0.10
     , _setExpSmoothParamsTo1           = True
+    , _workersMinExploration           = [0.5, 0.25, 0.1]
     }
 
 ------------------------------ ###########################################
