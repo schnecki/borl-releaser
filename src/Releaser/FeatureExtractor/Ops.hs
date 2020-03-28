@@ -43,7 +43,7 @@ featExtractorSimple useReduce = ConfigFeatureExtractor "PLTS-OP-Shipped aggregat
   where
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map timeToDouble (M.elems plts))
+        (map (realToFrac . timeToDouble) (M.elems plts))
         [mkOrderPoolList currentTime (incOrds ++ simOrdersOrderPool sim)]
         []
         []
@@ -58,7 +58,7 @@ featExtractorSimpleWithQueueCounts useReduce = ConfigFeatureExtractor "PLTS-OP-Q
   where
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map timeToDouble (M.elems plts))
+        (map (realToFrac . timeToDouble) (M.elems plts))
         [mkOrderPoolList currentTime (incOrds ++ simOrdersOrderPool sim)]
         (map (return . return . fromIntegral . length) (M.elems $ simOrdersQueue sim))
         []
@@ -72,7 +72,7 @@ featExtractorSimpleWipWithQueueCounts useReduce = ConfigFeatureExtractor "PLTS-O
   where
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map timeToDouble (M.elems plts))
+        (map (realToFrac . timeToDouble) (M.elems plts))
         [mkOrderPoolList currentTime (incOrds ++ simOrdersOrderPool sim)]
         (map (return . return . fromIntegral . length) (M.elems $ simOrdersQueue sim))
         []
@@ -87,7 +87,7 @@ featExtractorSimpleWipWithQueueCountsAndMachineCount useReduce = ConfigFeatureEx
   where
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map timeToDouble (M.elems plts))
+        (map (realToFrac . timeToDouble) (M.elems plts))
         [mkOrderPoolList currentTime (incOrds ++ simOrdersOrderPool sim)]
         (map (return . return . genericLength) (M.elems $ simOrdersQueue sim))
         [[sum $ foreachMachine genericLength (M.toList (simOrdersMachine sim))]]
@@ -103,7 +103,7 @@ featExtractorWipAsQueueCounters useReduce = ConfigFeatureExtractor "PLTS-OP-Queu
   where
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map timeToDouble (M.elems plts))
+        (map (realToFrac . timeToDouble) (M.elems plts))
         (foreachPt (mkOrderPoolList currentTime) (incOrds ++ simOrdersOrderPool sim))
         (M.elems $ fmap (foreachPt (return . fromIntegral . length)) (simOrdersQueue sim))
         []
@@ -120,7 +120,7 @@ featExtractorFullWoMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-F
   where
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map timeToDouble (M.elems plts))
+        (map (realToFrac . timeToDouble) (M.elems plts))
         (foreachPt (mkOrderPoolList currentTime) (incOrds ++ simOrdersOrderPool sim))
         (M.elems $ fmap (foreachPt mkFromList) (simOrdersQueue sim))
         []
@@ -138,7 +138,7 @@ featExtractorFullMachinesToQueue useReduce = ConfigFeatureExtractor "PLTS-OP-(Qu
   where
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map timeToDouble (M.elems plts))
+        (map (realToFrac . timeToDouble) (M.elems plts))
         (foreachPt (mkOrderPoolList currentTime) (incOrds ++ simOrdersOrderPool sim))
         (M.elems $ fmap (foreachPt mkFromList) (foldl' (\m (b, (o, _)) -> M.insertWith (++) b [o] m) (simOrdersQueue sim) (M.toList $ simOrdersMachine sim)))
         []
@@ -156,7 +156,7 @@ featExtractorFullWithMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues
   where
     featExt (St sim incOrds _ plts) =
       Extraction
-        (map timeToDouble (M.elems plts))
+        (map (realToFrac . timeToDouble) (M.elems plts))
         (foreachPt (mkOrderPoolList currentTime) (incOrds ++ simOrdersOrderPool sim))
         (M.elems $ fmap (foreachPt mkFromList) (simOrdersQueue sim))
         (foreachMachine (mkUntilDueList currentTime) (M.toList (simOrdersMachine sim)))
@@ -183,16 +183,16 @@ test =
   , newOrder (Product 1) 0 600866.0
   ]
 
-mkShippedDueList :: CurrentTime -> [Order] -> [Double]
+mkShippedDueList :: CurrentTime -> [Order] -> [Float]
 mkShippedDueList t xs = map genericLength (sortByTimeUntilDue (-maxBackorderPeriod) 0 t xs)
 
-mkOrderPoolList :: CurrentTime -> [Order] -> [Double]
+mkOrderPoolList :: CurrentTime -> [Order] -> [Float]
 mkOrderPoolList t = tail . mkUntilDueList t
 
-mkFgiList :: CurrentTime -> [Order] -> [Double]
+mkFgiList :: CurrentTime -> [Order] -> [Float]
 mkFgiList t = init . tail . mkUntilDueList t
 
-mkUntilDueList :: CurrentTime -> [Order] -> [Double]
+mkUntilDueList :: CurrentTime -> [Order] -> [Float]
 mkUntilDueList t xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) t xs)
 
 

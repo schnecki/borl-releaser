@@ -113,7 +113,7 @@ eval dbSetting runner2 res = do
   print (view evalsResults evalRes)
   writeAndCompileLatex dbSetting evalRes
 
-mkPrettyPrintElems :: St -> [[Double]]
+mkPrettyPrintElems :: St -> [[Float]]
 mkPrettyPrintElems st = zipWith (++) plts (replicate (length plts) base)
   where
     base = drop (length productTypes) (netInp st)

@@ -25,26 +25,26 @@ import           Releaser.SettingsActionFilter
 import           Releaser.SettingsRouting
 import           Releaser.Type
 
-scalePltsMin :: Double
+scalePltsMin :: Float
 scalePltsMin = fromIntegral $ configActFilterMin actionFilterConfig
 
-scalePltsMax :: Double
+scalePltsMax :: Float
 scalePltsMax = fromIntegral $ configActFilterMax actionFilterConfig
 
-scaleOrderMin :: Double
+scaleOrderMin :: Float
 scaleOrderMin = 0
 
-scaleOrderMax :: Double
+scaleOrderMax :: Float
 scaleOrderMax = 5 -- 12
 
 
 data Extraction = Extraction
-  { extPlts      :: [Double]
-  , extOrderPool :: [[Double]]
-  , extQueues    :: [[[Double]]] -- ^ Queue, ProductType, Period
-  , extMachines  :: [[Double]]   -- ^ Machine, Period
-  , extFgi       :: [[Double]]  -- ^ ProductType, Period
-  , extShipped   :: [[Double]]  -- ^ ProductType, Period
+  { extPlts      :: [Float]
+  , extOrderPool :: [[Float]]
+  , extQueues    :: [[[Float]]] -- ^ Queue, ProductType, Period
+  , extMachines  :: [[Float]]   -- ^ Machine, Period
+  , extFgi       :: [[Float]]  -- ^ ProductType, Period
+  , extShipped   :: [[Float]]  -- ^ ProductType, Period
   , scaleValues  :: Bool
   }
 
@@ -53,16 +53,16 @@ instance Show Extraction where
     filter (\x -> x /= '"' && x /= '\\') $
     show $ [map printFloat plts] ++ [map (show . map printFloat) op] ++ [map (show . map (map printFloat)) que] ++ [map (show . map printFloat) mac] ++ [map (show . map printFloat) fgi] ++ [map (show . map printFloat) shipped]
     where
-      printFloat :: Double -> String
+      printFloat :: Float -> String
       printFloat = printf "%2.0f"
 
 
-extractionToList :: Extraction -> [Double]
+extractionToList :: Extraction -> [Float]
 extractionToList (Extraction plts op que mac fgi shipped scale) =
   -- checkSize $
   map (scalePlts scale) plts ++ map (scaleOrder scale) (concat op ++ concat (concat que)) ++ concat (scaleMachines scale mac) ++ map (scaleOrder scale) (concat fgi ++ concat shipped)
   where
-    checkSize :: [Double] -> [Double]
+    checkSize :: [Float] -> [Float]
     checkSize xs =
       unsafePerformIO $ do
         Just nr <- tryReadMVar cacheMVar
@@ -75,7 +75,7 @@ extractionToList (Extraction plts op que mac fgi shipped scale) =
     cacheMVar = unsafePerformIO $ newMVar (-1)
     {-# NOINLINE cacheMVar #-}
 
-scalePlts, scaleOrder :: Bool -> Double -> Double
+scalePlts, scaleOrder :: Bool -> Float -> Float
 scalePlts scale
   | scale = scaleValue (Just (scalePltsMin, scalePltsMax))
   | otherwise = id
@@ -83,21 +83,21 @@ scaleOrder scale
   | scale = scaleValue (Just (scaleOrderMin, scaleOrderMax))
   | otherwise = id
 
-scaleMachines :: Bool -> [[Double]] -> [[Double]]
+scaleMachines :: Bool -> [[Float]] -> [[Float]]
 scaleMachines _ [] = []
 scaleMachines True xs@[[_]] = map (map (scaleValue (Just (0, genericLength machines)))) xs
 scaleMachines scale xs
   | scale = map (map (scaleValue (Just (0, 1)))) xs
   | otherwise = xs
 
-unscalePlts, unscaleOrder :: Bool -> Double -> Double
+unscalePlts, unscaleOrder :: Bool -> Float -> Float
 unscalePlts scale
   | scale = unscaleValue (Just (scalePltsMin, scalePltsMax))
   | otherwise = id
 unscaleOrder scale
   | scale = unscaleValue (Just (scaleOrderMin, scaleOrderMax))
   | otherwise = id
-unscaleMachines :: Bool -> [[Double]] -> [[Double]]
+unscaleMachines :: Bool -> [[Float]] -> [[Float]]
 unscaleMachines _ [] = []
 unscaleMachines True xs@[[_]] = map (map (unscaleValue (Just (0, genericLength machines)))) xs
 unscaleMachines scale xs
@@ -105,7 +105,7 @@ unscaleMachines scale xs
   | otherwise = xs
 
 
-fromListToExtraction :: St -> ConfigFeatureExtractor -> [Double] -> Extraction
+fromListToExtraction :: St -> ConfigFeatureExtractor -> [Float] -> Extraction
 fromListToExtraction st (ConfigFeatureExtractor _ extr) xs =
   Extraction
     (map (unscalePlts scale) $ take plts xs)

@@ -159,19 +159,19 @@ instance Show St where
   show st = show (extractFeatures False st)
 
 
-netInp :: St -> [Double]
+netInp :: St -> [Float]
 netInp = extractionToList . extractFeatures True
 
-mInverse :: BORL St -> [Double] -> Maybe (Either String St)
+mInverse :: BORL St -> [Float] -> Maybe (Either String St)
 mInverse borl = return . Left . show . fromListToExtraction (borl ^. s) (featureExtractor True)
 
-netInpTbl :: St -> [Double]
+netInpTbl :: St -> [Float]
 netInpTbl st = case extractFeatures False st of
   Extraction plts op que _ fgi shipped _ -> plts ++ map reduce (concat $ op ++ map (map (fromIntegral . ceiling . (/9))) (concat que) ++ fgi ++ shipped)
   where
     reduce x = 7 * fromIntegral (ceiling (x / 7))
 
-netInpTblBinary :: St -> [Double]
+netInpTblBinary :: St -> [Float]
 netInpTblBinary st = case extractFeatures False st of
   Extraction plts op que _ fgi shipped _ -> plts ++ map reduce (concat op) ++ map (fromIntegral . ceiling . (/9)) (concat (concat que)) ++ map reduce (concat $ fgi ++ shipped)
   where
@@ -281,16 +281,16 @@ databaseSetting = do
   return $ DatabaseSetting ("host=" <> getPsqlHost hostName <> " dbname=experimenter user=experimenter password=experimenter port=5432") 10
 
 
-mkMiniPrettyPrintElems :: St -> [[Double]]
+mkMiniPrettyPrintElems :: St -> [[Float]]
 mkMiniPrettyPrintElems st
   | length (head xs) /= length base' = error $ "wrong length in mkMiniPrettyPrintElems: " ++
                                 show (length $ head xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (unscaleValue (Just (scaleOrderMin, scaleOrderMax))) base')
   | otherwise = concatMap (zipWith (++) plts . replicate (length plts) . map (scaleValue (Just (scaleOrderMin, scaleOrderMax)))) xs
   where
     base' = drop (length productTypes) (netInp st)
-    plts :: [[Double]]
+    plts :: [[Float]]
     plts = map (map (scaleValue (Just (scalePltsMin, scalePltsMax))) . take (length productTypes)) [[1, 3], [3, 5]]
-    xs :: [[Double]]
+    xs :: [[Float]]
     xs = [xsSimple, xsSimple2]
     xsFullSmallPS = concat
       [ [ 3, 5]
@@ -394,16 +394,17 @@ instance ExperimentDef (BORL St) where
     let tTardMeanFloor   = StepResult "TARDMeanFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard) mTardFloor)
     let tTardStdDevFloor = StepResult "TARDStdDevFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard) mTardFloor)
     -- BORL' related measures
-    let avgRew    = StepResult "AvgReward" (Just $ fromIntegral borlT) (borl' ^?! proxies . rho . proxyScalar)
-        avgRewMin = StepResult "MinAvgReward" (Just $ fromIntegral borlT) (borl' ^?! proxies . rhoMinimum . proxyScalar)
+    let val l = realToFrac (borl' ^?! l)
+    let avgRew    = StepResult "AvgReward" (Just $ fromIntegral borlT) (val $ proxies . rho . proxyScalar)
+        avgRewMin = StepResult "MinAvgReward" (Just $ fromIntegral borlT) (val $ proxies . rhoMinimum . proxyScalar)
         pltP1     = StepResult "PLT P1" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 1) (borl' ^. s . plannedLeadTimes))
         pltP2     = StepResult "PLT P2" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 2) (borl' ^. s . plannedLeadTimes))
-        psiRho    = StepResult "PsiRho" (Just $ fromIntegral borlT) (borl' ^. psis . _1)
-        psiV      = StepResult "PsiV" (Just $ fromIntegral borlT) (borl' ^. psis . _2)
-        psiW      = StepResult "PsiW" (Just $ fromIntegral borlT) (borl' ^. psis . _3)
+        psiRho    = StepResult "PsiRho" (Just $ fromIntegral borlT) (val $ psis . _1)
+        psiV      = StepResult "PsiV" (Just $ fromIntegral borlT) (val $ psis . _2)
+        psiW      = StepResult "PsiW" (Just $ fromIntegral borlT) (val $ psis . _3)
         vAvg      = StepResult "VAvg" (Just $ fromIntegral borlT) (avg $ borl' ^. lastRewards)
-        reward    = StepResult "Reward" (Just $ fromIntegral borlT) (headWithDefault 0 $ borl' ^. lastRewards)
-        avg xs    = sum xs / fromIntegral (length xs)
+        reward    = StepResult "Reward" (Just $ fromIntegral borlT) (realToFrac $headWithDefault 0 $ borl' ^. lastRewards)
+        avg xs    = realToFrac $ sum xs / fromIntegral (length xs)
         headWithDefault d []    = d
         headWithDefault _ (x:_) = x
     return $

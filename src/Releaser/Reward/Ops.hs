@@ -73,9 +73,9 @@ type SimTPlus1 = SimSim
 
 -- | This scales the reward and ensures the result to be in the range [-baseline, baseline].
 fromDouble :: ConfigReward -> Double -> Reward St
-fromDouble (ConfigRewardCosts Nothing) r = Reward r
-fromDouble (ConfigRewardCosts (Just maxVal)) r = Reward $ min maxVal r
-fromDouble config r = Reward $ maxFun (base - scale * r)
+fromDouble (ConfigRewardCosts Nothing) r = Reward $ realToFrac r
+fromDouble (ConfigRewardCosts (Just maxVal)) r = Reward $ realToFrac $ min maxVal r
+fromDouble config r = Reward $ realToFrac $ maxFun (base - scale * r)
   where
     base = configRewardBaseline config
     scale = configRewardScale config

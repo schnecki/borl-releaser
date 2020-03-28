@@ -25,7 +25,7 @@ decayRateStepsWith rate steps = ConfigDecay ("Exponential decay with rate " <> t
           , _xi               = NoDecay
           -- Exploration
           , _epsilon          = [NoDecay] -- ExponentialDecay (Just 0.50) rate steps
-          , _exploration      = ExponentialDecay (Just 0.05) rate steps -- was (Just 0.20)
+          , _exploration      = ExponentialDecay Nothing rate steps -- was (Just 0.20)
           , _learnRandomAbove = NoDecay
           -- ANN
           , _alphaANN         = ExponentialDecay (Just 0.05) rate steps

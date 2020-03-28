@@ -22,3 +22,4 @@ fi
 
 # DELETE ALL CONTENT OF THE FILES
 # sed -i -n '1p' {episodeLength,plts,stateValues,costs,reward,stateVAllStates,stateWAllStates,statePsiVAllStates,statePsiWAllStates}
+# watch 'pr -m -t reward costs | tail -n 10000 - | awk "{ sum += \$2; sum4 += \$4; n++ } END { if (n > 0) print (sum / n, sum4 /n) ; }"'

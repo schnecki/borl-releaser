@@ -123,7 +123,7 @@ askUser showHelp addUsage cmds ql = do
                liftIO $ maybe ql (\v' -> modifyDecayFun exploration v' $ parameters . exploration .~ v' $ ql) <$> getIOMWithDefault Nothing
              "eps" -> do
                liftIO $ putStr "New value: " >> hFlush stdout
-               liftIO $ maybe ql (\v' -> modifyDecayFun epsilon (Last v') $ parameters . epsilon .~ (Last (v' :: Double)) $ ql) <$> getIOMWithDefault Nothing
+               liftIO $ maybe ql (\v' -> modifyDecayFun epsilon (Last v') $ parameters . epsilon .~ (Last (v' :: Float)) $ ql) <$> getIOMWithDefault Nothing
              "lr" -> do
                liftIO $ putStr "New value: " >> hFlush stdout
                liftIO $
@@ -257,7 +257,7 @@ mkTime a = do
     liftIO $ putStrLn ("Computation Time: " ++ show (diffUTCTime end start))
     return val
 
-mkPrettyPrintElems :: Bool -> St -> [[Double]]
+mkPrettyPrintElems :: Bool -> St -> [[Float]]
 mkPrettyPrintElems usePlts st
   | usePlts = [netInp st]
   | otherwise = zipWith (++) plts (replicate (length plts) base)
