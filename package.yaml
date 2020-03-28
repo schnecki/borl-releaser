@@ -55,6 +55,7 @@ dependencies:
   - typelits-witnesses
   - constraints
   - singletons
+  - vector
 
 library:
   source-dirs: src

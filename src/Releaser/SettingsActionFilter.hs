@@ -6,7 +6,7 @@ module Releaser.SettingsActionFilter
     ) where
 
 import           Control.Monad.Trans.Reader
-
+import qualified Data.Vector.Storable       as V
 
 import           Releaser.ActionFilter.Ops
 import           Releaser.SettingsPeriod
@@ -14,7 +14,7 @@ import           Releaser.Type
 
 -- ----------------------------------------
 
-actionFilter :: ListOfActions -> Reader ActionFilterConfig (St -> [Bool])
+actionFilter :: ListOfActions -> Reader ActionFilterConfig (St -> V.Vector Bool)
 actionFilter = actionFilterMinMax
 
 actionFilterConfig :: ActionFilterConfig

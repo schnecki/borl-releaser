@@ -15,6 +15,7 @@ module Releaser.FeatureExtractor.Type
 import           Control.Concurrent.MVar
 import           Data.List                     (foldl', genericLength)
 import           Data.Text                     (Text)
+import qualified Data.Vector.Storable          as V
 import           System.IO.Unsafe
 import           Text.Printf
 
@@ -57,10 +58,10 @@ instance Show Extraction where
       printFloat = printf "%2.0f"
 
 
-extractionToList :: Extraction -> [Float]
+extractionToList :: Extraction -> V.Vector Float
 extractionToList (Extraction plts op que mac fgi shipped scale) =
   -- checkSize $
-  map (scalePlts scale) plts ++ map (scaleOrder scale) (concat op ++ concat (concat que)) ++ concat (scaleMachines scale mac) ++ map (scaleOrder scale) (concat fgi ++ concat shipped)
+  V.fromList $ map (scalePlts scale) plts ++ map (scaleOrder scale) (concat op ++ concat (concat que)) ++ concat (scaleMachines scale mac) ++ map (scaleOrder scale) (concat fgi ++ concat shipped)
   where
     checkSize :: [Float] -> [Float]
     checkSize xs =
@@ -105,8 +106,8 @@ unscaleMachines scale xs
   | otherwise = xs
 
 
-fromListToExtraction :: St -> ConfigFeatureExtractor -> [Float] -> Extraction
-fromListToExtraction st (ConfigFeatureExtractor _ extr) xs =
+fromListToExtraction :: St -> ConfigFeatureExtractor -> NetInputWoAction -> Extraction
+fromListToExtraction st (ConfigFeatureExtractor _ extr) netInp =
   Extraction
     (map (unscalePlts scale) $ take plts xs)
     (splitN opL1 $ take (opRoot * opL1) $ map (unscaleOrder scale) $ drop plts xs)
@@ -116,6 +117,7 @@ fromListToExtraction st (ConfigFeatureExtractor _ extr) xs =
     (splitN shipL1 $ take (shipRoot * shipL1) $ map (unscaleOrder scale) $ drop (plts + opRoot * opL1 + queL1 * queL2 * queRoot + macRoot * machL1 + fgiRoot * fgiL1) xs)
     scale
   where
+    xs = V.toList netInp
     sample = extr st
     scale = scaleValues sample
     plts = length (extPlts sample)

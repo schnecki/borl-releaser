@@ -16,6 +16,7 @@ import           Data.Maybe                  (fromMaybe)
 import           Data.Serialize              as S
 import qualified Data.Text                   as T
 import           Data.Time.Clock             (diffUTCTime, getCurrentTime)
+import qualified Data.Vector.Storable        as V
 import           Grenade
 import           System.IO                   (hFlush, stdout)
 import           TensorFlow.Session          (SessionT)
@@ -173,10 +174,10 @@ askUser showHelp addUsage cmds ql = do
             [(often, _)] -> do
               ql' <-
                 foldM
-                  (\q _ -> do
+                  (\q x -> do
                      !q' <- mkTime (stepsM q nr)
-                     let ppElems = mkPrettyPrintElems True (ql ^. s) ++ mkPrettyPrintElems True (q' ^. s)
-                         qPP = overAllProxies (proxyNNConfig . prettyPrintElems) (\pp -> pp ++ [(q' ^. featureExtractor) (ql ^. s), (q' ^. featureExtractor) (q' ^. s)]) q'
+                     liftIO $ putStrLn $ "Steps done: " ++ show (nr*x) ++ "/" ++ show (nr*often)
+                     let qPP = overAllProxies (proxyNNConfig . prettyPrintElems) (\pp -> pp ++ [(q' ^. featureExtractor) (ql ^. s), (q' ^. featureExtractor) (q' ^. s)]) q'
                      output <- prettyBORLMWithStInverse (Just $ mInverse ql) qPP
                      liftIO $ print output >> hFlush stdout
                      return $! force q')
@@ -257,12 +258,12 @@ mkTime a = do
     liftIO $ putStrLn ("Computation Time: " ++ show (diffUTCTime end start))
     return val
 
-mkPrettyPrintElems :: Bool -> St -> [[Float]]
+mkPrettyPrintElems :: Bool -> St -> [V.Vector Float]
 mkPrettyPrintElems usePlts st
   | usePlts = [netInp st]
-  | otherwise = zipWith (++) plts (replicate (length plts) base)
+  | otherwise = map V.fromList $ zipWith (++) plts (replicate (length plts) base)
   where
-    base = drop (length productTypes) (netInp st)
+    base = drop (length productTypes) (V.toList $ netInp st)
     minVal = configActFilterMin actionFilterConfig
     maxVal = configActFilterMax actionFilterConfig
     actList = map (scaleValue (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal .. maxVal]

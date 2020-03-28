@@ -35,6 +35,7 @@ import           Data.List                         (find, genericLength)
 import           Data.Maybe                        (isJust)
 import qualified Data.Text                         as T
 import qualified Data.Text.Encoding                as E
+import qualified Data.Vector.Storable              as V
 
 import           Control.Arrow                     (second)
 import qualified Data.Map                          as M
@@ -159,15 +160,15 @@ instance Show St where
   show st = show (extractFeatures False st)
 
 
-netInp :: St -> [Float]
+netInp :: St -> V.Vector Float
 netInp = extractionToList . extractFeatures True
 
-mInverse :: BORL St -> [Float] -> Maybe (Either String St)
+mInverse :: BORL St -> NetInputWoAction -> Maybe (Either String St)
 mInverse borl = return . Left . show . fromListToExtraction (borl ^. s) (featureExtractor True)
 
-netInpTbl :: St -> [Float]
+netInpTbl :: St -> V.Vector Float
 netInpTbl st = case extractFeatures False st of
-  Extraction plts op que _ fgi shipped _ -> plts ++ map reduce (concat $ op ++ map (map (fromIntegral . ceiling . (/9))) (concat que) ++ fgi ++ shipped)
+  Extraction plts op que _ fgi shipped _ -> V.fromList $ plts ++ map reduce (concat $ op ++ map (map (fromIntegral . ceiling . (/9))) (concat que) ++ fgi ++ shipped)
   where
     reduce x = 7 * fromIntegral (ceiling (x / 7))
 
@@ -194,12 +195,12 @@ modelBuilder actions initState cols =
   -- trainingByRmsPropWith TF.RmsPropConfig {TF.rmsPropLearningRate = 0.00025, TF.rmsPropRho = 0.5, TF.rmsPropMomentum = 0.95, TF.rmsPropEpsilon = 0.01}
   -- trainingByGradientDescent 0.001
   where
-    lenIn = genericLength (netInp initState)
+    lenIn = fromIntegral $ V.length (netInp initState)
     lenActs = genericLength actions
     lenOut = lenActs * cols
 
 
-mkInitSt :: SimSim -> [Order] -> (St, [Action St], St -> [Bool])
+mkInitSt :: SimSim -> [Order] -> (St, [Action St], St -> V.Vector Bool)
 mkInitSt sim startOrds =
   let initSt = St sim startOrds rewardFunction (M.fromList $ zip productTypes (repeat (Time 1)))
       (actionList, actions) = mkConfig (action initSt) actionConfig
@@ -281,13 +282,13 @@ databaseSetting = do
   return $ DatabaseSetting ("host=" <> getPsqlHost hostName <> " dbname=experimenter user=experimenter password=experimenter port=5432") 10
 
 
-mkMiniPrettyPrintElems :: St -> [[Float]]
+mkMiniPrettyPrintElems :: St -> [V.Vector Float]
 mkMiniPrettyPrintElems st
   | length (head xs) /= length base' = error $ "wrong length in mkMiniPrettyPrintElems: " ++
                                 show (length $ head xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (unscaleValue (Just (scaleOrderMin, scaleOrderMax))) base')
-  | otherwise = concatMap (zipWith (++) plts . replicate (length plts) . map (scaleValue (Just (scaleOrderMin, scaleOrderMax)))) xs
+  | otherwise = map V.fromList $ concatMap (zipWith (++) plts . replicate (length plts) . map (scaleValue (Just (scaleOrderMin, scaleOrderMax)))) xs
   where
-    base' = drop (length productTypes) (netInp st)
+    base' = drop (length productTypes) (V.toList $ netInp st)
     plts :: [[Float]]
     plts = map (map (scaleValue (Just (scalePltsMin, scalePltsMax))) . take (length productTypes)) [[1, 3], [3, 5]]
     xs :: [[Float]]

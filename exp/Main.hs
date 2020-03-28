@@ -9,6 +9,7 @@ module Main where
 import           Control.Lens
 import           Control.Monad          (forM_, void)
 import           Control.Monad.IO.Class
+import qualified Data.Vector.Storable   as V
 import           System.Environment     (getArgs, getProgName)
 
 import           Experimenter
@@ -113,10 +114,10 @@ eval dbSetting runner2 res = do
   print (view evalsResults evalRes)
   writeAndCompileLatex dbSetting evalRes
 
-mkPrettyPrintElems :: St -> [[Float]]
-mkPrettyPrintElems st = zipWith (++) plts (replicate (length plts) base)
+mkPrettyPrintElems :: St -> [V.Vector Float]
+mkPrettyPrintElems st = map V.fromList $ zipWith (++) plts (replicate (length plts) base)
   where
-    base = drop (length productTypes) (netInp st)
+    base = drop (length productTypes) (V.toList $ netInp st)
     minVal = configActFilterMin actionFilterConfig
     maxVal = configActFilterMax actionFilterConfig
     actList = map (scaleValue (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal .. maxVal]
