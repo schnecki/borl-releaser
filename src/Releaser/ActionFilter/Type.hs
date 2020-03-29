@@ -1,4 +1,4 @@
-
+{-# LANGUAGE BangPatterns #-}
 
 module Releaser.ActionFilter.Type
     ( ActionFilterConfig (..)
@@ -8,8 +8,8 @@ module Releaser.ActionFilter.Type
 import           SimSim
 
 data ActionFilterConfig = ActionFilterConfig
-  { configActFilterMin :: Integer
-  , configActFilterMax :: Integer
+  { configActFilterMin :: !Integer
+  , configActFilterMax :: !Integer
   }
 
 

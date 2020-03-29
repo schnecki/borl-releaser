@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Releaser.FeatureExtractor.Type
@@ -40,13 +41,13 @@ scaleOrderMax = 5 -- 12
 
 
 data Extraction = Extraction
-  { extPlts      :: [Float]
-  , extOrderPool :: [[Float]]
-  , extQueues    :: [[[Float]]] -- ^ Queue, ProductType, Period
-  , extMachines  :: [[Float]]   -- ^ Machine, Period
-  , extFgi       :: [[Float]]  -- ^ ProductType, Period
-  , extShipped   :: [[Float]]  -- ^ ProductType, Period
-  , scaleValues  :: Bool
+  { extPlts      :: ![Float]
+  , extOrderPool :: ![[Float]]
+  , extQueues    :: ![[[Float]]] -- ^ Queue, ProductType, Period
+  , extMachines  :: ![[Float]]   -- ^ Machine, Period
+  , extFgi       :: ![[Float]]  -- ^ ProductType, Period
+  , extShipped   :: ![[Float]]  -- ^ ProductType, Period
+  , scaleValues  :: !Bool
   }
 
 instance Show Extraction where
@@ -150,6 +151,6 @@ fromListToExtraction st (ConfigFeatureExtractor _ extr) netInp =
 
 
 data ConfigFeatureExtractor = ConfigFeatureExtractor
-  { configFeatureExtractorName :: Text
-  , configFeatureExtractor     :: St -> Extraction
+  { configFeatureExtractorName :: !Text
+  , configFeatureExtractor     :: !(St -> Extraction)
   }

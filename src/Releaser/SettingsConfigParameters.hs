@@ -20,10 +20,6 @@ import           SimSim
 -- | BORL Parameters.
 borlParams :: Parameters Float
 borlParams = Parameters
-  -- { _alpha               = 0.01
-  -- , _beta                = 0.03
-  -- , _delta               = 0.03
-  -- , _gamma               = 0.005
   { _alpha               = 0.01
   , _beta                = 0.01
   , _delta               = 0.005
@@ -61,7 +57,7 @@ nnConfig =
     , _updateTargetIntervalDecay       = StepWiseIncrease (Just 500) 0.1 10000
     , _trainMSEMax                     = Nothing -- Just 0.10
     , _setExpSmoothParamsTo1           = True
-    , _workersMinExploration           = [0.20, 0.15, 0.10, 0.05]
+    , _workersMinExploration           = [0.20, 0.10, 0.05]
     }
 
 ------------------------------ ###########################################

@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 
@@ -10,8 +11,8 @@ import           SimSim
 
 
 data ActionConfig = ActionConfig
-  { configActLower :: Integer
-  , configActUpper :: Integer
+  { configActLower :: !Integer
+  , configActUpper :: !Integer
   }
 
 

@@ -6,7 +6,7 @@ import           Data.Serialize
 import           GHC.Generics
 
 data ConfigCosts = ConfigCosts
-  { wipCosts :: Double
-  , fgiCosts :: Double
-  , boCosts  :: Double
+  { wipCosts :: !Double
+  , fgiCosts :: !Double
+  , boCosts  :: !Double
   } deriving (Eq, Show, Generic, Serialize)

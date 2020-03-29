@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fno-warn-type-defaults #-}
+{-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE DeriveAnyClass    #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -98,9 +98,9 @@ mkReward (RewardPeriodEndSimple config) _ sim = fromDouble config (nrWipOrders *
 mkReward (RewardInFuture config futureType) sim sim' = mkFutureReward config futureType sim sim'
 
 data Future = Future
-  { nrOfOrders  :: Int
-  , accumulator :: Double
-  , orderIds    :: [OrderId]
+  { nrOfOrders  :: !Int
+  , accumulator :: !Double
+  , orderIds    :: ![OrderId]
   } deriving (Generic, Serialize, NFData, Show)
 
 instance RewardFuture St where

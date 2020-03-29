@@ -8,6 +8,6 @@ import           Data.Text (Text)
 import           ML.BORL
 
 data ConfigDecay = ConfigDecay
-  { configDecayName :: Text
-  , configDecay     :: Decay
+  { configDecayName :: !Text
+  , configDecay     :: !Decay
   }

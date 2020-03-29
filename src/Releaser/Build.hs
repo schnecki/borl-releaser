@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -27,6 +28,7 @@ module Releaser.Build
     , mkMiniPrettyPrintElems
     ) where
 
+import           Control.DeepSeq
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.IO.Class
@@ -356,60 +358,59 @@ instance ExperimentDef (BORL St) where
   type InputState (BORL St) = ()
   -- ^ Generate some input values and possibly modify state. This function can be used to change the state. It is called
   -- before `runStep` and its output is used to call `runStep`.
-  generateInput _ borl _ _ = do
-    let (St _ inc _ _) = borl ^. s
+  generateInput !_ !borl !_ !_ = do
+    let !(St !_ !inc !_ !_) = borl ^. s
     return (inc, ())
   -- ^ Run a step of the environment and return new state and result.
   -- runStep :: (MonadBorl' m) => a -> InputValue a -> E.Period -> m ([StepResult], a)
-  runStep phase borl incOrds _ = do
-    borl' <- stepM (set (s . nextIncomingOrders) incOrds borl)
+  runStep !phase !borl !incOrds !_ = do
+    !borl' <- stepM (set (s . nextIncomingOrders) incOrds borl)
     -- helpers
     when (borl ^. t `mod` 5000 == 0) $ liftIO $ prettyBORLHead True (Just $ mInverse borl) borl >>= print
-    let simT = timeToDouble $ simCurrentTime $ borl' ^. s . simulation
-    let borlT = borl' ^. t
+    let !simT = timeToDouble $ simCurrentTime $ borl' ^. s . simulation
+    let !borlT = borl' ^. t
     -- demand
-    let demand = StepResult "demand" (Just simT) (fromIntegral $ length $ borl ^. s . nextIncomingOrders)
+    let !demand = StepResult "demand" (Just simT) (fromIntegral $ length $ borl ^. s . nextIncomingOrders)
     -- cost related measures
-    let (StatsOrderCost earnOld wipOld boOld fgiOld) = simStatsOrderCosts $ simStatistics (borl ^. s . simulation)
-    let (StatsOrderCost earn wip bo fgi) = simStatsOrderCosts $ simStatistics (borl' ^. s . simulation)
-    let cEarn  = StepResult "EARN" (Just simT) (fromIntegral (earn - earnOld))
-    let cBoc   = StepResult "BOC" (Just simT) (boCosts costConfig * fromIntegral (bo - boOld))
-    let cWip   = StepResult "WIPC" (Just simT) (wipCosts costConfig * fromIntegral (wip - wipOld))
-    let cFgi   = StepResult "FGIC" (Just simT) (fgiCosts costConfig * fromIntegral (fgi - fgiOld))
-    let cSum   = StepResult "SUMC" (Just simT) (cBoc ^. resultYValue + cWip ^. resultYValue + cFgi ^. resultYValue)
-    let curOp  = StepResult "op" (Just simT) (fromIntegral $ length $ simOrdersOrderPool $ borl' ^. s . simulation)
-    let curWip = StepResult "wip" (Just simT) (fromIntegral $ wip - wipOld)
-    let curBo  = StepResult "bo" (Just simT) (fromIntegral $ bo - boOld)
-    let curFgi = StepResult "fgi" (Just simT) (fromIntegral $ fgi - fgiOld)
+    let (StatsOrderCost !earnOld !wipOld !boOld !fgiOld) = simStatsOrderCosts $ simStatistics (borl ^. s . simulation)
+    let (StatsOrderCost !earn !wip !bo !fgi) = simStatsOrderCosts $ simStatistics (borl' ^. s . simulation)
+    let !cEarn  = StepResult "EARN" (Just simT) (fromIntegral (earn - earnOld))
+    let !cBoc   = StepResult "BOC" (Just simT) (boCosts costConfig * fromIntegral (bo - boOld))
+    let !cWip   = StepResult "WIPC" (Just simT) (wipCosts costConfig * fromIntegral (wip - wipOld))
+    let !cFgi   = StepResult "FGIC" (Just simT) (fgiCosts costConfig * fromIntegral (fgi - fgiOld))
+    let !cSum   = StepResult "SUMC" (Just simT) (cBoc ^. resultYValue + cWip ^. resultYValue + cFgi ^. resultYValue)
+    let !curOp  = StepResult "op" (Just simT) (fromIntegral $ length $ simOrdersOrderPool $ borl' ^. s . simulation)
+    let !curWip = StepResult "wip" (Just simT) (fromIntegral $ wip - wipOld)
+    let !curBo  = StepResult "bo" (Just simT) (fromIntegral $ bo - boOld)
+    let !curFgi = StepResult "fgi" (Just simT) (fromIntegral $ fgi - fgiOld)
     -- time related measures
-    let (StatsFlowTime ftNrFloorAndFgi (StatsOrderTime sumTimeFloorAndFgi stdDevFloorAndFgi _) mTardFloorAndFgi) = simStatsShopFloorAndFgi $ simStatistics (borl' ^. s . simulation)
-    let tFtMeanFloorAndFgi     = StepResult "FTMeanFloorAndFgi" (Just simT) (fromRational sumTimeFloorAndFgi / fromIntegral ftNrFloorAndFgi)
-    let tFtStdDevFloorAndFgi   = StepResult "FTStdDevFloorAndFgi" (Just simT) (maybe 0 fromRational $ getWelfordStdDev stdDevFloorAndFgi)
-    let tTardPctFloorAndFgi    = StepResult "TARDPctFloorAndFgi" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromIntegral nrTard / fromIntegral ftNrFloorAndFgi) mTardFloorAndFgi)
-    let tTardMeanFloorAndFgi   = StepResult "TARDMeanFloorAndFGI" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard) mTardFloorAndFgi)
-    let tTardStdDevFloorAndFgi = StepResult "TARDStdDevFloorAndFGI" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard) mTardFloorAndFgi)
-    let (StatsFlowTime ftNrFloor (StatsOrderTime sumTimeFloor stdDevFloor _) mTardFloor) = simStatsShopFloor $ simStatistics (borl' ^. s . simulation)
-    let tFtMeanFloor     = StepResult "FTMeanFloor" (Just simT) (fromRational sumTimeFloor / fromIntegral ftNrFloor)
-    let tFtStdDevFloor   = StepResult "FTStdDevFloor" (Just simT) (maybe 0 fromRational $ getWelfordStdDev stdDevFloor)
-    let tTardPctFloor    = StepResult "TARDPctFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromIntegral nrTard / fromIntegral ftNrFloor) mTardFloor)
-    let tTardMeanFloor   = StepResult "TARDMeanFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard) mTardFloor)
-    let tTardStdDevFloor = StepResult "TARDStdDevFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard) mTardFloor)
+    let (StatsFlowTime !ftNrFloorAndFgi !(StatsOrderTime !sumTimeFloorAndFgi !stdDevFloorAndFgi !_) !mTardFloorAndFgi) = simStatsShopFloorAndFgi $ simStatistics (borl' ^. s . simulation)
+    let !tFtMeanFloorAndFgi     = StepResult "FTMeanFloorAndFgi" (Just simT) (fromRational sumTimeFloorAndFgi / fromIntegral ftNrFloorAndFgi)
+    let !tFtStdDevFloorAndFgi   = StepResult "FTStdDevFloorAndFgi" (Just simT) (maybe 0 fromRational $ getWelfordStdDev stdDevFloorAndFgi)
+    let !tTardPctFloorAndFgi    = StepResult "TARDPctFloorAndFgi" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromIntegral nrTard / fromIntegral ftNrFloorAndFgi) mTardFloorAndFgi)
+    let !tTardMeanFloorAndFgi   = StepResult "TARDMeanFloorAndFGI" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard) mTardFloorAndFgi)
+    let !tTardStdDevFloorAndFgi = StepResult "TARDStdDevFloorAndFGI" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard) mTardFloorAndFgi)
+    let !(StatsFlowTime !ftNrFloor !(StatsOrderTime !sumTimeFloor !stdDevFloor !_) !mTardFloor) = simStatsShopFloor $ simStatistics (borl' ^. s . simulation)
+    let !tFtMeanFloor     = StepResult "FTMeanFloor" (Just simT) (fromRational sumTimeFloor / fromIntegral ftNrFloor)
+    let !tFtStdDevFloor   = StepResult "FTStdDevFloor" (Just simT) (maybe 0 fromRational $ getWelfordStdDev stdDevFloor)
+    let !tTardPctFloor    = StepResult "TARDPctFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromIntegral nrTard / fromIntegral ftNrFloor) mTardFloor)
+    let !tTardMeanFloor   = StepResult "TARDMeanFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard) mTardFloor)
+    let !tTardStdDevFloor = StepResult "TARDStdDevFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard) mTardFloor)
     -- BORL' related measures
-    let val l = realToFrac (borl' ^?! l)
-    let avgRew    = StepResult "AvgReward" (Just $ fromIntegral borlT) (val $ proxies . rho . proxyScalar)
-        avgRewMin = StepResult "MinAvgReward" (Just $ fromIntegral borlT) (val $ proxies . rhoMinimum . proxyScalar)
-        pltP1     = StepResult "PLT P1" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 1) (borl' ^. s . plannedLeadTimes))
-        pltP2     = StepResult "PLT P2" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 2) (borl' ^. s . plannedLeadTimes))
-        psiRho    = StepResult "PsiRho" (Just $ fromIntegral borlT) (val $ psis . _1)
-        psiV      = StepResult "PsiV" (Just $ fromIntegral borlT) (val $ psis . _2)
-        psiW      = StepResult "PsiW" (Just $ fromIntegral borlT) (val $ psis . _3)
-        vAvg      = StepResult "VAvg" (Just $ fromIntegral borlT) (avg $ borl' ^. lastRewards)
-        reward    = StepResult "Reward" (Just $ fromIntegral borlT) (realToFrac $headWithDefault 0 $ borl' ^. lastRewards)
-        avg xs    = realToFrac $ sum xs / fromIntegral (length xs)
+    let val !l = realToFrac (borl' ^?! l)
+    let !avgRew    = StepResult "AvgReward" (Just $ fromIntegral borlT) (val $ proxies . rho . proxyScalar)
+        !avgRewMin = StepResult "MinAvgReward" (Just $ fromIntegral borlT) (val $ proxies . rhoMinimum . proxyScalar)
+        !pltP1     = StepResult "PLT P1" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 1) (borl' ^. s . plannedLeadTimes))
+        !pltP2     = StepResult "PLT P2" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 2) (borl' ^. s . plannedLeadTimes))
+        !psiRho    = StepResult "PsiRho" (Just $ fromIntegral borlT) (val $ psis . _1)
+        !psiV      = StepResult "PsiV" (Just $ fromIntegral borlT) (val $ psis . _2)
+        !psiW      = StepResult "PsiW" (Just $ fromIntegral borlT) (val $ psis . _3)
+        !vAvg      = StepResult "VAvg" (Just $ fromIntegral borlT) (avg $ borl' ^. lastRewards)
+        !reward    = StepResult "Reward" (Just $ fromIntegral borlT) (realToFrac $headWithDefault 0 $ borl' ^. lastRewards)
+        avg !xs    = realToFrac $ sum xs / fromIntegral (length xs)
         headWithDefault d []    = d
         headWithDefault _ (x:_) = x
-    return $
-
+    return $! force $
       if phase /= EvaluationPhase
       then ([
           avgRew
@@ -624,7 +625,7 @@ expSetting borl =
     { _experimentBaseName = experimentName
     , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf, pol] ++ concat [[updateTarget, annxpSmth] | isNNFlag]
     , _experimentRepetitions = 1
-    , _preparationSteps = 20*10^6
+    , _preparationSteps = 20 * 10 ^ 6
     , _evaluationWarmUpSteps = 1000
     , _evaluationSteps = 10000
     , _evaluationReplications = 1
@@ -644,5 +645,3 @@ expSetting borl =
     rout = ExperimentInfoParameter "Routing (Simulation Setup)" (configRoutingName routing)
     pol = ExperimentInfoParameter "Policy Exploration Strategy" (borl ^. B.parameters . explorationStrategy)
     annxpSmth = ExperimentInfoParameter "Setting Exp Smooth to 1" (nnConfig ^. setExpSmoothParamsTo1)
-
-

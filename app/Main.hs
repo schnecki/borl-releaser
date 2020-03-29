@@ -183,7 +183,7 @@ askUser showHelp addUsage cmds ql = do
                      return $! force q')
                   ql
                   [1 .. often]
-              askUser False addUsage cmds ql'
+              askUser False addUsage cmds (force ql')
             _ -> stepsM ql nr >>= askUser False addUsage cmds
         _ -> do
           liftIO $ putStr "Could not read your input :( You are supposed to enter an Integer.\n"
