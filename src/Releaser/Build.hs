@@ -88,8 +88,8 @@ buildSim :: IO SimSim
 buildSim =
   newSimSimIO
     (configRoutingRoutes routing)
-    procTimesConst
-    -- procTimes
+    -- procTimesConst
+    procTimes
     periodLength
     -- releaseImmediate
     -- (releaseBIL $ M.fromList [(Product 1, 1), (Product 2, 1)])

@@ -30,7 +30,7 @@ borlParams = Parameters
   , _deltaANN            = 0.05
   , _gammaANN            = 0.05
   -- Rest
-  , _epsilon             = [0.10, 0.01] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
+  , _epsilon             = [0.30, 0.01] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
   , _explorationStrategy = SoftmaxBoltzmann 5
   , _exploration         = 1.0
   , _learnRandomAbove    = 0.5
@@ -46,18 +46,18 @@ nnConfig =
   NNConfig
   {   _replayMemoryMaxSize             = 20000 -- was 30k
     , _replayMemoryStrategy            = ReplayMemoryPerAction
-    , _trainBatchSize                  = 8
+    , _trainBatchSize                  = 12
     , _grenadeLearningParams           = LearningParameters 0.01 0.0 0.0001
-    , _learningParamsDecay             = ExponentialDecay (Just 1e-8) 0.5 50000
+    , _learningParamsDecay             = ExponentialDecay (Just 1e-6) 0.75 50000
     , _prettyPrintElems                = [] -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-1500) 1500 (-2500) 2500
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-3000) 3000 (-5000) 5000
     , _stabilizationAdditionalRho      = 0
     , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 75000
     , _updateTargetInterval            = 10000
     , _updateTargetIntervalDecay       = StepWiseIncrease (Just 500) 0.1 10000
     , _trainMSEMax                     = Nothing -- Just 0.10
     , _setExpSmoothParamsTo1           = True
-    , _workersMinExploration           = [0.20, 0.10, 0.05]
+    , _workersMinExploration           = [0.3, 0.15, 0.10, 0.5]
     }
 
 ------------------------------ ###########################################
