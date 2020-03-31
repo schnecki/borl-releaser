@@ -36,16 +36,7 @@ dependencies:
   - time
   - text
   - pretty
-  - tensorflow
-  - tensorflow-core-ops
-  # - tensorflow-logging
-  - tensorflow-mnist-input-data
-  - tensorflow-mnist
-  # - tensorflow-opgen
-  - tensorflow-ops
-  - tensorflow-proto
-  # - tensorflow-records-conduit
-  # - tensorflow-records
+  - high-level-tensorflow
   - grenade
   - unliftio-core
   - bytestring

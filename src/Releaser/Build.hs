@@ -53,10 +53,7 @@ import           System.IO.Unsafe                  (unsafePerformIO)
 
 -- ANN modules
 import           Grenade
-import qualified TensorFlow.Core                   as TF hiding (value)
-import qualified TensorFlow.GenOps.Core            as TF (relu', tanh')
-import qualified TensorFlow.Minimize               as TF
-import qualified TensorFlow.Session                as TF
+import qualified HighLevelTensorflow               as TF
 
 import           Experimenter                      hiding (sum)
 import           ML.BORL                           as B hiding (actionFilter,
@@ -182,18 +179,18 @@ netInpTblBinary st = case extractFeatures False st of
              | otherwise = 1
 
 
-modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> Int64 -> m TensorflowModel
+modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> Int64 -> m TF.TensorflowModel
 modelBuilder actions initState cols =
-  buildModelWith (BuildSetup 0.001) $
-  inputLayer1D lenIn >>
-  fullyConnected [10 * lenIn] TF.relu' >>
-  -- fullyConnected [10 * lenIn] TF.relu' >>
-  -- fullyConnected [5 * lenIn] TF.relu' >>
-  -- fullyConnected [5 * lenIn] TF.relu' >>
-  fullyConnected [lenActs, cols] TF.relu' >>
-  -- fullyConnected [lenActs] TF.relu' >>
-  fullyConnected [lenActs, cols] TF.tanh' >>
-  trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.00025, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
+  TF.buildModelWith (TF.BuildSetup 0.001) $
+  TF.inputLayer1D lenIn >>
+  TF.fullyConnected [10 * lenIn] TF.relu' >>
+  -- TF.fullyConnected [10 * lenIn] TF.relu' >>
+  -- TF.fullyConnected [5 * lenIn] TF.relu' >>
+  TF.fullyConnected [5 * lenIn] TF.relu' >>
+  TF.fullyConnected [lenActs, cols] TF.relu' >>
+  -- TF.fullyConnected [lenActs] TF.relu' >>
+  TF.fullyConnected [lenActs, cols] TF.tanh' >>
+  TF.trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.00025, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
   -- trainingByRmsPropWith TF.RmsPropConfig {TF.rmsPropLearningRate = 0.00025, TF.rmsPropRho = 0.5, TF.rmsPropMomentum = 0.95, TF.rmsPropEpsilon = 0.01}
   -- trainingByGradientDescent 0.001
   where
@@ -249,7 +246,7 @@ buildBORLTensorflow = do
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
   flipObjective . setPrettyPrintElems <$> mkUnichainTensorflowCombinedNetM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
-  -- setPrettyPrintElems <$> mkUnichainTensorflowM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
+  -- setPrettyPrintElems <$> mkUnichainTensnorflowM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
 
 setPrettyPrintElems :: BORL St -> BORL St
 setPrettyPrintElems borl = setAllProxies (proxyNNConfig . prettyPrintElems) (ppElems borl) borl

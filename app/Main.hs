@@ -19,7 +19,6 @@ import           Data.Time.Clock             (diffUTCTime, getCurrentTime)
 import qualified Data.Vector.Storable        as V
 import           Grenade
 import           System.IO                   (hFlush, stdout)
-import           TensorFlow.Session          (SessionT)
 import           Text.PrettyPrint
 
 import           ML.BORL

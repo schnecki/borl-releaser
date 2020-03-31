@@ -13,8 +13,8 @@ import qualified Data.Vector.Storable   as V
 import           System.Environment     (getArgs, getProgName)
 
 import           Experimenter
+import qualified HighLevelTensorflow    as TF
 import           ML.BORL                hiding (featureExtractor)
-import           TensorFlow.Session     hiding (run)
 
 import           Releaser.Build
 import           Releaser.Settings
@@ -44,7 +44,11 @@ main = do
                putStrLn $ "Usage: " <> name <> " [run,eval,csv]"
 
 
-run :: (SessionT IO (Bool, Experiments (BORL St)) -> IO (Bool, Experiments (BORL St))) -> (SessionT IO (Evals (BORL St)) -> IO (Evals (BORL St))) -> SessionT IO (BORL St) -> IO ()
+run ::
+     (TF.SessionT IO (Bool, Experiments (BORL St)) -> IO (Bool, Experiments (BORL St)))
+  -> (TF.SessionT IO (Evals (BORL St)) -> IO (Evals (BORL St)))
+  -> TF.SessionT IO (BORL St)
+  -> IO ()
 run runner runner2 mkInitSt = do
   dbSetting <- databaseSetting
   (changed, res) <- runExperimentsM runner dbSetting expSetting () mkInitSt
@@ -52,9 +56,9 @@ run runner runner2 mkInitSt = do
   eval dbSetting runner2 res
 
 loadAndEval ::
-     (SessionT IO (Maybe (Experiments (BORL St))) -> IO (Maybe (Experiments (BORL St))))
-  -> (SessionT IO (Evals (BORL St)) -> IO (Evals (BORL St)))
-  -> SessionT IO (BORL St)
+     (TF.SessionT IO (Maybe (Experiments (BORL St))) -> IO (Maybe (Experiments (BORL St))))
+  -> (TF.SessionT IO (Evals (BORL St)) -> IO (Evals (BORL St)))
+  -> TF.SessionT IO (BORL St)
   -> IO ()
 loadAndEval runner runner2 mkInitSt = do
   dbSetting <- databaseSetting
@@ -62,7 +66,7 @@ loadAndEval runner runner2 mkInitSt = do
   liftIO $ putStrLn "RES"
   eval dbSetting runner2 res
 
-loadAndWriteCsv :: (SessionT IO (Maybe (Experiments (BORL St))) -> IO (Maybe (Experiments (BORL St)))) -> SessionT IO (BORL St) -> IO ()
+loadAndWriteCsv :: (TF.SessionT IO (Maybe (Experiments (BORL St))) -> IO (Maybe (Experiments (BORL St)))) -> TF.SessionT IO (BORL St) -> IO ()
 loadAndWriteCsv runner mkInitSt = do
   dbSetting <- databaseSetting
   Just res <- loadExperimentsResultsM False runner dbSetting expSetting () mkInitSt 1

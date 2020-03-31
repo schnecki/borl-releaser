@@ -4,23 +4,25 @@ packages:
 - simsim/
 - experimenter/
 - borl/
+- borl/high-level-tensorflow
 - borl/gym-haskell/
 - borl/gym-haskell/haskell-cpython/
 - borl/grenade/
 - borl/grenade/examples/
-- borl/tensorflow-haskell/tensorflow-core-ops/
-- borl/tensorflow-haskell/tensorflow-logging/
-- borl/tensorflow-haskell/tensorflow-mnist-input-data/
-- borl/tensorflow-haskell/tensorflow-mnist/
-- borl/tensorflow-haskell/tensorflow-opgen/
-- borl/tensorflow-haskell/tensorflow-ops/
-- borl/tensorflow-haskell/tensorflow-proto/
-- borl/tensorflow-haskell/tensorflow-records-conduit/
-- borl/tensorflow-haskell/tensorflow-records/
-- borl/tensorflow-haskell/tensorflow-test/
-- borl/tensorflow-haskell/tensorflow/
 extra-deps:
 - hmatrix-glpk-0.19.0.0@sha256:cf46c54bc3878bd207674ad88c3389083809f4df862df68ee64c6708dc517a52,1683
 - snappy-framing-0.1.2@sha256:68c8f44e7b1e04d0342b83bae62f390350875bc4fcf4c203c0ad012323508f64,1196
 - snappy-0.2.0.2@sha256:2931b03c5fdab2dac8d7eadb3be2f4ef8906666e43f1f1db65a06efd57ea701b,1591
+- git: https://github.com/tensorflow/haskell
+  commit: 8cde4d6a277f188ca495d29096a62b36e8534a3f
+  subdirs:
+  - tensorflow
+  - tensorflow-core-ops
+  - tensorflow-mnist
+  - tensorflow-mnist-input-data
+  - tensorflow-opgen
+  - tensorflow-ops
+  - tensorflow-proto
+
+
 resolver: lts-14.8
