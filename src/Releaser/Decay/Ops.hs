@@ -16,7 +16,7 @@ decayRateStepsWith rate steps = ConfigDecay ("Exponential decay with rate " <> t
     dec =
       decaySetupParameters
         Parameters
-          { _alpha            = ExponentialDecay (Just 1e-5) 0.5 steps
+          { _alpha            = ExponentialDecay (Just 1e-5) 0.25 steps
           -- _alpha            = ExponentialDecay (Just 1e-7) rate steps
           , _beta             = ExponentialDecay (Just 1e-4) rate steps
           , _delta            = ExponentialDecay (Just 5e-4) rate steps

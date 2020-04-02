@@ -181,15 +181,15 @@ netInpTblBinary st = case extractFeatures False st of
 
 modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> Int64 -> m TF.TensorflowModel
 modelBuilder actions initState cols =
-  TF.buildModelWith (TF.BuildSetup 0.001) $
+  TF.buildModel $ -- (TF.BuildSetup 0.001) $
   TF.inputLayer1D lenIn >>
   TF.fullyConnected [10 * lenIn] TF.relu' >>
-  -- TF.fullyConnected [10 * lenIn] TF.relu' >>
-  -- TF.fullyConnected [5 * lenIn] TF.relu' >>
+  TF.fullyConnected [10 * lenIn] TF.relu' >>
+  TF.fullyConnected [5 * lenIn] TF.relu' >>
   TF.fullyConnected [5 * lenIn] TF.relu' >>
   TF.fullyConnected [lenActs, cols] TF.relu' >>
-  -- TF.fullyConnected [lenActs] TF.relu' >>
-  TF.fullyConnected [lenActs, cols] TF.tanh' >>
+  TF.fullyConnected [lenActs, cols] TF.relu' >>
+  TF.fullyConnectedLinear [lenActs, cols] >>
   TF.trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.00025, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
   -- trainingByRmsPropWith TF.RmsPropConfig {TF.rmsPropLearningRate = 0.00025, TF.rmsPropRho = 0.5, TF.rmsPropMomentum = 0.95, TF.rmsPropEpsilon = 0.01}
   -- trainingByGradientDescent 0.001
@@ -462,8 +462,9 @@ instance ExperimentDef (BORL St) where
         (view algorithm)
         (Just $ return .
          const
-           [ AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
-           , AlgDQNAvgRewAdjusted 0.6 1.0 ByStateValues
+           [ -- AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
+           -- ,
+             AlgDQNAvgRewAdjusted 0.85 1.0 ByStateValues
            -- , AlgDQNAvgRewAdjusted 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
            -- , AlgDQN 0.99
            -- , AlgDQN 0.8
@@ -477,7 +478,9 @@ instance ExperimentDef (BORL St) where
         (view (s . rewardFunctionOrders))
         (Just $ return .
          const
-           [ RewardPeriodEndSimple configReward500
+           [ RewardPeriodEndSimple (ConfigRewardCosts (Just 750)) -- configReward500
+           , RewardPeriodEndSimple (ConfigRewardCosts (Just 1000)) -- configReward500
+           , RewardPeriodEndSimple (ConfigRewardCosts Nothing)
              -- , RewardInFuture configRewardFutureOpOrds ByOrderPoolOrders
              -- , RewardPeriodEndSimple configRewardPeriodEnd
            ])
@@ -508,41 +511,41 @@ instance ExperimentDef (BORL St) where
                 else SingleInstance -- only evaluate once if ImRe or BIL
             ))
     ] ++
-    [ ParameterSetup
-        "Learn Random Above until Exploration hits"
-        (set (B.parameters . learnRandomAbove))
-        (^. B.parameters . learnRandomAbove)
-        (Just $ return . const [0.15])
-        Nothing
-        Nothing
-        Nothing
-    ] ++
-    [ ParameterSetup
-      "Xi (at period 0)"
-      (set (B.parameters . xi))
-      (^. B.parameters . xi)
-      (Just $ return . const [5e-3])
-      Nothing Nothing Nothing
-    ] ++
-    [ ParameterSetup
-      "Zeta (at period 0)"
-      (set (B.parameters . zeta))
-      (^. B.parameters . zeta)
-      (Just $ return . const [0.10])
-      Nothing Nothing Nothing
-    ] ++
+    -- [ ParameterSetup
+    --     "Learn Random Above until Exploration hits"
+    --     (set (B.parameters . learnRandomAbove))
+    --     (^. B.parameters . learnRandomAbove)
+    --     (Just $ return . const [0.15])
+    --     Nothing
+    --     Nothing
+    --     Nothing
+    -- ] ++
+    -- [ ParameterSetup
+    --   "Xi (at period 0)"
+    --   (set (B.parameters . xi))
+    --   (^. B.parameters . xi)
+    --   (Just $ return . const [5e-3])
+    --   Nothing Nothing Nothing
+    -- ] ++
+    -- [ ParameterSetup
+    --   "Zeta (at period 0)"
+    --   (set (B.parameters . zeta))
+    --   (^. B.parameters . zeta)
+    --   (Just $ return . const [0.10])
+    --   Nothing Nothing Nothing
+    -- ] ++
     [ ParameterSetup
       "Epsilon (at period 0)"
       (set (B.parameters . epsilon))
       (^. B.parameters . epsilon)
-      (Just $ return . const [0.5])
+      (Just $ return . const [0.30, 0.01])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Replay Memory Size"
       (setAllProxies (proxyNNConfig . replayMemoryMaxSize))
       (^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
-      (Just $ return . const [30000])
+      (Just $ return . const [20000])
       Nothing
       Nothing
       Nothing
@@ -552,17 +555,17 @@ instance ExperimentDef (BORL St) where
       "Training Batch Size"
       (setAllProxies (proxyNNConfig . trainBatchSize))
       (^?! proxies . v . proxyNNConfig . trainBatchSize)
-      (Just $ return . const [4])
+      (Just $ return . const [12])
       Nothing
       Nothing
       Nothing
     | isNN
     ] ++
     [ ParameterSetup
-    "ANN Learning Rate Decay"
+      "ANN Learning Rate Decay"
       (setAllProxies (proxyNNConfig . learningParamsDecay))
       (^?! proxies . v . proxyNNConfig . learningParamsDecay)
-      (Just $ return . const [ExponentialDecay (Just 1e-4) 0.05 150000])
+      (Just $ return . const [ExponentialDecay (Just 1e-7) 0.85 50000])
       Nothing
       Nothing
       Nothing

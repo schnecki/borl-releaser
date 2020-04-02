@@ -48,16 +48,18 @@ nnConfig =
     , _replayMemoryStrategy            = ReplayMemoryPerAction
     , _trainBatchSize                  = 12
     , _grenadeLearningParams           = LearningParameters 0.01 0.0 0.0001
-    , _learningParamsDecay             = ExponentialDecay (Just 1e-6) 0.85 50000
+    , _learningParamsDecay             = ExponentialDecay (Just 5e-7) 0.5 50000
     , _prettyPrintElems                = [] -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-150) 5000 (-150) 10000
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-1500) 1500 (-2000) 2000
     , _stabilizationAdditionalRho      = 0
     , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 75000
-    , _updateTargetInterval            = 10000
+    , _updateTargetInterval            = 1 -- 10000
     , _updateTargetIntervalDecay       = StepWiseIncrease (Just 500) 0.1 10000
     , _trainMSEMax                     = Nothing -- Just 0.10
     , _setExpSmoothParamsTo1           = True
-    , _workersMinExploration           = [0.3, 0.15, 0.10, 0.05, 0.025]
+    , _workersMinExploration           = [0.3,
+                                          0.15,
+                                          0.10, 0.05, 0.025]
     }
 
 ------------------------------ ###########################################
