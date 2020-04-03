@@ -462,12 +462,7 @@ instance ExperimentDef (BORL St) where
         (view algorithm)
         (Just $ return .
          const
-           [ -- AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
-           -- ,
-             AlgDQNAvgRewAdjusted 0.85 1.0 ByStateValues
-           -- , AlgDQNAvgRewAdjusted 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
-           -- , AlgDQN 0.99
-           -- , AlgDQN 0.8
+           [ AlgDQNAvgRewAdjusted 0.85 1.0 ByStateValues
            ])
         Nothing
         Nothing
@@ -478,9 +473,10 @@ instance ExperimentDef (BORL St) where
         (view (s . rewardFunctionOrders))
         (Just $ return .
          const
-           [ RewardPeriodEndSimple (ConfigRewardCosts (Just 750)) -- configReward500
-           , RewardPeriodEndSimple (ConfigRewardCosts (Just 1000)) -- configReward500
-           , RewardPeriodEndSimple (ConfigRewardCosts Nothing)
+           [ -- RewardPeriodEndSimple (ConfigRewardCosts (Just 750))
+            RewardPeriodEndSimple (ConfigRewardCosts (Just 500))
+           , RewardPeriodEndSimple (ConfigRewardCosts (Just 1000))
+           -- , RewardPeriodEndSimple (ConfigRewardCosts Nothing)
              -- , RewardInFuture configRewardFutureOpOrds ByOrderPoolOrders
              -- , RewardPeriodEndSimple configRewardPeriodEnd
            ])
@@ -538,7 +534,7 @@ instance ExperimentDef (BORL St) where
       "Epsilon (at period 0)"
       (set (B.parameters . epsilon))
       (^. B.parameters . epsilon)
-      (Just $ return . const [0.30, 0.01])
+      (Just $ return . const [[0.30, 0.01]])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -585,7 +581,7 @@ instance ExperimentDef (BORL St) where
       "ANN Learning Rate Decay"
       (setAllProxies (proxyNNConfig . learningParamsDecay))
       (^?! proxies . v . proxyNNConfig . learningParamsDecay)
-      (Just $ return . const [ExponentialDecay (Just 1e-7) 0.85 50000])
+      (Just $ return . const [ExponentialDecay Nothing 0.85 50000])
       Nothing
       Nothing
       Nothing
@@ -595,7 +591,7 @@ instance ExperimentDef (BORL St) where
       "ScaleParameters"
       (setAllProxies (proxyNNConfig . scaleParameters))
       (^?! proxies . v . proxyNNConfig . scaleParameters)
-      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-5000) 5000 (-5000) 5000 (-5000) 5000])
+      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-5000) 5000 (-3000) 3000 (-3000) 3000])
       Nothing
       Nothing
       Nothing
