@@ -572,16 +572,6 @@ instance ExperimentDef (BORL St) where
     | isNN
     ] ++
     [ ParameterSetup
-      "Train MSE Max"
-      (setAllProxies (proxyNNConfig . trainMSEMax))
-      (^?! proxies . v . proxyNNConfig . trainMSEMax)
-      (Just $ return . const [Nothing])
-      Nothing
-      Nothing
-      Nothing
-    | isNN
-    ] ++
-    [ ParameterSetup
       "ScaleParameters"
       (setAllProxies (proxyNNConfig . scaleParameters))
       (^?! proxies . v . proxyNNConfig . scaleParameters)
@@ -623,7 +613,7 @@ expSetting :: BORL St -> ExperimentSetting
 expSetting borl =
   ExperimentSetting
     { _experimentBaseName = experimentName
-    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf, pol] ++ concat [[updateTarget, annxpSmth] | isNNFlag]
+    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf, pol] ++ concat [[updateTarget] | isNNFlag]
     , _experimentRepetitions = 1
     , _preparationSteps = 20 * 10 ^ 6
     , _evaluationWarmUpSteps = 1000
@@ -644,4 +634,3 @@ expSetting borl =
     ftExtr = ExperimentInfoParameter "Feature Extractor (State Representation)" (configFeatureExtractorName $ featureExtractor True)
     rout = ExperimentInfoParameter "Routing (Simulation Setup)" (configRoutingName routing)
     pol = ExperimentInfoParameter "Policy Exploration Strategy" (borl ^. B.parameters . explorationStrategy)
-    annxpSmth = ExperimentInfoParameter "Setting Exp Smooth to 1" (nnConfig ^. setExpSmoothParamsTo1)

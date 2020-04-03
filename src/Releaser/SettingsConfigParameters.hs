@@ -21,14 +21,10 @@ import           SimSim
 borlParams :: Parameters Float
 borlParams = Parameters
   { _alpha               = 0.01
+  , _alphaRhoMin         = 1e-5
   , _beta                = 0.01
   , _delta               = 0.005
   , _gamma               = 0.01
-  -- ANN
-  , _alphaANN            = 0.05  -- not used as unichain
-  , _betaANN             = 0.05
-  , _deltaANN            = 0.05
-  , _gammaANN            = 0.05
   -- Rest
   , _epsilon             = [0.30, 0.01] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
   , _explorationStrategy = EpsilonGreedy -- SoftmaxBoltzmann 5
@@ -48,18 +44,14 @@ nnConfig =
     , _replayMemoryStrategy            = ReplayMemoryPerAction
     , _trainBatchSize                  = 12
     , _grenadeLearningParams           = LearningParameters 0.01 0.0 0.0001
-    , _learningParamsDecay             = ExponentialDecay (Just 5e-7) 0.5 50000
+    , _learningParamsDecay             = ExponentialDecay Nothing 0.5 50000
     , _prettyPrintElems                = [] -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-1500) 1500 (-2000) 2000
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-500) 500 (-1000) 1000
     , _stabilizationAdditionalRho      = 0
     , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 75000
-    , _updateTargetInterval            = 1 -- 10000
+    , _updateTargetInterval            = 10000
     , _updateTargetIntervalDecay       = StepWiseIncrease (Just 500) 0.1 10000
-    , _trainMSEMax                     = Nothing -- Just 0.10
-    , _setExpSmoothParamsTo1           = True
-    , _workersMinExploration           = [0.3,
-                                          0.15,
-                                          0.10, 0.05, 0.025]
+    , _workersMinExploration           = [0.5, 0.3, 0.15, 0.10, 0.05, 0.025, 0.01]
     }
 
 ------------------------------ ###########################################
