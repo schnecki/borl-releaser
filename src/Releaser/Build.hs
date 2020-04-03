@@ -552,6 +552,26 @@ instance ExperimentDef (BORL St) where
     | isNN
     ] ++
     [ ParameterSetup
+      "Replay Memory Strategy"
+      (setAllProxies (proxyNNConfig . replayMemoryStrategy))
+      (^?! proxies . v . proxyNNConfig . replayMemoryStrategy)
+      (Just $ return . const [ReplayMemoryPerAction, ReplayMemorySingle])
+      Nothing
+      Nothing
+      Nothing
+    | isNN
+    ] ++
+    [ ParameterSetup
+      "Workers Min Exploration"
+      (setAllProxies (proxyNNConfig . workersMinExploration))
+      (^?! proxies . v . proxyNNConfig . workersMinExploration)
+      (Just $ return . const [[0.5, 0.3, 0.15, 0.10, 0.05, 0.025, 0.01]])
+      Nothing
+      Nothing
+      Nothing
+    | isNN
+    ] ++
+    [ ParameterSetup
       "Training Batch Size"
       (setAllProxies (proxyNNConfig . trainBatchSize))
       (^?! proxies . v . proxyNNConfig . trainBatchSize)
@@ -615,9 +635,9 @@ expSetting borl =
     { _experimentBaseName = experimentName
     , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf, pol] ++ concat [[updateTarget] | isNNFlag]
     , _experimentRepetitions = 1
-    , _preparationSteps = 20 * 10 ^ 6
+    , _preparationSteps = 1 * 10 ^ 6
     , _evaluationWarmUpSteps = 1000
-    , _evaluationSteps = 10000
+    , _evaluationSteps = 100000
     , _evaluationReplications = 1
     , _maximumParallelEvaluations = 1
     }
