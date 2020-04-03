@@ -38,6 +38,7 @@ import           Data.Maybe                        (isJust)
 import qualified Data.Text                         as T
 import qualified Data.Text.Encoding                as E
 import qualified Data.Vector.Storable              as V
+import           GHC.Exts                          (IsList (..))
 
 import           Control.Arrow                     (second)
 import qualified Data.Map                          as M
@@ -534,7 +535,7 @@ instance ExperimentDef (BORL St) where
       "Epsilon (at period 0)"
       (set (B.parameters . epsilon))
       (^. B.parameters . epsilon)
-      (Just $ return . const [[0.30, 0.01]])
+      (Just $ return . const [fromList [0.30, 0.01]])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
