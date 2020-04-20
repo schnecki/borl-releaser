@@ -342,28 +342,28 @@ mkMiniPrettyPrintElems st
 
 
 instance ExperimentDef (BORL St) where
-  type ExpM (BORL St) = TF.SessionT IO
---  type ExpM (BORL St) = IO
+  -- type ExpM (BORL St) = TF.SessionT IO
+  type ExpM (BORL St) = IO
   type Serializable (BORL St) = BORLSerialisable StSerialisable
   serialisable = do
-    undefined
-    -- res <- toSerialisableWith serializeSt id
-    -- return res
-  deserialisable ser = undefined
-    -- unsafePerformIO $ runMonadBorlTF $ do
-    --   borl <- buildBORLTensorflow
-    --   let (St sim _ _ _) = borl ^. s
-    --   let (_, actions) = mkConfig (action (borl ^. s)) actionConfig
-    --   return $
-    --     fromSerialisableWith
-    --       (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
-    --       id
-    --       actions
-    --       (borl ^. B.actionFilter)
-    --       (borl ^. decayFunction)
-    --       netInp
-    --       (modelBuilderTf actions (borl ^. s))
-    --       ser
+    res <- toSerialisableWith serializeSt id
+    return res
+  deserialisable ser =
+    -- runMonadBorlTF $ do
+      -- borl <- buildBORLTensorflow
+    unsafePerformIO $ do
+      borl <- buildBORLGrenade
+      let (St sim _ _ _) = borl ^. s
+      let (_, actions) = mkConfig (action (borl ^. s)) actionConfig
+      return $
+        fromSerialisableWith
+          (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
+          id
+          actions
+          (borl ^. B.actionFilter)
+          netInp
+          (modelBuilderTf actions (borl ^. s))
+          ser
   type InputValue (BORL St) = [Order]
   type InputState (BORL St) = ()
   -- ^ Generate some input values and possibly modify state. This function can be used to change the state. It is called

@@ -9,5 +9,5 @@ import           ML.BORL
 
 data ConfigDecay = ConfigDecay
   { configDecayName :: !Text
-  , configDecay     :: !Decay
+  , configDecay     :: !ParameterDecaySetting
   }

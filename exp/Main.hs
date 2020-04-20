@@ -30,14 +30,17 @@ main = do
       putStrLn $ "Usage: " <> name <> " [run,eval,csv]"
     else forM_ args $ \case
              "eval" -- Generate results only
-              -> loadAndEval runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
-             "run"
               ->
+               loadAndEval runMonadBorlIO runMonadBorlIO buildBORLGrenade -- ANN version
+               -- loadAndEval runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+             "run" ->
                -- run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
-               run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
-             "csv"
+               run runMonadBorlIO runMonadBorlIO buildBORLGrenade -- ANN version
+               -- run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+             "csv" ->
                -- Generate CSV only
-              -> loadAndWriteCsv runMonadBorlTF buildBORLTensorflow -- ANN version
+               loadAndWriteCsv runMonadBorlIO buildBORLGrenade -- ANN version
+              -- loadAndWriteCsv runMonadBorlTF buildBORLTensorflow -- ANN version
              _ -> do
                putStrLn "Unkown command\n"
                name <- getProgName
@@ -45,9 +48,9 @@ main = do
 
 
 run ::
-     (TF.SessionT IO (Bool, Experiments (BORL St)) -> IO (Bool, Experiments (BORL St)))
-  -> (TF.SessionT IO (Evals (BORL St)) -> IO (Evals (BORL St)))
-  -> TF.SessionT IO (BORL St)
+     (ExpM (BORL St) (Bool, Experiments (BORL St)) -> IO (Bool, Experiments (BORL St)))
+  -> (ExpM (BORL St) (Evals (BORL St)) -> IO (Evals (BORL St)))
+  -> ExpM (BORL St) (BORL St)
   -> IO ()
 run runner runner2 mkInitSt = do
   dbSetting <- databaseSetting
@@ -56,9 +59,9 @@ run runner runner2 mkInitSt = do
   eval dbSetting runner2 res
 
 loadAndEval ::
-     (TF.SessionT IO (Maybe (Experiments (BORL St))) -> IO (Maybe (Experiments (BORL St))))
-  -> (TF.SessionT IO (Evals (BORL St)) -> IO (Evals (BORL St)))
-  -> TF.SessionT IO (BORL St)
+     (ExpM (BORL St) (Maybe (Experiments (BORL St))) -> IO (Maybe (Experiments (BORL St))))
+  -> (ExpM (BORL St) (Evals (BORL St)) -> IO (Evals (BORL St)))
+  -> ExpM (BORL St) (BORL St)
   -> IO ()
 loadAndEval runner runner2 mkInitSt = do
   dbSetting <- databaseSetting
@@ -66,7 +69,7 @@ loadAndEval runner runner2 mkInitSt = do
   liftIO $ putStrLn "RES"
   eval dbSetting runner2 res
 
-loadAndWriteCsv :: (TF.SessionT IO (Maybe (Experiments (BORL St))) -> IO (Maybe (Experiments (BORL St)))) -> TF.SessionT IO (BORL St) -> IO ()
+loadAndWriteCsv :: (ExpM (BORL St) (Maybe (Experiments (BORL St))) -> IO (Maybe (Experiments (BORL St)))) -> ExpM (BORL St) (BORL St) -> IO ()
 loadAndWriteCsv runner mkInitSt = do
   dbSetting <- databaseSetting
   Just res <- loadExperimentsResultsM False runner dbSetting expSetting () mkInitSt 1

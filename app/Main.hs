@@ -56,16 +56,18 @@ main
       dbSetting <- liftIO databaseSetting
       void $
         loadStateAfterPreparation2
-          runMonadBorlTF
+          runMonadBorlIO
           dbSetting
           expSetting
           ()
-          buildBORLTensorflow
+          buildBORLGrenade
           expNr
           repNr
           (\borl0 -> do
-             borl <- saveTensorflowModels borl0
-             askUser True usage cmds borl)
+             -- borl <- saveTensorflowModels borl0
+             -- askUser True usage cmds borl
+              askUser True usage cmds borl0
+          )
   where
     cmds = []
     usage = []
@@ -113,17 +115,16 @@ askUser showHelp addUsage cmds ql = do
             sortBy (compare `on` fst) [("alpha", "alpha"), ("exp", "exploration rate"), ("eps", "epsilon"), ("lr", "learning rate"), ("dislearn", "Disable/Enable all learning")]
           liftIO $ putStr "Enter value: " >> hFlush stdout >> getLine
       ql' <-
-        do let modifyDecayFun f v' = decayFunction .~ (\t p -> f .~ v' $ (ql ^. decayFunction) t p)
            case e of
              "alpha" -> do
                liftIO $ putStr "New value: " >> hFlush stdout
-               liftIO $ maybe ql (\v' -> modifyDecayFun alpha v' $ parameters . alpha .~ v' $ ql) <$> getIOMWithDefault Nothing
+               liftIO $ maybe ql (\v' -> decaySetting.alpha .~ NoDecay $ parameters . alpha .~ v' $ ql) <$> getIOMWithDefault Nothing
              "exp" -> do
                liftIO $ putStr "New value: " >> hFlush stdout
-               liftIO $ maybe ql (\v' -> modifyDecayFun exploration v' $ parameters . exploration .~ v' $ ql) <$> getIOMWithDefault Nothing
+               liftIO $ maybe ql (\v' -> decaySetting.exploration .~ NoDecay $ parameters . exploration .~ v' $ ql) <$> getIOMWithDefault Nothing
              "eps" -> do
                liftIO $ putStr "New value: " >> hFlush stdout
-               liftIO $ maybe ql (\v' -> modifyDecayFun epsilon (Last v') $ parameters . epsilon .~ Last (v' :: Float) $ ql) <$> getIOMWithDefault Nothing
+               liftIO $ maybe ql (\v' -> decaySetting.epsilon .~ Last NoDecay $ parameters . epsilon .~ Last (v' :: Float) $ ql) <$> getIOMWithDefault Nothing
              "lr" -> do
                liftIO $ putStr "New value: " >> hFlush stdout
                liftIO $
@@ -157,7 +158,6 @@ askUser showHelp addUsage cmds ql = do
               id
               actions
               (ql ^. actionFilter)
-              (ql ^. decayFunction)
               netInp
               (modelBuilderTf actions (ql ^. s))
               ser
