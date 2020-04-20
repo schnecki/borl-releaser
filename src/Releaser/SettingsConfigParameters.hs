@@ -16,6 +16,14 @@ import           SimSim
 -- useHeuristicToFillReplMem :: Maybe Release
 -- useHeuristicToFillReplMem = Just $ releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
 
+borlSettings :: Settings
+borlSettings =
+  Settings
+    { _explorationStrategy = EpsilonGreedy -- SoftmaxBoltzmann 5
+    , _disableAllLearning = False
+    , _useForking = True
+    }
+
 
 -- | BORL Parameters.
 borlParams :: Parameters Float
@@ -27,13 +35,11 @@ borlParams = Parameters
   , _gamma               = 0.01
   -- Rest
   , _epsilon             = [0.30, 0.01] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
-  , _explorationStrategy = EpsilonGreedy -- SoftmaxBoltzmann 5
   , _exploration         = 1.0
   , _learnRandomAbove    = 0.5
   -- Multichain NBORL and etc.
   , _zeta                = 0.10
   , _xi                  = 5e-3
-  , _disableAllLearning  = False
   }
 
 
@@ -41,9 +47,9 @@ nnConfig :: NNConfig
 nnConfig =
   NNConfig
   {   _replayMemoryMaxSize             = 20000 -- was 30k
-    , _replayMemoryStrategy            = ReplayMemoryPerAction
+    , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
     , _trainBatchSize                  = 12
-    , _grenadeLearningParams           = LearningParameters 0.01 0.0 0.0001
+    , _grenadeLearningParams           = OptAdam 0.001 0.9 0.999 1e-7
     , _learningParamsDecay             = ExponentialDecay Nothing 0.85 50000
     , _prettyPrintElems                = [] -- is set just before printing/at initialisation
     , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-500) 500 (-1000) 1000
@@ -51,7 +57,8 @@ nnConfig =
     , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 75000
     , _updateTargetInterval            = 10000
     , _updateTargetIntervalDecay       = StepWiseIncrease (Just 500) 0.1 10000
-    , _workersMinExploration           = [0.5, 0.3, 0.15, 0.10, 0.05, 0.025, 0.01]
+    , _workersMinExploration           = -- [0.5, 0.3, 0.15, 0.10, 0.05, 0.025, 0.01]
+        [0.10, 0.05, 0.025, 0.01]
     }
 
 ------------------------------ ###########################################

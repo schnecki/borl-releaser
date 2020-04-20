@@ -43,13 +43,13 @@ main
   mExpNr <- getIOMWithDefault Nothing
   case mExpNr of
     Nothing ->
-      -- runMonadBorlIO $ do
-      --   borl <- liftIO buildBORLGrenade
-      --   -- borl <- liftIO buildBORLTable
-      --   askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
-      runMonadBorlTF $ do
-        borl <- buildBORLTensorflow
-        askUser True usage cmds borl -- maybe increase learning by setting estimate of rho
+      runMonadBorlIO $ do
+        borl <- liftIO buildBORLGrenade
+        -- borl <- liftIO buildBORLTable
+        askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
+      -- runMonadBorlTF $ do
+      --   borl <- buildBORLTensorflow
+      --   askUser True usage cmds borl -- maybe increase learning by setting estimate of rho
     Just expNr -> do
       liftIO $ putStr "Experiment replication: [1]" >> hFlush stdout
       repNr <- liftIO $ getIOWithDefault 1
@@ -123,19 +123,19 @@ askUser showHelp addUsage cmds ql = do
                liftIO $ maybe ql (\v' -> modifyDecayFun exploration v' $ parameters . exploration .~ v' $ ql) <$> getIOMWithDefault Nothing
              "eps" -> do
                liftIO $ putStr "New value: " >> hFlush stdout
-               liftIO $ maybe ql (\v' -> modifyDecayFun epsilon (Last v') $ parameters . epsilon .~ (Last (v' :: Float)) $ ql) <$> getIOMWithDefault Nothing
+               liftIO $ maybe ql (\v' -> modifyDecayFun epsilon (Last v') $ parameters . epsilon .~ Last (v' :: Float) $ ql) <$> getIOMWithDefault Nothing
              "lr" -> do
                liftIO $ putStr "New value: " >> hFlush stdout
                liftIO $
                  maybe
                    ql
                    (\v' ->
-                      overAllProxies (proxyNNConfig . grenadeLearningParams) (\(LearningParameters _ m l2) -> LearningParameters v' m l2) $
+                      overAllProxies (proxyNNConfig . grenadeLearningParams) (setLearningRate v') $
                       overAllProxies (proxyNNConfig . learningParamsDecay) (const NoDecay) ql) <$>
                  getIOMWithDefault Nothing
              "dislearn" -> do
                liftIO $ putStr "New value (True or False): " >> hFlush stdout
-               liftIO $ maybe ql (\v' -> parameters . disableAllLearning .~ v' $ ql) <$> getIOMWithDefault Nothing
+               liftIO $ maybe ql (\v' -> settings . disableAllLearning .~ v' $ ql) <$> getIOMWithDefault Nothing
              _ -> liftIO $ putStrLn "Did not understand the input" >> return ql
       askUser False addUsage cmds ql'
     "s" -> do
@@ -159,7 +159,7 @@ askUser showHelp addUsage cmds ql = do
               (ql ^. actionFilter)
               (ql ^. decayFunction)
               netInp
-              (modelBuilder actions (ql ^. s))
+              (modelBuilderTf actions (ql ^. s))
               ser
           askUser showHelp addUsage cmds ql'
     "r" -> do

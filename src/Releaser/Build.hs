@@ -1,16 +1,18 @@
 {-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE IncoherentInstances #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE Unsafe              #-}
-{-# OPTIONS_GHC -fno-warn-type-defaults #-}
+{-# LANGUAGE ExplicitNamespaces  #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE InstanceSigs        #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Strict              #-}
 {-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE Unsafe              #-}
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
 module Releaser.Build
     ( buildBORLTable
@@ -19,7 +21,8 @@ module Releaser.Build
     , buildSim
     , nnConfig
     , netInp
-    , modelBuilder
+    , modelBuilderTf
+    , modelBuilderGrenade
     , actionConfig
     , experimentName
     , mInverse
@@ -28,28 +31,33 @@ module Releaser.Build
     , mkMiniPrettyPrintElems
     ) where
 
+import           Control.Arrow                     (second)
 import           Control.DeepSeq
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.IO.Class
+import           Data.Constraint                   (Dict (..))
 import           Data.Int                          (Int64)
 import           Data.List                         (find, genericLength)
+import qualified Data.Map                          as M
 import           Data.Maybe                        (isJust)
+import qualified Data.Proxy                        as Px
+import           Data.Reflection                   (reifyNat)
+import           Data.Serialize                    as S
+import qualified Data.Text                         as T
 import qualified Data.Text                         as T
 import qualified Data.Text.Encoding                as E
 import qualified Data.Vector.Storable              as V
 import           GHC.Exts                          (IsList (..))
-
-import           Control.Arrow                     (second)
-import qualified Data.Map                          as M
-import           Data.Serialize                    as S
-import qualified Data.Text                         as T
+import           GHC.TypeLits                      (KnownNat)
+import           Grenade
 import           Network.HostName
 import           Statistics.Distribution
 import           Statistics.Distribution.Uniform
 import           System.Directory
 import           System.Environment                (getArgs)
 import           System.IO.Unsafe                  (unsafePerformIO)
+import           Unsafe.Coerce                     (unsafeCoerce)
 
 
 -- ANN modules
@@ -180,8 +188,8 @@ netInpTblBinary st = case extractFeatures False st of
              | otherwise = 1
 
 
-modelBuilder :: (TF.MonadBuild m) => [Action a] -> St -> Int64 -> m TF.TensorflowModel
-modelBuilder actions initState cols =
+modelBuilderTf :: (TF.MonadBuild m) => [Action a] -> St -> Int64 -> m TF.TensorflowModel
+modelBuilderTf actions initState cols =
   TF.buildModel $ -- (TF.BuildSetup 0.001) $
   TF.inputLayer1D lenIn >>
   TF.fullyConnected [10 * lenIn] TF.relu' >>
@@ -191,21 +199,40 @@ modelBuilder actions initState cols =
   TF.fullyConnected [lenActs, cols] TF.relu' >>
   TF.fullyConnected [lenActs, cols] TF.relu' >>
   TF.fullyConnectedLinear [lenActs, cols] >>
+  -- TF.fullyConnected [lenActs, cols] TF.tanh' >>
   TF.trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.00025, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
   -- trainingByRmsPropWith TF.RmsPropConfig {TF.rmsPropLearningRate = 0.00025, TF.rmsPropRho = 0.5, TF.rmsPropMomentum = 0.95, TF.rmsPropEpsilon = 0.01}
   -- trainingByGradientDescent 0.001
   where
     lenIn = fromIntegral $ V.length (netInp initState)
     lenActs = genericLength actions
+
+-- | The definition for a feed forward network using the dynamic module. Note the nested networks. This network clearly is over-engeneered for this example!
+modelBuilderGrenade :: [Action a] -> St -> Integer -> IO SpecConcreteNetwork
+modelBuilderGrenade actions initState cols =
+  buildModelWith HeEtAl $
+  specFullyConnected lenIn (10 * lenIn) |=> specRelu1D (10 * lenIn) |=> specDropout (10*lenIn) 0.90 Nothing |=>
+  specFullyConnected (10*lenIn) (10*lenIn) |=> specRelu1D (10*lenIn) |=>
+  specFullyConnected (10*lenIn) (5*lenOut) |=> specRelu1D (5*lenOut) |=>
+  specFullyConnected (5*lenOut) (2*lenOut) |=> specRelu1D (2*lenOut) |=>
+  specFullyConnected (2*lenOut) lenOut |=> specReshape (lenOut, 1, 1) (lenActs, cols, 1) |=> specTanh (lenActs, cols, 1) |=>
+  specNil (lenActs, cols, 1)
+  -- (if cols > 1
+  --   then specReshape1D2D lenOut (lenActs, cols) |=> specTanh2D (lenActs, cols) |=> specNil2D (lenActs, cols)
+  --   else specTanh1D lenActs |=> specNil1D lenOut)
+  where
     lenOut = lenActs * cols
+    lenIn = fromIntegral $ V.length (netInp initState)
+    lenActs = genericLength actions
+    buildModelWith = networkFromSpecificationWith
 
 
-mkInitSt :: SimSim -> [Order] -> (St, [Action St], St -> V.Vector Bool)
+mkInitSt :: SimSim -> [Order] -> (AgentType -> IO St, [Action St], St -> V.Vector Bool)
 mkInitSt sim startOrds =
   let initSt = St sim startOrds rewardFunction (M.fromList $ zip productTypes (repeat (Time 1)))
       (actionList, actions) = mkConfig (action initSt) actionConfig
       actFilter = mkConfig (actionFilter actionList) actionFilterConfig
-  in (initSt, actions, actFilter)
+  in (return . const initSt, actions, actFilter)
 
 
 buildBORLTable :: IO (BORL St)
@@ -213,41 +240,25 @@ buildBORLTable = do
   sim <- buildSim
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
-  return $ mkUnichainTabular alg initSt netInpTbl -- netInpTblBinary
+  mkUnichainTabular alg initSt netInpTbl -- netInpTblBinary
     actions actFilter borlParams (configDecay decay) (Just initVals)
-
-
--- makeNN ::
---      forall nrH nrL layers shapes. ( KnownNat nrH , KnownNat nrL , Last shapes ~ 'D1 nrL , Head shapes ~ 'D1 nrH , NFData (Tapes layers shapes) , NFData (Network layers shapes) , Serialize (Network layers shapes) , Network layers shapes ~ NN nrH nrL)
---   => St
---   -> [Action St]
---   -> IO (Network layers shapes)
--- makeNN initSt actions =
---   case (someNatVal (genericLength (netInp initSt)), someNatVal (genericLength actions)) of
---     (Just (SomeNat (_ :: P.Proxy netIn)), Just (SomeNat (_ :: P.Proxy netOut))) ->
---       withDict (unsafeCoerce (Dict :: Dict (KnownNat netIn, KnownNat netOut))) $ do
---         randomNetworkInitWith UniformInit :: IO (NN netIn netOut)
-
-type NN inp out
-   = Network '[ FullyConnected inp 80, Relu, FullyConnected 80 60, Relu, FullyConnected 60 40, Relu, FullyConnected 40 20, Relu, FullyConnected 20 out, Tanh]
-             '[ 'D1 inp, 'D1 80, 'D1 80, 'D1 60, 'D1 60, 'D1 40, 'D1 40, 'D1 20, 'D1 20, 'D1 out, 'D1 out]
 
 buildBORLGrenade :: IO (BORL St)
 buildBORLGrenade = do
   sim <- buildSim
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
-  nn <- randomNetworkInitWith UniformInit :: IO (NN 22 9)
-  flipObjective . setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp actions actFilter borlParams (configDecay decay) nn nnConfig (Just initVals)
-
+  st <- liftIO $ initSt MainAgent
+  flipObjective . setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilderGrenade actions st) nnConfig (Just initVals)
 
 buildBORLTensorflow :: (MonadBorl' m) => m (BORL St)
 buildBORLTensorflow = do
   sim <- liftIO buildSim
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
-  flipObjective . setPrettyPrintElems <$> mkUnichainTensorflowCombinedNetM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
-  -- setPrettyPrintElems <$> mkUnichainTensnorflowM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilder actions initSt) nnConfig (Just initVals)
+  st <- liftIO $ initSt MainAgent
+  flipObjective . setPrettyPrintElems <$> mkUnichainTensorflowCombinedNetM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilderTf actions st) nnConfig (Just initVals)
+  -- setPrettyPrintElems <$> mkUnichainTensnorflowM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilderTf actions initSt) nnConfig (Just initVals)
 
 setPrettyPrintElems :: BORL St -> BORL St
 setPrettyPrintElems borl = setAllProxies (proxyNNConfig . prettyPrintElems) (ppElems borl) borl
@@ -335,23 +346,24 @@ instance ExperimentDef (BORL St) where
 --  type ExpM (BORL St) = IO
   type Serializable (BORL St) = BORLSerialisable StSerialisable
   serialisable = do
-    res <- toSerialisableWith serializeSt id
-    return res
-  deserialisable ser =
-    unsafePerformIO $ runMonadBorlTF $ do
-      borl <- buildBORLTensorflow
-      let (St sim _ _ _) = borl ^. s
-      let (_, actions) = mkConfig (action (borl ^. s)) actionConfig
-      return $
-        fromSerialisableWith
-          (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
-          id
-          actions
-          (borl ^. B.actionFilter)
-          (borl ^. decayFunction)
-          netInp
-          (modelBuilder actions (borl ^. s))
-          ser
+    undefined
+    -- res <- toSerialisableWith serializeSt id
+    -- return res
+  deserialisable ser = undefined
+    -- unsafePerformIO $ runMonadBorlTF $ do
+    --   borl <- buildBORLTensorflow
+    --   let (St sim _ _ _) = borl ^. s
+    --   let (_, actions) = mkConfig (action (borl ^. s)) actionConfig
+    --   return $
+    --     fromSerialisableWith
+    --       (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
+    --       id
+    --       actions
+    --       (borl ^. B.actionFilter)
+    --       (borl ^. decayFunction)
+    --       netInp
+    --       (modelBuilderTf actions (borl ^. s))
+    --       ser
   type InputValue (BORL St) = [Order]
   type InputState (BORL St) = ()
   -- ^ Generate some input values and possibly modify state. This function can be used to change the state. It is called
@@ -610,14 +622,14 @@ instance ExperimentDef (BORL St) where
   beforeWarmUpHook _ _ _ g borl =
     liftIO $
       mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.05 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
-        set (B.parameters . disableAllLearning) True $
+        set (B.settings . disableAllLearning) True $
         set (B.parameters . gamma) 0 $
         set (B.parameters . zeta) 0 $
         set (B.parameters . xi) 0 borl
   beforeEvaluationHook _ _ _ g borl -- in case warm up phase is 0 periods
    =
     liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.05 $ set (B.parameters . alpha) 0 $ set (B.parameters . beta) 0 $
-    set (B.parameters . disableAllLearning) True $
+    set (B.settings . disableAllLearning) True $
     set (B.parameters . gamma) 0 $
     set (B.parameters . zeta) 0 $
     set (B.parameters . xi) 0 borl
@@ -650,4 +662,4 @@ expSetting borl =
     dem = ExperimentInfoParameter "Demand" (configDemandName demand)
     ftExtr = ExperimentInfoParameter "Feature Extractor (State Representation)" (configFeatureExtractorName $ featureExtractor True)
     rout = ExperimentInfoParameter "Routing (Simulation Setup)" (configRoutingName routing)
-    pol = ExperimentInfoParameter "Policy Exploration Strategy" (borl ^. B.parameters . explorationStrategy)
+    pol = ExperimentInfoParameter "Policy Exploration Strategy" (borl ^. B.settings . explorationStrategy)

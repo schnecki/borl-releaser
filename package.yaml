@@ -47,6 +47,7 @@ dependencies:
   - constraints
   - singletons
   - vector
+  - reflection
 
 library:
   source-dirs: src
