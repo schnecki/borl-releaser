@@ -10,6 +10,7 @@ packages:
 - borl/grenade/
 - borl/grenade/examples/
 extra-deps:
+- HaTeX-3.22.2.0@sha256:c491c38724d2c9beac25c5a11c1848e3e1e96bd08b3909bd9711870d3610a594,5407
 - hmatrix-glpk-0.19.0.0@sha256:cf46c54bc3878bd207674ad88c3389083809f4df862df68ee64c6708dc517a52,1683
 - snappy-framing-0.1.2@sha256:68c8f44e7b1e04d0342b83bae62f390350875bc4fcf4c203c0ad012323508f64,1196
 - snappy-0.2.0.2@sha256:2931b03c5fdab2dac8d7eadb3be2f4ef8906666e43f1f1db65a06efd57ea701b,1591

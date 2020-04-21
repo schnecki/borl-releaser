@@ -48,7 +48,7 @@ nnConfig =
   NNConfig
   {   _replayMemoryMaxSize             = 20000 -- was 30k
     , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
-    , _trainBatchSize                  = 32
+    , _trainBatchSize                  = 8 -- 32
     , _grenadeLearningParams           = OptAdam 0.001 0.9 0.999 1e-7
     , _learningParamsDecay             = ExponentialDecay Nothing 0.85 50000
     , _prettyPrintElems                = [] -- is set just before printing/at initialisation

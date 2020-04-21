@@ -208,23 +208,37 @@ modelBuilderTf actions initState cols =
     lenActs = genericLength actions
 
 -- | The definition for a feed forward network using the dynamic module. Note the nested networks. This network clearly is over-engeneered for this example!
+-- modelBuilderGrenade :: [Action a] -> St -> Integer -> IO SpecConcreteNetwork
+-- modelBuilderGrenade actions initState cols =
+--   buildModelWith HeEtAl $
+--   specFullyConnected lenIn (10 * lenIn) |=> specRelu1D (10 * lenIn) |=> specDropout (10*lenIn) 0.90 Nothing |=>
+--   specFullyConnected (10*lenIn) (10*lenIn) |=> specRelu1D (10*lenIn) |=>
+--   specFullyConnected (10*lenIn) (5*lenOut) |=> specRelu1D (5*lenOut) |=>
+--   specFullyConnected (5*lenOut) (2*lenOut) |=> specRelu1D (2*lenOut) |=>
+--   specFullyConnected (2*lenOut) lenOut |=> specReshape (lenOut, 1, 1) (lenActs, cols, 1) |=> specTanh (lenActs, cols, 1) |=>
+--   specNil (lenActs, cols, 1)
+--   -- (if cols > 1
+--   --   then specReshape1D2D lenOut (lenActs, cols) |=> specTanh2D (lenActs, cols) |=> specNil2D (lenActs, cols)
+--   --   else specTanh1D lenActs |=> specNil1D lenOut)
+--   where
+--     lenOut = lenActs * cols
+--     lenIn = fromIntegral $ V.length (netInp initState)
+--     lenActs = genericLength actions
+--     buildModelWith = networkFromSpecificationWith
+
 modelBuilderGrenade :: [Action a] -> St -> Integer -> IO SpecConcreteNetwork
 modelBuilderGrenade actions initState cols =
-  buildModelWith HeEtAl $
-  specFullyConnected lenIn (10 * lenIn) |=> specRelu1D (10 * lenIn) |=> specDropout (10*lenIn) 0.90 Nothing |=>
-  specFullyConnected (10*lenIn) (10*lenIn) |=> specRelu1D (10*lenIn) |=>
-  specFullyConnected (10*lenIn) (5*lenOut) |=> specRelu1D (5*lenOut) |=>
-  specFullyConnected (5*lenOut) (2*lenOut) |=> specRelu1D (2*lenOut) |=>
-  specFullyConnected (2*lenOut) lenOut |=> specReshape (lenOut, 1, 1) (lenActs, cols, 1) |=> specTanh (lenActs, cols, 1) |=>
-  specNil (lenActs, cols, 1)
-  -- (if cols > 1
-  --   then specReshape1D2D lenOut (lenActs, cols) |=> specTanh2D (lenActs, cols) |=> specNil2D (lenActs, cols)
-  --   else specTanh1D lenActs |=> specNil1D lenOut)
+  buildModel $
+  inputLayer1D lenIn >>
+  fullyConnected (10*lenIn) >> relu >> dropout 0.90 >>
+  fullyConnected (10*lenIn) >> relu >>
+  fullyConnected (5*lenIn) >> relu >>
+  fullyConnected (2*lenOut) >> relu >>
+  fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer
   where
     lenOut = lenActs * cols
     lenIn = fromIntegral $ V.length (netInp initState)
     lenActs = genericLength actions
-    buildModelWith = networkFromSpecificationWith
 
 
 mkInitSt :: SimSim -> [Order] -> (AgentType -> IO St, [Action St], St -> V.Vector Bool)
@@ -296,7 +310,9 @@ databaseSetting = do
 mkMiniPrettyPrintElems :: St -> [V.Vector Float]
 mkMiniPrettyPrintElems st
   | length (head xs) /= length base' = error $ "wrong length in mkMiniPrettyPrintElems: " ++
-                                show (length $ head xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (unscaleValue (Just (scaleOrderMin, scaleOrderMax))) base')
+                                show (length $ head xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (unscaleValue (Just (scaleOrderMin, scaleOrderMax))) base') ++
+                                "\nCurrent state: " ++ show (extractFeatures True st)
+
   | otherwise = map V.fromList $ concatMap (zipWith (++) plts . replicate (length plts) . map (scaleValue (Just (scaleOrderMin, scaleOrderMax)))) xs
   where
     base' = drop (length productTypes) (V.toList $ netInp st)
@@ -314,10 +330,10 @@ mkMiniPrettyPrintElems st
       ]
     xsSimpleSingleMachine = concat [concat [[ 0, 0, 0, 0, 0, 4, 8]], concat[ concat [[ 0, 0, 0, 8, 5,13, 0, 0]]],[], concat [[ 3, 7, 6, 0, 0, 0]], concat [[ 0, 0, 0, 4]]]
     xsSimple =              -- concat [[ 0, 0, 1,14,14, 9, 4],concat [[12]],concat [[ 1]],concat [[ 4]],[ 3],[ 6, 1, 0, 0, 0, 0],[ 0, 0, 1]]
-                            concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2]]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5, 4]]]
+                            concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2],  [2],[2]  ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5, 4]]]
     xsSimple2 =             concat [-- concat [[ 0, 0, 0, 4,14,14, 6]], concat [ concat [[21]]], concat [[ 1]], concat [[15, 2, 0, 0, 0, 0]], concat [[ 0, 0, 0]]
                                     -- concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2]]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5]]
-                                    concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[23]]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 9, 0]]
+                                    concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[23],  [2],[12]  ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 9, 0]]
                                    ]
     xsFull =
       concat
@@ -544,10 +560,73 @@ instance ExperimentDef (BORL St) where
     --   Nothing Nothing Nothing
     -- ] ++
     [ ParameterSetup
+      "Alpha (at period 0)"
+      (set (B.parameters . alpha))
+      (^. B.parameters . alpha)
+      (Just $ return . const [0.01])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Decay Alpha"
+      (set (B.decaySetting . alpha))
+      (^. B.decaySetting . alpha)
+      (Just $ return . const [ExponentialDecay Nothing 0.25 50000])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Delta (at period 0)"
+      (set (B.parameters . delta))
+      (^. B.parameters . delta)
+      (Just $ return . const [0.005])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Decay Delta"
+      (set (B.decaySetting . delta))
+      (^. B.decaySetting . delta)
+      (Just $ return . const [ExponentialDecay (Just 5e-4) 0.35 50000])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Gamma (at period 0)"
+      (set (B.parameters . gamma))
+      (^. B.parameters . gamma)
+      (Just $ return . const [0.01])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Decay Gamma"
+      (set (B.decaySetting . gamma))
+      (^. B.decaySetting . gamma)
+      (Just $ return . const [ExponentialDecay (Just 1e-3) 0.35 50000])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
       "Epsilon (at period 0)"
       (set (B.parameters . epsilon))
       (^. B.parameters . epsilon)
       (Just $ return . const [fromList [0.30, 0.01]])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Decay Epsilon"
+      (set (B.decaySetting . epsilon))
+      (^. B.decaySetting . epsilon)
+      (Just $ return . const [fromList [NoDecay]])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Exploration (at period 0)"
+      (set (B.parameters . exploration))
+      (^. B.parameters . exploration)
+      (Just $ return . const [1.0])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Decay Exploration"
+      (set (B.decaySetting . exploration))
+      (^. B.decaySetting . exploration)
+      (Just $ return . const [ExponentialDecay Nothing 0.35 50000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
