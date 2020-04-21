@@ -228,7 +228,7 @@ modelBuilderTf actions initState cols =
 
 modelBuilderGrenade :: [Action a] -> St -> Integer -> IO SpecConcreteNetwork
 modelBuilderGrenade actions initState cols =
-  buildModel $
+  buildModelWith HeEtAl BuildSetup { printResultingSpecification = False } $
   inputLayer1D lenIn >>
   fullyConnected (10*lenIn) >> relu >> dropout 0.90 >>
   fullyConnected (10*lenIn) >> relu >>
@@ -320,36 +320,11 @@ mkMiniPrettyPrintElems st
     plts = map (map (scaleValue (Just (scalePltsMin, scalePltsMax))) . take (length productTypes)) [[1, 3], [3, 5]]
     xs :: [[Float]]
     xs = [xsSimple, xsSimple2]
-    xsFullSmallPS = concat
-      [ [ 3, 5]
-      , concat [[ 0, 0, 0, 0, 0, 0, 5],[ 0, 0, 0, 0, 0, 0, 3]]
-      , concat [ concat [[ 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0]]]
-      ,[]
-      , concat [[ 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0]]
-      , concat [[ 0, 0, 0],[ 0, 0, 0]]
-      ]
-    xsSimpleSingleMachine = concat [concat [[ 0, 0, 0, 0, 0, 4, 8]], concat[ concat [[ 0, 0, 0, 8, 5,13, 0, 0]]],[], concat [[ 3, 7, 6, 0, 0, 0]], concat [[ 0, 0, 0, 4]]]
-    xsSimple =              -- concat [[ 0, 0, 1,14,14, 9, 4],concat [[12]],concat [[ 1]],concat [[ 4]],[ 3],[ 6, 1, 0, 0, 0, 0],[ 0, 0, 1]]
-                            concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2],  [2],[2]  ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5, 4]]]
-    xsSimple2 =             concat [-- concat [[ 0, 0, 0, 4,14,14, 6]], concat [ concat [[21]]], concat [[ 1]], concat [[15, 2, 0, 0, 0, 0]], concat [[ 0, 0, 0]]
-                                    -- concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2]]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5]]
-                                    concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[23],  [2],[12]  ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 9, 0]]
+    xsSimple =              concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2]        ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5, 4]]]
+                            -- concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2],  [2],[2]  ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5, 4]]]
+    xsSimple2 =             concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[23]         ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 9, 0]]
+                                   -- concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[23],  [2],[12]  ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 9, 0]]
                                    ]
-    xsFull =
-      concat
-        [ [0, 0, 0, 0, 3, 5, 5]
-        , [0, 0, 0, 0, 0, 0, 7]
-        , concat [[0, 0, 9, 3, 0, 0, 0, 0], [0, 0, 0, 0, 3, 6, 4, 0]]
-        , concat [[0, 2, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]]
-        , concat [[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 1, 2, 0, 0, 0]]
-        -- , [0, 0, 0, 0, 1, 0, 0, 0]
-        -- , [1, 0, 0, 0, 0, 0, 0, 0]
-        -- , [0, 0, 0, 1, 0, 0, 0, 0]
-        , [0, 0, 0, 0, 0, 0]
-        , [4, 2, 2, 0, 0, 0]
-        , [0, 0, 0]
-        , [0, 0, 0]
-        ]
 
 
 ------------------------------------------------------------

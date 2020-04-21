@@ -46,11 +46,12 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-  {   _replayMemoryMaxSize             = 20000 -- was 30k
-    , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
-    , _trainBatchSize                  = 8 -- 32
+  {   _replayMemoryMaxSize             = 2000 -- 20000 -- was 30k
+    , _replayMemoryStrategy            = ReplayMemorySingle -- ReplayMemoryPerAction -- ReplayMemorySingle
+    , _nStep                           = 4
+    , _trainBatchSize                  = 4 -- 32
     , _grenadeLearningParams           = OptAdam 0.001 0.9 0.999 1e-7
-    , _learningParamsDecay             = ExponentialDecay Nothing 0.85 50000
+    , _learningParamsDecay             = NoDecay -- ExponentialDecay Nothing 0.85 50000
     , _prettyPrintElems                = [] -- is set just before printing/at initialisation
     , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-3000) 3000 (-3000) 3000
     , _stabilizationAdditionalRho      = 0
