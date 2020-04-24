@@ -19,9 +19,14 @@ import           SimSim
 borlSettings :: Settings
 borlSettings =
   Settings
-    { _explorationStrategy = EpsilonGreedy -- SoftmaxBoltzmann 5
+    { _nStep = 5
+    , _workersUpdateInterval = 1000
+    , _explorationStrategy = EpsilonGreedy -- SoftmaxBoltzmann 5
     , _disableAllLearning = False
     , _useForking = True
+    , _workersMinExploration           = -- [0.5, 0.3, 0.15, 0.10, 0.05, 0.025, 0.01]
+        -- [0.10, 0.05, 0.025, 0.01]
+      replicate 12 0.01
     }
 
 
@@ -46,20 +51,19 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-  {   _replayMemoryMaxSize             = 2000 -- 20000 -- was 30k
+  {   _replayMemoryMaxSize             = 1 -- 20000 -- was 30k
     , _replayMemoryStrategy            = ReplayMemorySingle -- ReplayMemoryPerAction -- ReplayMemorySingle
-    , _nStep                           = 4
-    , _trainBatchSize                  = 4 -- 32
-    , _grenadeLearningParams           = OptAdam 0.001 0.9 0.999 1e-7
+    , _trainBatchSize                  = 1 -- 32
+    , _grenadeLearningParams           = OptAdam 0.00025 0.9 0.999 1e-7
+    , _grenadeSmoothTargetUpdate = 0.01
     , _learningParamsDecay             = NoDecay -- ExponentialDecay Nothing 0.85 50000
     , _prettyPrintElems                = [] -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-3000) 3000 (-3000) 3000
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-3000) 3000 (-4000) 6000
     , _stabilizationAdditionalRho      = 0
     , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 75000
     , _updateTargetInterval            = 10000
     , _updateTargetIntervalDecay       = StepWiseIncrease (Just 500) 0.1 10000
-    , _workersMinExploration           = -- [0.5, 0.3, 0.15, 0.10, 0.05, 0.025, 0.01]
-        [0.10, 0.05, 0.025, 0.01]
+
     }
 
 ------------------------------ ###########################################

@@ -255,7 +255,7 @@ buildBORLTable = do
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
   mkUnichainTabular alg initSt netInpTbl -- netInpTblBinary
-    actions actFilter borlParams (configDecay decay) (Just initVals)
+    actions actFilter borlParams (configDecay decay) borlSettings (Just initVals)
 
 buildBORLGrenade :: IO (BORL St)
 buildBORLGrenade = do
@@ -263,7 +263,7 @@ buildBORLGrenade = do
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
   st <- liftIO $ initSt MainAgent
-  flipObjective . setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilderGrenade actions st) nnConfig (Just initVals)
+  flipObjective . setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilderGrenade actions st) nnConfig borlSettings (Just initVals)
 
 buildBORLTensorflow :: (MonadBorl' m) => m (BORL St)
 buildBORLTensorflow = do
@@ -271,7 +271,7 @@ buildBORLTensorflow = do
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actions, actFilter) = mkInitSt sim startOrds
   st <- liftIO $ initSt MainAgent
-  flipObjective . setPrettyPrintElems <$> mkUnichainTensorflowCombinedNetM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilderTf actions st) nnConfig (Just initVals)
+  flipObjective . setPrettyPrintElems <$> mkUnichainTensorflowCombinedNetM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilderTf actions st) nnConfig borlSettings (Just initVals)
   -- setPrettyPrintElems <$> mkUnichainTensnorflowM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilderTf actions initSt) nnConfig (Just initVals)
 
 setPrettyPrintElems :: BORL St -> BORL St
@@ -626,8 +626,8 @@ instance ExperimentDef (BORL St) where
     ] ++
     [ ParameterSetup
       "Workers Min Exploration"
-      (setAllProxies (proxyNNConfig . workersMinExploration))
-      (^?! proxies . v . proxyNNConfig . workersMinExploration)
+      (set (settings . workersMinExploration))
+      (^. settings . workersMinExploration)
       (Just $ return . const [[0.5, 0.3, 0.15, 0.10, 0.05, 0.025, 0.01]])
       Nothing
       Nothing

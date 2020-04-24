@@ -14,7 +14,7 @@ decayRateStepsWith :: DecayRate -> DecaySteps -> ConfigDecay
 decayRateStepsWith rate steps =
   ConfigDecay ("Exponential decay with rate " <> tshow rate <> " in " <> tshow steps <> " steps") $
   Parameters
-    { _alpha = ExponentialDecay Nothing 0.25 steps
+    { _alpha = ExponentialDecay (Just 1e-5) (rate/4*3) steps
     , _alphaRhoMin = NoDecay
 
     , _beta = ExponentialDecay (Just 1e-4) rate steps
