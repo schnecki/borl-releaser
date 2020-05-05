@@ -14,15 +14,12 @@ module Releaser.FeatureExtractor.Ops
     , featExtractorFullWithMachines
     ) where
 
-import           Data.Function                  (on)
-import           Data.List                      (find, foldl', genericLength, groupBy,
-                                                 sortBy)
+import           Data.List                      (find, foldl', genericLength)
 
 import qualified Data.Map                       as M
 
 
-import           ML.BORL                        hiding (FeatureExtractor)
-import           SimSim                         hiding (productTypes, queues)
+import           SimSim                         hiding (productTypes)
 
 import           Releaser.ActionFilter.Type
 import           Releaser.FeatureExtractor.Type
@@ -35,7 +32,7 @@ type ReduceValues = Bool
 
 
 maxBackorderPeriod :: Integer
-maxBackorderPeriod = 2
+maxBackorderPeriod = 3
 
 
 featExtractorSimple :: ReduceValues -> ConfigFeatureExtractor
@@ -184,16 +181,23 @@ test =
   ]
 
 mkShippedDueList :: CurrentTime -> [Order] -> [Float]
-mkShippedDueList t xs = map genericLength (sortByTimeUntilDue (-maxBackorderPeriod) 0 t xs)
+mkShippedDueList t =
+  init .
+  map genericLength . sortByTimeUntilDue (-maxBackorderPeriod) 0 t
 
 mkOrderPoolList :: CurrentTime -> [Order] -> [Float]
-mkOrderPoolList t = tail . mkUntilDueList t
+mkOrderPoolList t =
+ tail .
+ map genericLength . sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) t
 
 mkFgiList :: CurrentTime -> [Order] -> [Float]
-mkFgiList t = init . tail . mkUntilDueList t
+-- mkFgiList t = init . tail . mkUntilDueList t
+mkFgiList t =
+  init . tail .
+  map genericLength . sortByTimeUntilDue 0 (configActFilterMax actionFilterConfig) t
 
 mkUntilDueList :: CurrentTime -> [Order] -> [Float]
-mkUntilDueList t xs = map genericLength (sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) t xs)
+mkUntilDueList t xs = map genericLength (sortByTimeUntilDue (-maxBackorderPeriod) (configActFilterMax actionFilterConfig) t xs)
 
 
 ------------------------------ Helper function ----------------------------------------
@@ -206,7 +210,6 @@ sortByTimeUntilDue :: PeriodMin -> PeriodMax -> CurrentTime -> [Order] -> [[Orde
 sortByTimeUntilDue min max currentTime = M.elems . foldl' sortByTimeUntilDue' startMap
   where
     def = fromIntegral min - periodLength
-    -- startMap = M.fromList $ (map (\pt -> (pt,[])) (def : ptTypes) )
     lookup = [fromIntegral min * periodLength,fromIntegral min * periodLength + periodLength .. fromIntegral max * periodLength]
     startMap = M.fromList $ zip (def : lookup) (repeat [])
     sortByTimeUntilDue' m order =
@@ -227,5 +230,5 @@ sortByTimeUntilDue min max currentTime = M.elems . foldl' sortByTimeUntilDue' st
 --   let ords = [newOrder (Product 1) 0 7, newOrder (Product 1) 0 7]
 --   let xs = mkShippedDueList t ords
 --   print xs
---   let ys = map genericLength (sortByTimeUntilDue (-maxBackorderPeriod) 0 t ords)
+--   let ys = map genericLength (sortByTimeUntilDue (-maxBackorderPeriod) (configActFilterMax actionFilterConfig) t ords)
 --   print ys

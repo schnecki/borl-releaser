@@ -215,17 +215,11 @@ askUser showHelp addUsage cmds ql = do
         Nothing ->
           unless
             (c == "q")
-            (stepM ql >>= \ql' ->
-               case find isTensorflow (allProxies $ ql' ^. proxies) of
-                 Nothing -> prettyBORLHead True Nothing ql' >>= liftIO . print >> askUser False addUsage cmds ql'
-                 Just _
-                   -- b <- liftTensorflow (prettyBORLHead True Nothing ql')
-                   -- liftIO $ print b
-                  -> do
-                   let ppElems = mkPrettyPrintElems True (ql' ^. s)
-                       setPrettyPrintElems = setAllProxies (proxyNNConfig . prettyPrintElems) ppElems
-                   prettyBORLTables (Just $ const (Just $ Left "[...]")) True False False (setPrettyPrintElems ql') >>= liftIO . print
-                   askUser False addUsage cmds ql')
+            (stepM ql >>= \ql' -> do
+               let ppElems = mkPrettyPrintElems True (ql' ^. s)
+                   setPrettyPrintElems = setAllProxies (proxyNNConfig . prettyPrintElems) ppElems
+               prettyBORLMWithStInverse (Just $ mInverse ql') (setPrettyPrintElems ql') >>= liftIO . print
+               askUser False addUsage cmds ql')
         Just (_, cmd) ->
           case find isTensorflow (allProxies $ ql ^. proxies) of
             Nothing -> liftIO $ stepExecute ql ((False, cmd), []) >>= askUser False addUsage cmds

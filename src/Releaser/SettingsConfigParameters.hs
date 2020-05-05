@@ -3,15 +3,13 @@
 {-# LANGUAGE Unsafe            #-}
 module Releaser.SettingsConfigParameters where
 
-import           Control.Lens
-import qualified Data.Map     as M
-import qualified Data.Text    as T
+import qualified Data.Text              as T
 
 -- ANN modules
 import           Grenade
 
-import           ML.BORL      as B hiding (actionFilter, featureExtractor)
-import           SimSim
+import           ML.BORL                as B hiding (actionFilter, featureExtractor)
+import           Releaser.SettingsDecay
 
 -- useHeuristicToFillReplMem :: Maybe Release
 -- useHeuristicToFillReplMem = Just $ releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
@@ -19,14 +17,14 @@ import           SimSim
 borlSettings :: Settings
 borlSettings =
   Settings
-    { _nStep = 5
-    , _workersUpdateInterval = 1000
-    , _explorationStrategy = EpsilonGreedy -- SoftmaxBoltzmann 5
+    { _useProcessForking = True
     , _disableAllLearning = False
-    , _useForking = True
-    , _workersMinExploration           = -- [0.5, 0.3, 0.15, 0.10, 0.05, 0.025, 0.01]
+    , _explorationStrategy = EpsilonGreedy -- SoftmaxBoltzmann 5
+    , _nStep = 5
+    , _mainAgentSelectsGreedyActions = False
+    , _workersMinExploration = replicate 6 0.01 ++ [0.5, 0.3, 0.15, 0.10, 0.05, 0.025]
         -- [0.10, 0.05, 0.025, 0.01]
-      replicate 12 0.01
+      -- replicate 12 0.01
     }
 
 
@@ -39,9 +37,9 @@ borlParams = Parameters
   , _delta               = 0.005
   , _gamma               = 0.01
   -- Rest
-  , _epsilon             = [0.30, 0.01] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
+  , _epsilon             = [0.30, 0.50] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
   , _exploration         = 1.0
-  , _learnRandomAbove    = 0.5
+  , _learnRandomAbove    = 0.99
   -- Multichain NBORL and etc.
   , _zeta                = 0.10
   , _xi                  = 5e-3
@@ -52,18 +50,18 @@ nnConfig :: NNConfig
 nnConfig =
   NNConfig
   {   _replayMemoryMaxSize             = 1 -- 20000 -- was 30k
-    , _replayMemoryStrategy            = ReplayMemorySingle -- ReplayMemoryPerAction -- ReplayMemorySingle
+    , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
     , _trainBatchSize                  = 1 -- 32
-    , _grenadeLearningParams           = OptAdam 0.00025 0.9 0.999 1e-7
-    , _grenadeSmoothTargetUpdate = 0.01
-    , _learningParamsDecay             = NoDecay -- ExponentialDecay Nothing 0.85 50000
+    , _trainingIterations              = 1
+    , _grenadeLearningParams           = OptAdam 0.001 0.9 0.999 1e-7 1e-3
+    , _grenadeSmoothTargetUpdate       = 0.001
+    , _learningParamsDecay             = ExponentialDecay (Just 1e-5) (configDecayRate decay) 50000
     , _prettyPrintElems                = [] -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-3000) 3000 (-4000) 6000
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-2000) 2000 (-4000) 4000
     , _stabilizationAdditionalRho      = 0
     , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 75000
     , _updateTargetInterval            = 10000
     , _updateTargetIntervalDecay       = StepWiseIncrease (Just 500) 0.1 10000
-
     }
 
 ------------------------------ ###########################################
@@ -74,13 +72,13 @@ alg =
   -- AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
   -- AlgDQNAvgRewAdjusted 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
   -- AlgDQNAvgRewAdjusted 0.75 0.99 ByStateValues
-  AlgDQNAvgRewAdjusted 0.75 1.00 ByStateValues -- (Fixed 150)
+  AlgDQNAvgRewAdjusted 0.75 1.0 ByStateValues -- (Fixed 150)
   -- (ByStateValuesAndReward 0.5 NoDecay)
   -- (ByMovAvg 5000)
   -- algDQN
 
 initVals :: InitValues
-initVals = InitValues {defaultRhoMinimum = 150, defaultRho = 350, defaultV = 0, defaultW = 0, defaultR0 = 0, defaultR1 = 0}
+initVals = InitValues {defaultRhoMinimum = 500, defaultRho = 0, defaultV = 0, defaultW = 0, defaultR0 = 0, defaultR1 = 0}
 
 experimentName :: T.Text
 experimentName = "20.01.2020 Adaptive BORL Order Releaser with unif procTimes, unif demand"

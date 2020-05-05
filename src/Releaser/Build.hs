@@ -207,32 +207,16 @@ modelBuilderTf actions initState cols =
     lenIn = fromIntegral $ V.length (netInp initState)
     lenActs = genericLength actions
 
--- | The definition for a feed forward network using the dynamic module. Note the nested networks. This network clearly is over-engeneered for this example!
--- modelBuilderGrenade :: [Action a] -> St -> Integer -> IO SpecConcreteNetwork
--- modelBuilderGrenade actions initState cols =
---   buildModelWith HeEtAl $
---   specFullyConnected lenIn (10 * lenIn) |=> specRelu1D (10 * lenIn) |=> specDropout (10*lenIn) 0.90 Nothing |=>
---   specFullyConnected (10*lenIn) (10*lenIn) |=> specRelu1D (10*lenIn) |=>
---   specFullyConnected (10*lenIn) (5*lenOut) |=> specRelu1D (5*lenOut) |=>
---   specFullyConnected (5*lenOut) (2*lenOut) |=> specRelu1D (2*lenOut) |=>
---   specFullyConnected (2*lenOut) lenOut |=> specReshape (lenOut, 1, 1) (lenActs, cols, 1) |=> specTanh (lenActs, cols, 1) |=>
---   specNil (lenActs, cols, 1)
---   -- (if cols > 1
---   --   then specReshape1D2D lenOut (lenActs, cols) |=> specTanh2D (lenActs, cols) |=> specNil2D (lenActs, cols)
---   --   else specTanh1D lenActs |=> specNil1D lenOut)
---   where
---     lenOut = lenActs * cols
---     lenIn = fromIntegral $ V.length (netInp initState)
---     lenActs = genericLength actions
---     buildModelWith = networkFromSpecificationWith
 
 modelBuilderGrenade :: [Action a] -> St -> Integer -> IO SpecConcreteNetwork
 modelBuilderGrenade actions initState cols =
-  buildModelWith HeEtAl BuildSetup { printResultingSpecification = False } $
+  buildModelWith UniformInit BuildSetup { printResultingSpecification = False } $
   inputLayer1D lenIn >>
-  fullyConnected (10*lenIn) >> relu >> dropout 0.90 >>
-  fullyConnected (10*lenIn) >> relu >>
-  fullyConnected (5*lenIn) >> relu >>
+  -- fullyConnected (10*lenIn) >> dropout 0.99 >> relu >>
+  fullyConnected (5*lenIn) >> relu >> -- dropout 0.90 >>
+  fullyConnected (3*lenIn) >> relu >> -- dropout 0.99 >>
+  fullyConnected (2*lenIn) >> relu >>
+  fullyConnected lenIn >> relu >>
   fullyConnected (2*lenOut) >> relu >>
   fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer
   where
@@ -315,18 +299,30 @@ mkMiniPrettyPrintElems st
 
   | otherwise = map V.fromList $ concatMap (zipWith (++) plts . replicate (length plts) . map (scaleValue (Just (scaleOrderMin, scaleOrderMax)))) xs
   where
+    len = V.length $ extractionToList $ extractFeatures True st
     base' = drop (length productTypes) (V.toList $ netInp st)
     plts :: [[Float]]
     plts = map (map (scaleValue (Just (scalePltsMin, scalePltsMax))) . take (length productTypes)) [[1, 3], [3, 5]]
     xs :: [[Float]]
-    xs = [xsSimple, xsSimple2]
-    xsSimple =              concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2]        ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5, 4]]]
+    xs | len - length (head plts) == 22 = [xsSimple, xsSimple2]
+       | len - length (head plts) == 21 = map init [xsSimple, xsSimple2]
+       | len - length (head plts) == 35 = [xsFull1, xsFull2]
+       | len - length (head plts) == 30 = [xs30', xs30]
+       | len - length (head plts) == 50 = [init xs51]
+       | len - length (head plts) == 51 = [xs51]
+       | len - length (head plts) == 45 = [xs45]
+       | otherwise = error ("No mkMiniPrettyPrintElems in Build.hs setup for length: " ++ show len ++ "\nCurrent state: " ++ show (extractFeatures True st))
+    xsSimple =              concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2]        ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 0, 0, 5, 4]]]
                             -- concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2],  [2],[2]  ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5, 4]]]
-    xsSimple2 =             concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[23]         ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 9, 0]]
+    xsSimple2 =             concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[23]         ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 3, 4, 9, 0]]
                                    -- concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[23],  [2],[12]  ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 9, 0]]
                                    ]
-
-
+    xsFull1 = concat [ concat [[ 0, 6, 8, 4, 4, 9, 9]], concat  [concat [[ 2, 0, 0, 0, 0, 0, 0, 0]]], concat [[ 1, 0, 0, 0, 0, 0, 0, 0]], concat [[ 2, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 0, 5, 4]]]
+    xsFull2 = concat [ concat [[ 0, 0, 7, 10, 10, 9, 14]], concat  [concat [[ 2, 12, 9, 0, 0, 0, 0, 0]]], concat [[ 1, 0, 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 3, 4, 9, 0]]]
+    xs51 = concat [ concat [[ 0, 0, 0, 0, 0, 0, 0,13]], concat [ concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0]]]
+    xs45 = concat [ concat [[ 0, 0, 0, 0, 0, 0, 0,15]], concat [ concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]], concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0]]]
+    xs30 = concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[ 0, 0, 0, 0, 0, 4, 6, 0, 0, 0, 0, 0]]], concat [[]], concat [[ 1, 0, 0, 0, 0, 0, 0]], concat [[  0, 0, 0, 0]]]
+    xs30' = concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[ 0, 0, 0, 0, 0, 4, 6, 0, 0, 0, 0, 0]]], concat [[]], concat [[ 3, 2, 0, 0, 0, 0, 0]], concat [[ 3, 4, 9, 2]]]
 ------------------------------------------------------------
 ------------------ ExperimentDef instance ------------------
 ------------------------------------------------------------

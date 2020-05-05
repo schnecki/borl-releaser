@@ -45,8 +45,8 @@ data Extraction = Extraction
   , extOrderPool :: ![[Float]]
   , extQueues    :: ![[[Float]]] -- ^ Queue, ProductType, Period
   , extMachines  :: ![[Float]]   -- ^ Machine, Period
-  , extFgi       :: ![[Float]]  -- ^ ProductType, Period
-  , extShipped   :: ![[Float]]  -- ^ ProductType, Period
+  , extFgi       :: ![[Float]]   -- ^ ProductType, Period
+  , extShipped   :: ![[Float]]   -- ^ ProductType, Period
   , scaleValues  :: !Bool
   }
 

@@ -12,9 +12,9 @@ import           Releaser.Util
 -- | Decay function of parameters.
 decayRateStepsWith :: DecayRate -> DecaySteps -> ConfigDecay
 decayRateStepsWith rate steps =
-  ConfigDecay ("Exponential decay with rate " <> tshow rate <> " in " <> tshow steps <> " steps") $
+  ConfigDecay rate steps ("Exponential decay with rate " <> tshow rate <> " in " <> tshow steps <> " steps") $
   Parameters
-    { _alpha = ExponentialDecay (Just 1e-5) (rate/4*3) steps
+    { _alpha = ExponentialDecay (Just 1e-5) rate steps
     , _alphaRhoMin = NoDecay
 
     , _beta = ExponentialDecay (Just 1e-4) rate steps
