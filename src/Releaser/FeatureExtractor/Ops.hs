@@ -194,7 +194,7 @@ mkFgiList :: CurrentTime -> [Order] -> [Float]
 -- mkFgiList t = init . tail . mkUntilDueList t
 mkFgiList t =
   init . tail .
-  map genericLength . sortByTimeUntilDue 0 (configActFilterMax actionFilterConfig) t
+  map genericLength . sortByTimeUntilDue 1 (configActFilterMax actionFilterConfig) t
 
 mkUntilDueList :: CurrentTime -> [Order] -> [Float]
 mkUntilDueList t xs = map genericLength (sortByTimeUntilDue (-maxBackorderPeriod) (configActFilterMax actionFilterConfig) t xs)

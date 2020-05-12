@@ -44,3 +44,4 @@ test/bil3/
 /exp.hp
 /exp.ps
 /.dir-locals.el
+/.stack-work.prof/

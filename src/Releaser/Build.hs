@@ -212,13 +212,14 @@ modelBuilderGrenade :: [Action a] -> St -> Integer -> IO SpecConcreteNetwork
 modelBuilderGrenade actions initState cols =
   buildModelWith UniformInit BuildSetup { printResultingSpecification = False } $
   inputLayer1D lenIn >>
-  -- fullyConnected (10*lenIn) >> dropout 0.99 >> relu >>
-  fullyConnected (5*lenIn) >> relu >> -- dropout 0.90 >>
-  fullyConnected (3*lenIn) >> relu >> -- dropout 0.99 >>
-  fullyConnected (2*lenIn) >> relu >>
-  fullyConnected lenIn >> relu >>
-  fullyConnected (2*lenOut) >> relu >>
-  fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer
+  -- fullyConnected (10*lenIn) >> dropout 0.99 >> leakyRelu >>
+  -- fullyConnected (5*lenIn) >> leakyRelu >> dropout 0.95 >>
+  -- fullyConnected (10*lenIn) >> leakyRelu >>
+  fullyConnected (3*lenIn) >> leakyRelu >> dropout 0.98 >>
+  fullyConnected (2*lenIn) >> leakyRelu >>
+  fullyConnected lenIn >> leakyRelu >>
+  fullyConnected (2*lenOut) >> leakyRelu >>
+  fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
   where
     lenOut = lenActs * cols
     lenIn = fromIntegral $ V.length (netInp initState)
@@ -306,8 +307,10 @@ mkMiniPrettyPrintElems st
     xs :: [[Float]]
     xs | len - length (head plts) == 22 = [xsSimple, xsSimple2]
        | len - length (head plts) == 21 = map init [xsSimple, xsSimple2]
+       | len - length (head plts) == 18 = [xs19, xs19']
        | len - length (head plts) == 35 = [xsFull1, xsFull2]
        | len - length (head plts) == 30 = [xs30', xs30]
+       | len - length (head plts) == 29 = [xs29', xs29]
        | len - length (head plts) == 50 = [init xs51]
        | len - length (head plts) == 51 = [xs51]
        | len - length (head plts) == 45 = [xs45]
@@ -323,6 +326,11 @@ mkMiniPrettyPrintElems st
     xs45 = concat [ concat [[ 0, 0, 0, 0, 0, 0, 0,15]], concat [ concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]], concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0]]]
     xs30 = concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[ 0, 0, 0, 0, 0, 4, 6, 0, 0, 0, 0, 0]]], concat [[]], concat [[ 1, 0, 0, 0, 0, 0, 0]], concat [[  0, 0, 0, 0]]]
     xs30' = concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[ 0, 0, 0, 0, 0, 4, 6, 0, 0, 0, 0, 0]]], concat [[]], concat [[ 3, 2, 0, 0, 0, 0, 0]], concat [[ 3, 4, 9, 2]]]
+    xs29 = concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[ 0, 0, 0, 0, 0, 4, 6, 0, 0, 0, 0, 0]]], concat [[]], concat [[ 1, 0, 0, 0, 0, 0]], concat [[  0, 0, 0, 0]]]
+    xs29' = concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[ 0, 0, 0, 0, 0, 4, 6, 0, 0, 0, 0, 0]]], concat [[]], concat [[ 3, 2, 0, 0, 0, 0]], concat [[ 3, 4, 9, 2]]]
+    xs19 = concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[ 4]]], concat [[]], concat [[ 1, 0, 0, 0, 0, 0]], concat [[  0, 0, 0, 0]]]
+    xs19' = concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[ 6 ]]], concat [[]], concat [[ 3, 2, 0, 0, 0, 0]], concat [[ 3, 4, 9, 2]]]
+
 ------------------------------------------------------------
 ------------------ ExperimentDef instance ------------------
 ------------------------------------------------------------

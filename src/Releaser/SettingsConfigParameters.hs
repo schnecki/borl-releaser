@@ -20,9 +20,9 @@ borlSettings =
     { _useProcessForking = True
     , _disableAllLearning = False
     , _explorationStrategy = EpsilonGreedy -- SoftmaxBoltzmann 5
-    , _nStep = 5
+    , _nStep = 3
     , _mainAgentSelectsGreedyActions = False
-    , _workersMinExploration = replicate 6 0.01 ++ [0.5, 0.3, 0.15, 0.10, 0.05, 0.025]
+    , _workersMinExploration = replicate 5 0.01 ++ [0.1, 0.2] -- ++ [0.5, 0.3, 0.15, 0.10, 0.05, 0.025]
         -- [0.10, 0.05, 0.025, 0.01]
       -- replicate 12 0.01
     }
@@ -32,14 +32,14 @@ borlSettings =
 borlParams :: Parameters Float
 borlParams = Parameters
   { _alpha               = 0.01
-  , _alphaRhoMin         = 1e-5
+  , _alphaRhoMin         = 0.001
   , _beta                = 0.01
   , _delta               = 0.005
   , _gamma               = 0.01
   -- Rest
   , _epsilon             = [0.30, 0.50] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
   , _exploration         = 1.0
-  , _learnRandomAbove    = 0.99
+  , _learnRandomAbove    = 0.97
   -- Multichain NBORL and etc.
   , _zeta                = 0.10
   , _xi                  = 5e-3
@@ -51,15 +51,15 @@ nnConfig =
   NNConfig
   {   _replayMemoryMaxSize             = 1 -- 20000 -- was 30k
     , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
-    , _trainBatchSize                  = 1 -- 32
+    , _trainBatchSize                  = 2 -- 32
     , _trainingIterations              = 1
-    , _grenadeLearningParams           = OptAdam 0.001 0.9 0.999 1e-7 1e-3
-    , _grenadeSmoothTargetUpdate       = 0.001
-    , _learningParamsDecay             = ExponentialDecay (Just 1e-5) (configDecayRate decay) 50000
-    , _prettyPrintElems                = [] -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-2000) 2000 (-4000) 4000
-    , _stabilizationAdditionalRho      = 0
-    , _stabilizationAdditionalRhoDecay = ExponentialDecay Nothing 0.05 75000
+    , _grenadeLearningParams           = OptAdam 0.005 0.9 0.999 1e-7 1e-3
+    , _grenadeSmoothTargetUpdate       = 0.01
+    , _learningParamsDecay             = ExponentialDecay (Just 1e-6) (configDecayRate decay) (round $ 2 * fromIntegral (configDecaySteps decay))
+    , _prettyPrintElems                = []      -- is set just before printing/at initialisation
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-2000) 2000 (-2000) 5000
+    , _grenadeDropoutFlipActivePeriod  = 10000
+    , _grenadeDropoutOnlyInactiveAfter = 10^6
     , _updateTargetInterval            = 10000
     , _updateTargetIntervalDecay       = StepWiseIncrease (Just 500) 0.1 10000
     }
@@ -78,7 +78,7 @@ alg =
   -- algDQN
 
 initVals :: InitValues
-initVals = InitValues {defaultRhoMinimum = 500, defaultRho = 0, defaultV = 0, defaultW = 0, defaultR0 = 0, defaultR1 = 0}
+initVals = InitValues {defaultRhoMinimum = 500, defaultRho = 120, defaultV = 0, defaultW = 0, defaultR0 = 0, defaultR1 = 0}
 
 experimentName :: T.Text
 experimentName = "20.01.2020 Adaptive BORL Order Releaser with unif procTimes, unif demand"
