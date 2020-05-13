@@ -49,15 +49,15 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-  {   _replayMemoryMaxSize             = 1 -- 20000 -- was 30k
+  {   _replayMemoryMaxSize             = 1000 -- 20000 -- was 30k
     , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
-    , _trainBatchSize                  = 2 -- 32
+    , _trainBatchSize                  = 8
     , _trainingIterations              = 1
     , _grenadeLearningParams           = OptAdam 0.005 0.9 0.999 1e-7 1e-3
     , _grenadeSmoothTargetUpdate       = 0.01
-    , _learningParamsDecay             = ExponentialDecay (Just 1e-6) (configDecayRate decay) (round $ 2 * fromIntegral (configDecaySteps decay))
+    , _learningParamsDecay             = ExponentialDecay (Just 5e-6) (configDecayRate decay) (round $ 2 * fromIntegral (configDecaySteps decay))
     , _prettyPrintElems                = []      -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-2000) 2000 (-2000) 5000
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-2000) 2000 (-2000) 3000
     , _grenadeDropoutFlipActivePeriod  = 10000
     , _grenadeDropoutOnlyInactiveAfter = 10^6
     , _updateTargetInterval            = 10000
