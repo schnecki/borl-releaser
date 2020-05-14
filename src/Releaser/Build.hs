@@ -215,10 +215,15 @@ modelBuilderGrenade actions initState cols =
   -- fullyConnected (10*lenIn) >> dropout 0.99 >> leakyRelu >>
   -- fullyConnected (5*lenIn) >> leakyRelu >> dropout 0.95 >>
   -- fullyConnected (10*lenIn) >> leakyRelu >>
-  fullyConnected (3*lenIn) >> leakyRelu >> dropout 0.98 >>
-  fullyConnected (2*lenIn) >> leakyRelu >>
-  fullyConnected lenIn >> leakyRelu >>
-  fullyConnected (2*lenOut) >> leakyRelu >>
+  -- fullyConnected (3*lenIn) >> leakyRelu >> dropout 0.98 >>
+  -- fullyConnected (2*lenIn) >> leakyRelu >>
+  -- fullyConnected lenIn >> leakyRelu >>
+  -- fullyConnected (2*lenOut) >> leakyRelu >>
+  -- fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
+  -- fullyConnected (3*lenIn) >> relu >>
+  fullyConnected (2*lenIn) >> relu >>
+  fullyConnected lenIn >> relu >>
+  fullyConnected (2*lenOut) >> relu >>
   fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
   where
     lenOut = lenActs * cols
@@ -314,6 +319,7 @@ mkMiniPrettyPrintElems st
        | len - length (head plts) == 50 = [init xs51]
        | len - length (head plts) == 51 = [xs51]
        | len - length (head plts) == 45 = [xs45]
+       | len - length (head plts) == 44 = [xs44, xs44']
        | otherwise = error ("No mkMiniPrettyPrintElems in Build.hs setup for length: " ++ show len ++ "\nCurrent state: " ++ show (extractFeatures True st))
     xsSimple =              concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2]        ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 0, 0, 5, 4]]]
                             -- concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2],  [2],[2]  ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5, 4]]]
@@ -330,6 +336,9 @@ mkMiniPrettyPrintElems st
     xs29' = concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[ 0, 0, 0, 0, 0, 4, 6, 0, 0, 0, 0, 0]]], concat [[]], concat [[ 3, 2, 0, 0, 0, 0]], concat [[ 3, 4, 9, 2]]]
     xs19 = concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[ 4]]], concat [[]], concat [[ 1, 0, 0, 0, 0, 0]], concat [[  0, 0, 0, 0]]]
     xs19' = concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[ 6 ]]], concat [[]], concat [[ 3, 2, 0, 0, 0, 0]], concat [[ 3, 4, 9, 2]]]
+
+    xs44 = concat [ concat [[ 0, 0, 12, 14, 15, 11, 4, 10, 12, 8, 3,13]], concat [ concat [[ 0, 0, 0, 0, 0, 4, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],[], concat [[ 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 2]]]
+    xs44' = concat [ concat [[ 0, 0, 1, 4, 5, 1, 4, 10, 12, 15, 12,13]], concat [ concat [[ 0, 0, 0, 0, 0, 4, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],[], concat [[ 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 2]]]
 
 ------------------------------------------------------------
 ------------------ ExperimentDef instance ------------------
