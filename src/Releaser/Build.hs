@@ -224,11 +224,14 @@ modelBuilderGrenade actions initState cols =
   fullyConnected (2*lenIn) >> relu >>
   fullyConnected lenIn >> relu >>
   fullyConnected (2*lenOut) >> relu >>
-  fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
+  fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer
   where
     lenOut = lenActs * cols
     lenIn = fromIntegral $ V.length (netInp initState)
     lenActs = genericLength actions
+
+--  *GOOD RESULTS* with DDS=12 and
+-- SpecFullyConnected 45 90 :=> SpecRelu (90,1,1) :=> SpecFullyConnected 90 45 :=> SpecRelu (45,1,1) :=> SpecFullyConnected 45 6 :=> SpecRelu (6,1,1) :=> SpecFullyConnected 6 3 :=> SpecTanh (3,1,1) :=> SpecNNil1D 3
 
 
 mkInitSt :: SimSim -> [Order] -> (AgentType -> IO St, [Action St], St -> V.Vector Bool)
@@ -320,6 +323,8 @@ mkMiniPrettyPrintElems st
        | len - length (head plts) == 51 = [xs51]
        | len - length (head plts) == 45 = [xs45]
        | len - length (head plts) == 44 = [xs44, xs44']
+       | len - length (head plts) == 106 = [xs106, xs106']
+       | len - length (head plts) == 156 = [xs156, xs156']
        | otherwise = error ("No mkMiniPrettyPrintElems in Build.hs setup for length: " ++ show len ++ "\nCurrent state: " ++ show (extractFeatures True st))
     xsSimple =              concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2]        ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 0, 0, 5, 4]]]
                             -- concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2],  [2],[2]  ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5, 4]]]
@@ -339,6 +344,11 @@ mkMiniPrettyPrintElems st
 
     xs44 = concat [ concat [[ 0, 0, 12, 14, 15, 11, 4, 10, 12, 8, 3,13]], concat [ concat [[ 0, 0, 0, 0, 0, 4, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],[], concat [[ 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 2]]]
     xs44' = concat [ concat [[ 0, 0, 1, 4, 5, 1, 4, 10, 12, 15, 12,13]], concat [ concat [[ 0, 0, 0, 0, 0, 4, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],[], concat [[ 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 2]]]
+    xs156 = concat [ concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8]],concat [ concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],[], concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 0],[ 0, 0, 0, 0]]]
+    xs156' = concat [concat [[ 0, 0, 4, 8, 5, 6, 5, 8, 8, 2, 3, 1],[ 0, 0, 0, 0, 0, 0, 0, 4, 7, 3, 5, 2]],concat [ concat [[ 0, 0, 7, 3, 3, 7, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 7, 3, 3, 6, 5, 3, 2, 0, 0, 0, 0, 0, 0]]],[],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 1, 0, 0],[ 0, 0, 0, 5]]]
+
+    xs106 = concat [ concat[[ 0, 0, 0, 0, 0, 0, 3],[ 0, 0, 0, 0, 0, 0, 7]],concat [ concat[[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],[],concat [[ 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0],[ 0, 0, 0, 0]]]
+    xs106' = concat[ concat [[ 0, 0, 3, 9, 4, 6, 1],[ 0, 0, 0, 0, 0, 0, 2]],concat [ concat [[ 0, 0, 0, 0, 0, 4, 5, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0,11, 2, 0]],concat [[ 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0]]],[],concat [[ 2, 0, 0, 0, 0, 0],[ 5, 1, 8, 0, 0, 0]],concat [[ 0, 0, 0, 0],[ 0, 0, 0, 0]]]
 
 ------------------------------------------------------------
 ------------------ ExperimentDef instance ------------------

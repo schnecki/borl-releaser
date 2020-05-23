@@ -17,7 +17,7 @@ import           Releaser.SettingsPeriod
 import           Releaser.Util
 
 dds :: Integer
-dds = 12
+dds = 7
 
 dueDateSlack :: Time
 dueDateSlack = fromInteger dds * periodLength
