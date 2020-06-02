@@ -574,7 +574,7 @@ instance ExperimentDef (BORL St) where
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
-      "Alpha (at period 0)"
+      "AlphaRhoMin (at period 0)"
       (set (B.parameters . alphaRhoMin))
       (^. B.parameters . alphaRhoMin)
       (Just $ return . const [0.001])
