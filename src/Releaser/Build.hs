@@ -424,6 +424,7 @@ instance ExperimentDef (BORL St) where
     -- BORL' related measures
     let val !l = realToFrac (borl' ^?! l)
     let !avgRew    = StepResult "AvgReward" (Just $ fromIntegral borlT) (val $ proxies . rho . proxyScalar)
+        !expAvgRew = StepResult "ExpAvgReward" (Just $ fromIntegral borlT) (val $ expSmoothedReward)
         !avgRewMin = StepResult "MinAvgReward" (Just $ fromIntegral borlT) (val $ proxies . rhoMinimum . proxyScalar)
         !pltP1     = StepResult "PLT P1" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 1) (borl' ^. s . plannedLeadTimes))
         !pltP2     = StepResult "PLT P2" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 2) (borl' ^. s . plannedLeadTimes))
@@ -440,6 +441,7 @@ instance ExperimentDef (BORL St) where
       then ([
           avgRew
         , avgRewMin
+        , expAvgRew
         -- , vAvg
         , reward
 
@@ -472,6 +474,7 @@ instance ExperimentDef (BORL St) where
              -- BORL related measures
         , avgRew
         , avgRewMin
+        , expAvgRew
         , pltP1
         , pltP2
         , psiRho
@@ -811,9 +814,9 @@ instance ExperimentDef (BORL St) where
   beforeWarmUpHook _ _ _ g borl = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True borl
   beforeEvaluationHook _ _ _ g borl -- in case warm up phase is 0 periods
    = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True  borl
-  -- afterPreparationHook _ expNr repetNr = liftIO $ copyFiles "prep_" expNr repetNr Nothing
-  -- afterWarmUpHook _ expNr repetNr repliNr = liftIO $ copyFiles "warmup_" expNr repetNr (Just repliNr)
-  -- afterEvaluationHook _ expNr repetNr repliNr = liftIO $ copyFiles "eval_" expNr repetNr (Just repliNr)
+  afterPreparationHook _ expNr repetNr = liftIO $ copyFiles "prep_" expNr repetNr Nothing
+  afterWarmUpHook _ expNr repetNr repliNr = liftIO $ copyFiles "warmup_" expNr repetNr (Just repliNr)
+  afterEvaluationHook _ expNr repetNr repliNr = liftIO $ copyFiles "eval_" expNr repetNr (Just repliNr)
 
 
 expSetting :: BORL St -> ExperimentSetting
