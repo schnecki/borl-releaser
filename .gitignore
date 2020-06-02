@@ -45,3 +45,5 @@ test/bil3/
 /exp.ps
 /.dir-locals.el
 /.stack-work.prof/
+/stateVAllStates_scaled
+/test/stateVAllStates_scaled

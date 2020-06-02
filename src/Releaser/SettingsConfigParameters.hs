@@ -3,7 +3,9 @@
 {-# LANGUAGE Unsafe            #-}
 module Releaser.SettingsConfigParameters where
 
+import           Control.Lens           ((^.))
 import qualified Data.Text              as T
+
 
 -- ANN modules
 import           Grenade
@@ -22,9 +24,7 @@ borlSettings =
     , _explorationStrategy = EpsilonGreedy -- SoftmaxBoltzmann 5
     , _nStep = 3
     , _mainAgentSelectsGreedyActions = False
-    , _workersMinExploration = replicate 5 0.01 ++ [0.1, 0.2] -- ++ [0.5, 0.3, 0.15, 0.10, 0.05, 0.025]
-        -- [0.10, 0.05, 0.025, 0.01]
-      -- replicate 12 0.01
+    , _workersMinExploration = replicate 5 0.01 ++ [0.1, 0.2]
     }
 
 
@@ -57,7 +57,8 @@ nnConfig =
     , _grenadeSmoothTargetUpdate       = 0.01
     , _learningParamsDecay             = ExponentialDecay (Just 5e-6) (configDecayRate decay) (round $ 2 * fromIntegral (configDecaySteps decay))
     , _prettyPrintElems                = []      -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-3000) 3000 (-5000) 5000
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-1500) 5000 (-2000) 5000
+    , _scaleOutputAlgorithm            = ScaleMinMax -- ScaleLog 1000 -- ScaleMinMax
     , _cropTrainMaxValScaled           = Just 0.98 -- Nothing
     , _grenadeDropoutFlipActivePeriod  = 10^5
     , _grenadeDropoutOnlyInactiveAfter = 0 -- 10^6
@@ -82,6 +83,9 @@ initVals :: InitValues
 initVals = InitValues {defaultRhoMinimum = 500, defaultRho = 120, defaultV = 0, defaultW = 0, defaultR0 = 0, defaultR1 = 0}
 
 experimentName :: T.Text
-experimentName = "20.01.2020 Adaptive BORL Order Releaser with unif procTimes, unif demand"
+experimentName = "02.06.2020 LOD Paper Setup"
 
+
+scaleAlg :: ScalingAlgorithm
+scaleAlg = nnConfig ^. scaleOutputAlgorithm
 

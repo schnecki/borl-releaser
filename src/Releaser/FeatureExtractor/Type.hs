@@ -14,16 +14,17 @@ module Releaser.FeatureExtractor.Type
 
 
 import           Control.Concurrent.MVar
-import           Data.List                     (foldl', genericLength)
-import           Data.Text                     (Text)
-import qualified Data.Vector.Storable          as V
+import           Data.List                         (foldl', genericLength)
+import           Data.Text                         (Text)
+import qualified Data.Vector.Storable              as V
 import           System.IO.Unsafe
 import           Text.Printf
 
 
-import           ML.BORL                       hiding (FeatureExtractor)
+import           ML.BORL                           hiding (FeatureExtractor)
 
 import           Releaser.SettingsActionFilter
+import           Releaser.SettingsConfigParameters
 import           Releaser.SettingsRouting
 import           Releaser.Type
 
@@ -79,31 +80,31 @@ extractionToList (Extraction plts op que mac fgi shipped scale) =
 
 scalePlts, scaleOrder :: Bool -> Float -> Float
 scalePlts scale
-  | scale = scaleValue (Just (scalePltsMin, scalePltsMax))
+  | scale = scaleValue scaleAlg (Just (scalePltsMin, scalePltsMax))
   | otherwise = id
 scaleOrder scale
-  | scale = scaleValue (Just (scaleOrderMin, scaleOrderMax))
+  | scale = scaleValue scaleAlg (Just (scaleOrderMin, scaleOrderMax))
   | otherwise = id
 
 scaleMachines :: Bool -> [[Float]] -> [[Float]]
 scaleMachines _ [] = []
-scaleMachines True xs@[[_]] = map (map (scaleValue (Just (0, genericLength machines)))) xs
+scaleMachines True xs@[[_]] = map (map (scaleValue scaleAlg (Just (0, genericLength machines)))) xs
 scaleMachines scale xs
-  | scale = map (map (scaleValue (Just (0, 1)))) xs
+  | scale = map (map (scaleValue scaleAlg (Just (0, 1)))) xs
   | otherwise = xs
 
 unscalePlts, unscaleOrder :: Bool -> Float -> Float
 unscalePlts scale
-  | scale = unscaleValue (Just (scalePltsMin, scalePltsMax))
+  | scale = unscaleValue scaleAlg (Just (scalePltsMin, scalePltsMax))
   | otherwise = id
 unscaleOrder scale
-  | scale = unscaleValue (Just (scaleOrderMin, scaleOrderMax))
+  | scale = unscaleValue scaleAlg (Just (scaleOrderMin, scaleOrderMax))
   | otherwise = id
 unscaleMachines :: Bool -> [[Float]] -> [[Float]]
 unscaleMachines _ [] = []
-unscaleMachines True xs@[[_]] = map (map (unscaleValue (Just (0, genericLength machines)))) xs
+unscaleMachines True xs@[[_]] = map (map (unscaleValue scaleAlg (Just (0, genericLength machines)))) xs
 unscaleMachines scale xs
-  | scale = map (map (unscaleValue (Just (0, 1)))) xs
+  | scale = map (map (unscaleValue scaleAlg (Just (0, 1)))) xs
   | otherwise = xs
 
 
