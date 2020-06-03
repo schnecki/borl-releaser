@@ -98,8 +98,8 @@ buildSim =
     -- procTimesConst
     procTimes
     periodLength
-    -- releaseImmediate
-    (releaseBIL $ M.fromList [(Product 1, 1), (Product 2, 1)])
+    releaseImmediate
+    -- (releaseBIL $ M.fromList [(Product 1, 1), (Product 2, 1)])
     -- (releaseBIL $ M.fromList [(Product 1, 2), (Product 2, 2)])
     -- (releaseBIL $ M.fromList [(Product 1, 3), (Product 2, 3)])
     -- (releaseBIL $ M.fromList [(Product 1, 4), (Product 2, 4)])
