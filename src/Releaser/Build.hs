@@ -734,8 +734,8 @@ instance ExperimentDef (BORL St) where
       "ScaleParameters"
       (setAllProxies (proxyNNConfig . scaleParameters))
       (^?! proxies . v . proxyNNConfig . scaleParameters)
-      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-5000) 5000 (-1500) 5000 (-2000) 5000
-                             ,ScalingNetOutParameters (-800) 800 (-5000) 5000 (-1500) 3000 (-2000) 3000
+      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-5000) 5000 (-1500) 5000 (-5000) 5000
+                             ,ScalingNetOutParameters (-800) 800 (-5000) 5000 (-1500) 3000 (-3000) 3000
                              ])
       Nothing
       Nothing
