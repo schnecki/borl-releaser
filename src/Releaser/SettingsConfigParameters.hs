@@ -24,7 +24,7 @@ borlSettings =
     , _explorationStrategy = EpsilonGreedy -- SoftmaxBoltzmann 5
     , _nStep = 3
     , _mainAgentSelectsGreedyActions = False
-    , _workersMinExploration = replicate 5 0.01 ++ [0.1, 0.2]
+    , _workersMinExploration = replicate 10 0.01 ++ [0.05, 0.10, 0.20, 0.30]
     }
 
 
@@ -57,7 +57,7 @@ nnConfig =
     , _grenadeSmoothTargetUpdate       = 0.01
     , _learningParamsDecay             = ExponentialDecay (Just 5e-6) (configDecayRate decay) (round $ 2 * fromIntegral (configDecaySteps decay))
     , _prettyPrintElems                = []      -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-1500) 5000 (-2000) 5000
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-3000) 3000 (-5000) 5000
     , _scaleOutputAlgorithm            = ScaleMinMax -- ScaleLog 1000 -- ScaleMinMax
     , _cropTrainMaxValScaled           = Just 0.98 -- Nothing
     , _grenadeDropoutFlipActivePeriod  = 10^5
@@ -74,7 +74,7 @@ alg =
   -- AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
   -- AlgDQNAvgRewAdjusted 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
   -- AlgDQNAvgRewAdjusted 0.75 0.99 ByStateValues
-  AlgDQNAvgRewAdjusted 0.75 1.0 ByStateValues -- (Fixed 150)
+  AlgDQNAvgRewAdjusted 0.99 1.0 ByStateValues
   -- (ByStateValuesAndReward 0.5 NoDecay)
   -- (ByMovAvg 5000)
   -- algDQN

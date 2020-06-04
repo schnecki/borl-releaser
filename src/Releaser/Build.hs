@@ -796,7 +796,7 @@ instance ExperimentDef (BORL St) where
       "Workers Min Exploration"
       (set (settings . workersMinExploration))
       (^. settings . workersMinExploration)
-      (Just $ return . const [[0.01, 0.01, 0.01, 0.01, 0.01, 0.10, 0.20]])
+      (Just $ return . const [replicate 10 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
       Nothing
       Nothing
       Nothing
