@@ -3,15 +3,16 @@
 {-# LANGUAGE Unsafe            #-}
 module Releaser.SettingsConfigParameters where
 
-import           Control.Lens           ((^.))
-import qualified Data.Text              as T
+import           Control.Lens             ((^.))
+import qualified Data.Text                as T
 
 
 -- ANN modules
 import           Grenade
 
-import           ML.BORL                as B hiding (actionFilter, featureExtractor)
+import           ML.BORL                  as B hiding (actionFilter, featureExtractor)
 import           Releaser.SettingsDecay
+import           Releaser.SettingsRouting (productTypes)
 
 -- useHeuristicToFillReplMem :: Maybe Release
 -- useHeuristicToFillReplMem = Just $ releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
@@ -25,6 +26,8 @@ borlSettings =
     , _nStep = 3
     , _mainAgentSelectsGreedyActions = False
     , _workersMinExploration = replicate 10 0.01 ++ [0.05, 0.10, 0.20, 0.30]
+    , _overEstimateRho = True
+    , _independentAgents = length productTypes
     }
 
 
@@ -49,8 +52,8 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-  {   _replayMemoryMaxSize             = 1000 -- 20000 -- was 30k
-    , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
+  {   _replayMemoryMaxSize             = 20000 -- 1000 -- was 30k
+    , _replayMemoryStrategy            = ReplayMemorySingle -- ReplayMemoryPerAction
     , _trainBatchSize                  = 4
     , _trainingIterations              = 1
     , _grenadeLearningParams           = OptAdam 0.005 0.9 0.999 1e-7 1e-3
@@ -88,4 +91,3 @@ experimentName = "02.06.2020 LOD Paper Setup"
 
 scaleAlg :: ScalingAlgorithm
 scaleAlg = nnConfig ^. scaleOutputAlgorithm
-

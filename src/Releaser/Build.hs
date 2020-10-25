@@ -17,12 +17,11 @@
 module Releaser.Build
     ( buildBORLTable
     , buildBORLGrenade
-    , buildBORLTensorflow
     , buildSim
+    , borlSettings
     , scaleAlg
     , nnConfig
     , netInp
-    , modelBuilderTf
     , modelBuilderGrenade
     , actionConfig
     , experimentName
@@ -45,6 +44,7 @@ import           Data.Maybe                        (isJust)
 import qualified Data.Proxy                        as Px
 import           Data.Reflection                   (reifyNat)
 import           Data.Serialize                    as S
+import           Data.Serialize.Text               ()
 import qualified Data.Text                         as T
 import qualified Data.Text                         as T
 import qualified Data.Text.Encoding                as E
@@ -53,6 +53,7 @@ import           GHC.Exts                          (IsList (..))
 import           GHC.TypeLits                      (KnownNat)
 import           Grenade
 import           Network.HostName
+import           Prelude                           hiding (scaleFloat)
 import           Statistics.Distribution
 import           Statistics.Distribution.Uniform
 import           System.Directory
@@ -63,7 +64,6 @@ import           Unsafe.Coerce                     (unsafeCoerce)
 
 -- ANN modules
 import           Grenade
-import qualified HighLevelTensorflow               as TF
 
 import           Experimenter                      hiding (sum)
 import           ML.BORL                           as B hiding (actionFilter,
@@ -102,7 +102,7 @@ buildSim =
     -- (releaseBIL $ M.fromList [(Product 1, 1), (Product 2, 1)])
     -- (releaseBIL $ M.fromList [(Product 1, 2), (Product 2, 2)])
     -- (releaseBIL $ M.fromList [(Product 1, 3), (Product 2, 3)])
-    -- (releaseBIL $ M.fromList [(Product 1, 4), (Product 2, 4)])
+    -- (releaseBIL $ M.fromList [(Product 1, 4), (Product 2, 4), (Product 3, 4), (Product 4, 4), (Product 5, 4), (Product 6, 4)])
     -- (releaseBIL $ M.fromList [(Product 1, 7), (Product 2, 7)])
     (mkReleasePLT initialPLTS)
     dispatchFirstComeFirstServe
@@ -110,23 +110,6 @@ buildSim =
 
 initialPLTS :: M.Map ProductType Time
 initialPLTS = M.fromList $ zip productTypes [1 ..]
-
-procTimes :: ProcTimes
-procTimes =
-  map (second $ filter ((`elem` productTypes) . fst)) $ filter ((`elem` allBlocks) . fst)
-  [ (Machine 1, [ (Product 1, fmap timeFromDouble . genContVar (uniformDistr (70 / 960) (130 / 960)))
-                , (Product 2, fmap timeFromDouble . genContVar (uniformDistr (70 / 960) (130 / 960)))])
-  , (Machine 2, [(Product 1, fmap timeFromDouble . genContVar (uniformDistr (130 / 960) (170 / 960)))])
-  , (Machine 3, [(Product 2, fmap timeFromDouble . genContVar (uniformDistr (180 / 960) (200 / 960)))])
-  ]
-
-procTimesConst :: ProcTimes
-procTimesConst =
-  map (second $ filter ((`elem` productTypes) . fst)) $ filter ((`elem` allBlocks) . fst)
-    [ (Machine 1, [(Product 1, return . const (timeFromDouble (100 / 960))), (Product 2, return . const (timeFromDouble (100 / 960)))])
-    , (Machine 2, [(Product 1, return . const (timeFromDouble (150 / 960)))])
-    , (Machine 3, [(Product 2, return . const (timeFromDouble (190 / 960)))])
-    ]
 
 
 -- testDemand :: IO ()
@@ -172,7 +155,7 @@ instance Show St where
 netInp :: St -> V.Vector Float
 netInp = extractionToList . extractFeatures True
 
-mInverse :: BORL St -> NetInputWoAction -> Maybe (Either String St)
+mInverse :: BORL St Act -> NetInputWoAction -> Maybe (Either String St)
 mInverse borl = return . Left . show . fromListToExtraction (borl ^. s) (featureExtractor True)
 
 netInpTbl :: St -> V.Vector Float
@@ -189,28 +172,8 @@ netInpTblBinary st = case extractFeatures False st of
              | otherwise = 1
 
 
-modelBuilderTf :: (TF.MonadBuild m) => [Action a] -> St -> Int64 -> m TF.TensorflowModel
-modelBuilderTf actions initState cols =
-  TF.buildModel $ -- (TF.BuildSetup 0.001) $
-  TF.inputLayer1D lenIn >>
-  TF.fullyConnected [10 * lenIn] TF.relu' >>
-  TF.fullyConnected [10 * lenIn] TF.relu' >>
-  TF.fullyConnected [5 * lenIn] TF.relu' >>
-  TF.fullyConnected [5 * lenIn] TF.relu' >>
-  TF.fullyConnected [lenActs, cols] TF.relu' >>
-  TF.fullyConnected [lenActs, cols] TF.relu' >>
-  TF.fullyConnectedLinear [lenActs, cols] >>
-  -- TF.fullyConnected [lenActs, cols] TF.tanh' >>
-  TF.trainingByAdamWith TF.AdamConfig {TF.adamLearningRate = 0.00025, TF.adamBeta1 = 0.9, TF.adamBeta2 = 0.999, TF.adamEpsilon = 1e-8}
-  -- trainingByRmsPropWith TF.RmsPropConfig {TF.rmsPropLearningRate = 0.00025, TF.rmsPropRho = 0.5, TF.rmsPropMomentum = 0.95, TF.rmsPropEpsilon = 0.01}
-  -- trainingByGradientDescent 0.001
-  where
-    lenIn = fromIntegral $ V.length (netInp initState)
-    lenActs = genericLength actions
-
-
-modelBuilderGrenade :: [Action a] -> St -> Integer -> IO SpecConcreteNetwork
-modelBuilderGrenade actions initState cols =
+modelBuilderGrenade :: St -> Integer -> IO SpecConcreteNetwork
+modelBuilderGrenade initState cols =
   buildModelWith UniformInit BuildSetup { printResultingSpecification = False } $
   inputLayer1D lenIn >>
   -- fullyConnected (10*lenIn) >> dropout 0.99 >> leakyRelu >>
@@ -229,46 +192,38 @@ modelBuilderGrenade actions initState cols =
   where
     lenOut = lenActs * cols
     lenIn = fromIntegral $ V.length (netInp initState)
-    lenActs = genericLength actions
+    lenActs = genericLength actions * fromIntegral (borlSettings ^. independentAgents)
+    actions = [minBound .. maxBound] :: [Action Act]
 
 --  *GOOD RESULTS* with DDS=12 and
 -- SpecFullyConnected 45 90 :=> SpecRelu (90,1,1) :=> SpecFullyConnected 90 45 :=> SpecRelu (45,1,1) :=> SpecFullyConnected 45 6 :=> SpecRelu (6,1,1) :=> SpecFullyConnected 6 3 :=> SpecTanh (3,1,1) :=> SpecNNil1D 3
 
 
-mkInitSt :: SimSim -> [Order] -> (AgentType -> IO St, [Action St], St -> V.Vector Bool)
+mkInitSt :: SimSim -> [Order] -> (AgentType -> IO St, St -> [V.Vector Bool])
 mkInitSt sim startOrds =
   let initSt = St sim startOrds rewardFunction (M.fromList $ zip productTypes (repeat (Time 1)))
-      (actionList, actions) = mkConfig (action initSt) actionConfig
-      actFilter = mkConfig (actionFilter actionList) actionFilterConfig
-  in (return . const initSt, actions, actFilter)
+      actFilter = mkConfig actionFilter actionFilterConfig
+  in (return . const initSt, actFilter)
 
 
-buildBORLTable :: IO (BORL St)
+buildBORLTable :: IO (BORL St Act)
 buildBORLTable = do
   sim <- buildSim
   startOrds <- liftIO $ generateOrders sim
-  let (initSt, actions, actFilter) = mkInitSt sim startOrds
+  let (initSt, actFilter) = mkInitSt sim startOrds
   mkUnichainTabular alg initSt netInpTbl -- netInpTblBinary
-    actions actFilter borlParams (configDecay decay) borlSettings (Just initVals)
+    action actFilter borlParams (configDecay decay) borlSettings (Just initVals)
 
-buildBORLGrenade :: IO (BORL St)
+buildBORLGrenade :: IO (BORL St Act)
 buildBORLGrenade = do
   sim <- buildSim
   startOrds <- liftIO $ generateOrders sim
-  let (initSt, actions, actFilter) = mkInitSt sim startOrds
+  let (initSt, actFilter) = mkInitSt sim startOrds
   st <- liftIO $ initSt MainAgent
-  flipObjective . setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilderGrenade actions st) nnConfig borlSettings (Just initVals)
+  flipObjective . setPrettyPrintElems <$> mkUnichainGrenadeCombinedNet alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilderGrenade st) nnConfig borlSettings (Just initVals)
 
-buildBORLTensorflow :: (MonadBorl' m) => m (BORL St)
-buildBORLTensorflow = do
-  sim <- liftIO buildSim
-  startOrds <- liftIO $ generateOrders sim
-  let (initSt, actions, actFilter) = mkInitSt sim startOrds
-  st <- liftIO $ initSt MainAgent
-  flipObjective . setPrettyPrintElems <$> mkUnichainTensorflowCombinedNetM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilderTf actions st) nnConfig borlSettings (Just initVals)
-  -- setPrettyPrintElems <$> mkUnichainTensnorflowM alg initSt netInp actions actFilter borlParams (configDecay decay) (modelBuilderTf actions initSt) nnConfig (Just initVals)
 
-setPrettyPrintElems :: BORL St -> BORL St
+setPrettyPrintElems :: BORL St Act -> BORL St Act
 setPrettyPrintElems borl = setAllProxies (proxyNNConfig . prettyPrintElems) (ppElems borl) borl
   where ppElems borl = mkMiniPrettyPrintElems (borl ^. s)
 
@@ -304,15 +259,16 @@ databaseSetting = do
 mkMiniPrettyPrintElems :: St -> [V.Vector Float]
 mkMiniPrettyPrintElems st
   | length (head xs) /= length base' = error $ "wrong length in mkMiniPrettyPrintElems: " ++
-                                show (length $ head xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (unscaleValue scaleAlg (Just (scaleOrderMin, scaleOrderMax))) base') ++
+                                show (length $ head xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (unscaleFloat scaleAlg (Just (scaleOrderMin, scaleOrderMax))) base') ++
                                 "\nCurrent state: " ++ show (extractFeatures True st)
 
-  | otherwise = map V.fromList $ concatMap (zipWith (++) plts . replicate (length plts) . map (scaleValue scaleAlg (Just (scaleOrderMin, scaleOrderMax)))) xs
+  | otherwise = map V.fromList $ concatMap (zipWith (++) plts . replicate (length plts) . map (scaleFloat scaleAlg (Just (scaleOrderMin, scaleOrderMax)))) xs
   where
     len = V.length $ extractionToList $ extractFeatures True st
     base' = drop (length productTypes) (V.toList $ netInp st)
+
     plts :: [[Float]]
-    plts = map (map (scaleValue scaleAlg (Just (scalePltsMin, scalePltsMax))) . take (length productTypes)) [[1, 3], [3, 5]]
+    plts = map (map (scaleFloat scaleAlg (Just (scalePltsMin, scalePltsMax))) . take (length productTypes)) [[1,3], [3,5]] -- [[1, 3, 1, 1, 3, 1], [3, 5, 3, 3, 5, 3]]
     xs :: [[Float]]
     xs | len - length (head plts) == 22 = [xsSimple, xsSimple2]
        | len - length (head plts) == 21 = map init [xsSimple, xsSimple2]
@@ -326,6 +282,8 @@ mkMiniPrettyPrintElems st
        | len - length (head plts) == 44 = [xs44, xs44']
        | len - length (head plts) == 106 = [xs106, xs106']
        | len - length (head plts) == 156 = [xs156, xs156']
+       | len - length (head plts) == 226 = [xs226]
+       | trace ("len - length (head plts): " ++ show (len - length (head plts)))len - length (head plts) == 678 = [xs684]
        | otherwise = error ("No mkMiniPrettyPrintElems in Build.hs setup for length: " ++ show len ++ "\nCurrent state: " ++ show (extractFeatures True st))
     xsSimple =              concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2]        ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 0, 0, 5, 4]]]
                             -- concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2],  [2],[2]  ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5, 4]]]
@@ -351,43 +309,45 @@ mkMiniPrettyPrintElems st
     xs106 = concat [ concat[[ 0, 0, 0, 0, 0, 0, 3],[ 0, 0, 0, 0, 0, 0, 7]],concat [ concat[[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],[],concat [[ 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0],[ 0, 0, 0, 0]]]
     xs106' = concat[ concat [[ 0, 0, 3, 9, 4, 6, 1],[ 0, 0, 0, 0, 0, 0, 2]],concat [ concat [[ 0, 0, 0, 0, 0, 4, 5, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0,11, 2, 0]],concat [[ 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0]]],[],concat [[ 2, 0, 0, 0, 0, 0],[ 5, 1, 8, 0, 0, 0]],concat [[ 0, 0, 0, 0],[ 0, 0, 0, 0]]]
 
+    xs684 :: [Float]
+    xs684 = concat [ concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 3],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], concat[ concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],[], concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0],[ 0, 0, 0, 0],[ 0, 0, 0, 0],[ 0, 0, 0, 0],[ 0, 0, 0, 0],[ 0, 0, 0, 0]]]
+    xs226 :: [Float]
+    xs226 = concat [ concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 5],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]], concat [ concat[[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],[],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0],[ 0, 0, 0, 0]]]
+
 ------------------------------------------------------------
 ------------------ ExperimentDef instance ------------------
 ------------------------------------------------------------
 
 
-instance ExperimentDef (BORL St) where
-  -- type ExpM (BORL St) = TF.SessionT IO
-  type ExpM (BORL St) = IO
-  type Serializable (BORL St) = BORLSerialisable StSerialisable
+instance ExperimentDef (BORL St Act) where
+  -- type ExpM (BORL St Act) = TF.SessionT IO
+  type ExpM (BORL St Act) = IO
+  type Serializable (BORL St Act) = BORLSerialisable StSerialisable Act
   serialisable = do
     res <- toSerialisableWith serializeSt id
     return res
   deserialisable ser =
-    -- runMonadBorlTF $ do
-      -- borl <- buildBORLTensorflow
     unsafePerformIO $ do
       borl <- buildBORLGrenade
       let (St sim _ _ _) = borl ^. s
-      let (_, actions) = mkConfig (action (borl ^. s)) actionConfig
+      -- let (_, actions) = mkConfig (action (borl ^. s)) actionConfig
       return $
         fromSerialisableWith
           (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
           id
-          actions
+          action
           (borl ^. B.actionFilter)
           netInp
-          (modelBuilderTf actions (borl ^. s))
           ser
-  type InputValue (BORL St) = [Order]
-  type InputState (BORL St) = ()
+  type InputValue (BORL St Act) = [Order]
+  type InputState (BORL St Act) = ()
   -- ^ Generate some input values and possibly modify state. This function can be used to change the state. It is called
   -- before `runStep` and its output is used to call `runStep`.
   generateInput !_ !borl !_ !_ = do
     let !(St !_ !inc !_ !_) = borl ^. s
     return (inc, ())
   -- ^ Run a step of the environment and return new state and result.
-  -- runStep :: (MonadBorl' m) => a -> InputValue a -> E.Period -> m ([StepResult], a)
+  -- runStep :: (MonadIO m) => a -> InputValue a -> E.Period -> m ([StepResult], a)
   runStep !phase !borl !incOrds !_ = do
     !borl' <- stepM (set (s . nextIncomingOrders) incOrds borl)
     -- helpers
@@ -422,15 +382,17 @@ instance ExperimentDef (BORL St) where
     let !tTardMeanFloor   = StepResult "TARDMeanFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> fromRational sumTard / fromIntegral nrTard) mTardFloor)
     let !tTardStdDevFloor = StepResult "TARDStdDevFloor" (Just simT) (maybe 0 (\(StatsOrderTard nrTard sumTard stdDevTard) -> maybe 0 fromRational $ getWelfordStdDev stdDevTard) mTardFloor)
     -- BORL' related measures
-    let val !l = realToFrac (borl' ^?! l)
-    let !avgRew    = StepResult "AvgReward" (Just $ fromIntegral borlT) (val $ proxies . rho . proxyScalar)
-        !expAvgRew = StepResult "ExpAvgReward" (Just $ fromIntegral borlT) (val $ expSmoothedReward)
-        !avgRewMin = StepResult "MinAvgReward" (Just $ fromIntegral borlT) (val $ proxies . rhoMinimum . proxyScalar)
+    let valS !l = realToFrac (borl' ^?! l)
+        valV !l = realToFrac $ head $ fromValue (borl' ^?! l)
+        valL !l = realToFrac $ V.head $ borl' ^?! l
+    let !avgRew    = StepResult "AvgReward" (Just $ fromIntegral borlT) (valL $ proxies . rho . proxyScalar)
+        !expAvgRew = StepResult "ExpAvgReward" (Just $ fromIntegral borlT) (valS $ expSmoothedReward)
+        !avgRewMin = StepResult "MinAvgReward" (Just $ fromIntegral borlT) (valL $ proxies . rhoMinimum . proxyScalar)
         !pltP1     = StepResult "PLT P1" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 1) (borl' ^. s . plannedLeadTimes))
         !pltP2     = StepResult "PLT P2" (Just $ fromIntegral borlT) (timeToDouble $ M.findWithDefault 0 (Product 2) (borl' ^. s . plannedLeadTimes))
-        !psiRho    = StepResult "PsiRho" (Just $ fromIntegral borlT) (val $ psis . _1)
-        !psiV      = StepResult "PsiV" (Just $ fromIntegral borlT) (val $ psis . _2)
-        !psiW      = StepResult "PsiW" (Just $ fromIntegral borlT) (val $ psis . _3)
+        !psiRho    = StepResult "PsiRho" (Just $ fromIntegral borlT) (valV $ psis . _1)
+        !psiV      = StepResult "PsiV" (Just $ fromIntegral borlT) (valV $ psis . _2)
+        !psiW      = StepResult "PsiW" (Just $ fromIntegral borlT) (valV $ psis . _3)
         !vAvg      = StepResult "VAvg" (Just $ fromIntegral borlT) (avg $ borl' ^. lastRewards)
         !reward    = StepResult "Reward" (Just $ fromIntegral borlT) (realToFrac $headWithDefault 0 $ borl' ^. lastRewards)
         avg !xs    = realToFrac $ sum xs / fromIntegral (length xs)
@@ -819,11 +781,11 @@ instance ExperimentDef (BORL St) where
   afterEvaluationHook _ expNr repetNr repliNr = liftIO $ copyFiles "eval_" expNr repetNr (Just repliNr)
 
 
-expSetting :: BORL St -> ExperimentSetting
+expSetting :: BORL St Act -> ExperimentSetting
 expSetting borl =
   ExperimentSetting
     { _experimentBaseName = experimentName
-    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN, isTf]
+    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN]
     , _experimentRepetitions = 1
     , _preparationSteps = 1 * 10 ^ 6
     , _evaluationWarmUpSteps = 1000
@@ -834,7 +796,6 @@ expSetting borl =
   where
     isNNFlag = isNeuralNetwork (borl ^. proxies . v)
     isNN = ExperimentInfoParameter "Is Neural Network" isNNFlag
-    isTf = ExperimentInfoParameter "Is Tensorflow Network" (isTensorflow (borl ^. proxies . v))
     dec = ExperimentInfoParameter "Decay" (configDecayName decay)
     actBounds = ExperimentInfoParameter "Action Bounds" (configActLower actionConfig, configActUpper actionConfig)
     pltBounds = ExperimentInfoParameter "Action Filter (Min/Max PLT)" (configActFilterMin actionFilterConfig, configActFilterMax actionFilterConfig)

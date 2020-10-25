@@ -17,13 +17,11 @@ import           Releaser.Type
 pltReleaseName :: Text
 pltReleaseName = "PLT by RL Agent"
 
-mkReleasePLT :: PLTs -> Release
+mkReleasePLT :: LTs -> Release
 mkReleasePLT plts = Release (releaseFun plts) pltReleaseName
 
-releaseFun :: PLTs -> Time -> [Order] -> IO [Order]
+releaseFun :: LTs -> Time -> [Order] -> IO [Order]
 releaseFun plts t orders = return $ filter isInPlt orders
   where isInPlt order = case M.lookup (productType order) plts of
           Nothing -> error $ "Could not find planned lead time for product type: " ++ show (productType order)
           Just plt -> dueDate order - plt <= t
-
-

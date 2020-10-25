@@ -10,10 +10,10 @@ import           Control.Lens
 import           Control.Monad          (forM_, void)
 import           Control.Monad.IO.Class
 import qualified Data.Vector.Storable   as V
+import           Prelude                hiding (scaleFloat)
 import           System.Environment     (getArgs, getProgName)
 
 import           Experimenter
-import qualified HighLevelTensorflow    as TF
 import           ML.BORL                hiding (featureExtractor)
 
 import           Releaser.Build
@@ -31,16 +31,13 @@ main = do
     else forM_ args $ \case
              "eval" -- Generate results only
               ->
-               loadAndEval runMonadBorlIO runMonadBorlIO buildBORLGrenade -- ANN version
-               -- loadAndEval runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+               loadAndEval liftIO liftIO buildBORLGrenade -- ANN version
              "run" ->
-               -- run runMonadBorlIO runMonadBorlIO buildBORLTable   -- Lookup table version
-               run runMonadBorlIO runMonadBorlIO buildBORLGrenade -- ANN version
-               -- run runMonadBorlTF runMonadBorlTF buildBORLTensorflow -- ANN version
+               -- run liftIO liftIO buildBORLTable   -- Lookup table version
+               run liftIO liftIO buildBORLGrenade -- ANN version
              "csv" ->
                -- Generate CSV only
-               loadAndWriteCsv runMonadBorlIO buildBORLGrenade -- ANN version
-              -- loadAndWriteCsv runMonadBorlTF buildBORLTensorflow -- ANN version
+               loadAndWriteCsv liftIO buildBORLGrenade -- ANN version
              _ -> do
                putStrLn "Unkown command\n"
                name <- getProgName
@@ -48,9 +45,9 @@ main = do
 
 
 run ::
-     (ExpM (BORL St) (Bool, Experiments (BORL St)) -> IO (Bool, Experiments (BORL St)))
-  -> (ExpM (BORL St) (Evals (BORL St)) -> IO (Evals (BORL St)))
-  -> ExpM (BORL St) (BORL St)
+     (ExpM (BORL St Act) (Bool, Experiments (BORL St Act)) -> IO (Bool, Experiments (BORL St Act)))
+  -> (ExpM (BORL St Act) (Evals (BORL St Act)) -> IO (Evals (BORL St Act)))
+  -> ExpM (BORL St Act) (BORL St Act)
   -> IO ()
 run runner runner2 mkInitSt = do
   dbSetting <- databaseSetting
@@ -59,9 +56,9 @@ run runner runner2 mkInitSt = do
   eval dbSetting runner2 res
 
 loadAndEval ::
-     (ExpM (BORL St) (Maybe (Experiments (BORL St))) -> IO (Maybe (Experiments (BORL St))))
-  -> (ExpM (BORL St) (Evals (BORL St)) -> IO (Evals (BORL St)))
-  -> ExpM (BORL St) (BORL St)
+     (ExpM (BORL St Act) (Maybe (Experiments (BORL St Act))) -> IO (Maybe (Experiments (BORL St Act))))
+  -> (ExpM (BORL St Act) (Evals (BORL St Act)) -> IO (Evals (BORL St Act)))
+  -> ExpM (BORL St Act) (BORL St Act)
   -> IO ()
 loadAndEval runner runner2 mkInitSt = do
   dbSetting <- databaseSetting
@@ -69,7 +66,7 @@ loadAndEval runner runner2 mkInitSt = do
   liftIO $ putStrLn "RES"
   eval dbSetting runner2 res
 
-loadAndWriteCsv :: (ExpM (BORL St) (Maybe (Experiments (BORL St))) -> IO (Maybe (Experiments (BORL St)))) -> ExpM (BORL St) (BORL St) -> IO ()
+loadAndWriteCsv :: (ExpM (BORL St Act) (Maybe (Experiments (BORL St Act))) -> IO (Maybe (Experiments (BORL St Act)))) -> ExpM (BORL St Act) (BORL St Act) -> IO ()
 loadAndWriteCsv runner mkInitSt = do
   dbSetting <- databaseSetting
   Just res <- loadExperimentsResultsM False runner dbSetting expSetting () mkInitSt 1
@@ -127,5 +124,5 @@ mkPrettyPrintElems st = map V.fromList $ zipWith (++) plts (replicate (length pl
     base = drop (length productTypes) (V.toList $ netInp st)
     minVal = configActFilterMin actionFilterConfig
     maxVal = configActFilterMax actionFilterConfig
-    actList = map (scaleValue scaleAlg (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal .. maxVal]
+    actList = map (scaleFloat scaleAlg (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal .. maxVal]
     plts = [[x, y] | x <- actList, y <- actList]

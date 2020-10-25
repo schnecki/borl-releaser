@@ -1,4 +1,3 @@
-
 module Releaser.Settings
     ( module S
     ) where
@@ -12,5 +11,3 @@ import           Releaser.SettingsFeatureExtractor as S
 import           Releaser.SettingsPeriod           as S
 import           Releaser.SettingsReward           as S
 import           Releaser.SettingsRouting          as S
-
-

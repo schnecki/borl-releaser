@@ -2,6 +2,7 @@
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Strict              #-}
+{-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ViewPatterns        #-}
 module Main where
 
@@ -18,6 +19,7 @@ import qualified Data.Text                   as T
 import           Data.Time.Clock             (diffUTCTime, getCurrentTime)
 import qualified Data.Vector.Storable        as V
 import           Grenade
+import           Prelude                     hiding (scaleFloat)
 import           System.IO                   (hFlush, stdout)
 import           Text.PrettyPrint
 
@@ -43,20 +45,17 @@ main
   mExpNr <- getIOMWithDefault Nothing
   case mExpNr of
     Nothing ->
-      runMonadBorlIO $ do
+      liftIO $ do
         borl <- liftIO buildBORLGrenade
         -- borl <- liftIO buildBORLTable
         askUser True usage cmds borl   -- maybe increase learning by setting estimate of rho
-      -- runMonadBorlTF $ do
-      --   borl <- buildBORLTensorflow
-      --   askUser True usage cmds borl -- maybe increase learning by setting estimate of rho
     Just expNr -> do
       liftIO $ putStr "Experiment replication: [1]" >> hFlush stdout
       repNr <- liftIO $ getIOWithDefault 1
       dbSetting <- liftIO databaseSetting
       void $
         loadStateAfterPreparation2
-          runMonadBorlIO
+          liftIO
           dbSetting
           expSetting
           ()
@@ -64,15 +63,13 @@ main
           expNr
           repNr
           (\borl0 -> do
-             -- borl <- saveTensorflowModels borl0
-             -- askUser True usage cmds borl
               askUser True usage cmds borl0
           )
   where
     cmds = []
     usage = []
 
-askUser :: (MonadBorl' m) => Bool -> [(String,String)] -> [(String, ActionIndexed St)] -> BORL St -> m ()
+askUser :: (MonadIO m) => Bool -> [(String,String)] -> [(String, [ActionIndex])] -> BORL St Act -> m ()
 askUser showHelp addUsage cmds ql = do
   let usage =
         sortBy (compare `on` fst) $
@@ -112,7 +109,15 @@ askUser showHelp addUsage cmds ql = do
         liftIO $ do
           putStrLn "Which settings to change:"
           putStrLn $ unlines $ map (\(c, h) -> c ++ ": " ++ h) $
-            sortBy (compare `on` fst) [("alpha", "alpha"), ("exp", "exploration rate"), ("eps", "epsilon"), ("lr", "learning rate"), ("dislearn", "Disable/Enable all learning"), ("drop", "set the dropout active flag")]
+            sortBy
+              (compare `on` fst)
+              [ ("alpha", "alpha")
+              , ("exp", "exploration rate")
+              , ("eps", "epsilon")
+              , ("lr", "learning rate")
+              , ("dislearn", "Disable/Enable all learning")
+              , ("drop", "set the dropout active flag")
+              ]
           liftIO $ putStr "Enter value: " >> hFlush stdout >> getLine
       ql' <-
         case e of
@@ -124,7 +129,7 @@ askUser showHelp addUsage cmds ql = do
                 (\(v' :: Bool) ->
                    overAllProxies
                      (filtered isGrenade)
-                     (\(Grenade tar wor tp cfg act) -> Grenade (runSettingsUpdate (NetworkSettings v') tar) (runSettingsUpdate (NetworkSettings v') wor) tp cfg act)
+                     (\(Grenade tar wor tp cfg act agents) -> Grenade (runSettingsUpdate (NetworkSettings v') tar) (runSettingsUpdate (NetworkSettings v') wor) tp cfg act agents)
                      ql) <$>
               getIOMWithDefault Nothing
           "alpha" -> do
@@ -160,15 +165,13 @@ askUser showHelp addUsage cmds ql = do
           askUser showHelp addUsage cmds ql
         Right ser -> do
           let (St sim _ _ _) = ql ^. s
-          let (_, actions) = mkConfig (action (ql ^. s)) actionConfig
           ql' <-
             fromSerialisableWith
               (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
               id
-              actions
+              action
               (ql ^. actionFilter)
               netInp
-              (modelBuilderTf actions (ql ^. s))
               ser
           askUser showHelp addUsage cmds ql'
     "r" -> do
@@ -217,9 +220,7 @@ askUser showHelp addUsage cmds ql = do
       prettyBORLTables (Just $ mInverse ql) True False False (setPrettyPrintElems ql) >>= liftIO . print
       askUser False addUsage cmds ql
     "v" -> do
-      case find isTensorflow (allProxies $ ql ^. proxies) of
-        Nothing -> liftIO $ prettyBORLTables Nothing True False False ql >>= print
-        Just _ -> liftTensorflow (prettyBORLTables Nothing True False False ql) >>= liftIO . print
+      prettyBORLTables Nothing True False False ql >>= liftIO . print
       askUser False addUsage cmds ql
     _ ->
       case find ((== c) . fst) cmds of
@@ -232,10 +233,8 @@ askUser showHelp addUsage cmds ql = do
                prettyBORLMWithStInverse (Just $ mInverse ql') (setPrettyPrintElems ql') >>= liftIO . print
                askUser False addUsage cmds ql')
         Just (_, cmd) ->
-          case find isTensorflow (allProxies $ ql ^. proxies) of
-            Nothing -> liftIO $ stepExecute ql ((False, cmd), []) >>= askUser False addUsage cmds
-            Just _ -> liftTensorflow (stepExecute ql ((False, cmd), []) >>= saveTensorflowModels) >>= askUser False addUsage cmds
-
+          liftIO $ stepExecute ql (map (False,) cmd, []) >>= askUser False addUsage cmds
+          -- liftIO $ stepExecute ql (map (False,) cmd, []) >>= askUser mInverse False addUsage cmds
 
 getIOWithDefault :: forall a . (Read a) => a -> IO a
 getIOWithDefault def = do
@@ -252,7 +251,7 @@ getIOMWithDefault def = do
     _        -> return def
 
 
-mkTime :: (MonadBorl' m, NFData t) => m t -> m t
+mkTime :: (MonadIO m, NFData t) => m t -> m t
 mkTime a = do
     start <- liftIO getCurrentTime
     !val <- force <$> a
@@ -268,6 +267,5 @@ mkPrettyPrintElems usePlts st
     base = drop (length productTypes) (V.toList $ netInp st)
     minVal = configActFilterMin actionFilterConfig
     maxVal = configActFilterMax actionFilterConfig
-    actList = map (scaleValue scaleAlg (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal .. maxVal]
+    actList = map (scaleFloat scaleAlg (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal .. maxVal]
     plts = [[x, y] | x <- actList, y <- actList]
-

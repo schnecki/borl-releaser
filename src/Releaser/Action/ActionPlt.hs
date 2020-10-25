@@ -1,9 +1,12 @@
+{-# LANGUAGE DeriveAnyClass    #-}
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns      #-}
 
 
 module Releaser.Action.ActionPlt
     ( actionsPLT
+    , actionFun
     , ActionConfig (..)
     ) where
 
@@ -12,10 +15,12 @@ import           Control.DeepSeq
 import           Control.Lens
 import           Control.Monad.Trans.Reader
 import           Data.Foldable                     (toList)
-import           Data.List                         (nub)
+import           Data.List                         (foldl', nub)
 import qualified Data.Map.Strict                   as M
 import           Data.Maybe                        (fromJust, isJust)
+import           Data.Serialize
 import qualified Data.Text                         as T
+import           GHC.Generics
 import           Text.Printf
 
 import           ML.BORL
@@ -31,16 +36,30 @@ import           Releaser.SettingsRouting
 import           Releaser.Type
 
 
-actionsPLT :: St -> Reader ActionConfig (ListOfActions, [Action St])
-actionsPLT (St sim _ _ _) = do
-  lowerBound <- asks configActLower
-  upperBound <- asks configActUpper
-  let actionList =
-        map (map ((* periodLength) . fromInteger)) $
-        foldl (combs [lowerBound,lowerBound+1,upperBound]) [] [1..length pts]
-  acts <- mapM mkAction actionList
-  return (actionList, acts)
-  where pts = nub $ fmap (fst.fst) $ toList $ simRouting sim
+-- actionsPLTCombs :: St -> Reader ActionConfig (ListOfActions, [Action Act])
+-- actionsPLTCombs (St sim _ _ _) = do
+--   lowerBound <- asks configActLower
+--   upperBound <- asks configActUpper
+--   nrLTs <- asks configNumberLTs
+--   toProcTypeLTs <- asks configToProductTypeLTs
+--   let actionList = map (toProcTypeLTs . map ((* periodLength) . fromInteger)) $ foldl (combs [lowerBound, lowerBound + 1, upperBound]) [] [1 .. nrLTs]
+--   acts <- mapM mkAction actionList
+--   return (actionList, acts)
+
+actionsPLT :: ActionFunction St Act  -- AgentType -> s -> [as] -> IO (Reward s, s, EpisodeEnd)
+actionsPLT = do
+  -- lowerBound <- asks configActLower
+  -- upperBound <- asks configActUpper
+  -- nrLTs <- asks configNumberLTs
+  -- toProcTypeLTs <- asks configToProductTypeLTs
+  -- let actionList = map (toProcTypeLTs . map ((* periodLength) . fromInteger)) $ foldl (combs [lowerBound, lowerBound + 1, upperBound]) [] [1 .. nrLTs]
+  -- acts <- mapM mkAction actionList
+  -- return (actionList, acts)
+  -- where
+  --   pts = nub $ fmap (fst . fst) $ toList $ simRouting sim
+
+
+  undefined
 
 
 combs :: (NFData a) => [a] -> [[a]] -> b ->  [[a]]
@@ -48,28 +67,31 @@ combs (force -> base) [] _             = [[b] | b <- base]
 combs (force -> base) (force -> acc) _ = concat [ map (b:) acc | b <- base]
 
 
-mkAction :: [Time] -> Reader ActionConfig (Action St)
-mkAction act = do
-  actionFun <- action act
-  return $ Action actionFun (T.pack $ filter (/= '"') $ show $ map (\x -> if x < 0 then printInt x else "+" <> printInt x) act)
+-- mkAction :: [Time] -> Reader ActionConfig (Action Act)
+-- mkAction act = do
+--   actionFun <- action act
+--   return $ actionFun
 
-  where printInt :: Time -> String
-        printInt = printf "%.2f" . timeToDouble
+--   where printInt :: Time -> String
+--         printInt = printf "%.2f" . timeToDouble
 
-action :: [Time] -> Reader ActionConfig (AgentType -> St -> IO (Reward St, St, EpisodeEnd))
-action pltChange =
-  return $ \agentType (St sim incomingOrders rewardFun plts) -> do
-    let pltsChangeMap = M.fromList $ zip productTypes pltChange
-        pltsNew = M.unionWith (+) plts pltsChangeMap
+actionFun :: AgentType -> St -> [ActIndepAgents] -> IO (Reward St, St, EpisodeEnd)
+actionFun agentType (St sim incomingOrders rewardFun lts) acts
+  | length acts == _independentAgents borlSettings = do
+    -- let pltsChangeMap = M.fromList $ zip productTypes pltChange
+    --     pltsNew = M.unionWith (+) plts pltsChangeMap
+    let -- pltsChangeMap = M.fromList $ zip productTypes pltChange
+        ltsNew = foldl' (\m (act, pt) -> M.adjust (applyActIndepAgents act) pt m) lts (zip acts productTypes)
     let simReleaseSet
-          | uniqueReleaseName (simRelease sim) == pltReleaseName = sim {simRelease = mkReleasePLT pltsNew}
+          | uniqueReleaseName (simRelease sim) == pltReleaseName = sim {simRelease = mkReleasePLT ltsNew}
           | otherwise = sim
     simWOrders <- addAdditionalOrdersToOrderPool simReleaseSet incomingOrders
     sim' <- simulateUntil (simCurrentTime simWOrders + periodLength) simWOrders [] -- are set above
     let reward = mkReward rewardFun simWOrders sim'
     newIncomingOrders <- generateOrders sim'
-    when (agentType == MainAgent) $ writeFiles pltsNew simWOrders sim'
-    return (reward, St sim' newIncomingOrders rewardFun pltsNew, False)
+    when (agentType == MainAgent) $ writeFiles ltsNew simWOrders sim'
+    return (reward, St sim' newIncomingOrders rewardFun ltsNew, False)
+  | otherwise = error $ "unexpected number of actions in actionFun: " ++ show acts
 
 
 writeFiles :: M.Map ProductType Time -> SimSim -> SimSim -> IO ()

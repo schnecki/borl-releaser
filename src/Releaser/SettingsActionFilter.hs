@@ -15,7 +15,7 @@ import           Releaser.Type
 
 -- ----------------------------------------
 
-actionFilter :: ListOfActions -> Reader ActionFilterConfig (St -> V.Vector Bool)
+actionFilter :: Reader ActionFilterConfig (St -> [V.Vector Bool])
 actionFilter = actionFilterMinMax
 
 actionFilterConfig :: ActionFilterConfig

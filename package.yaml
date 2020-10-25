@@ -37,6 +37,7 @@ dependencies:
   - simsim
   - experimenter
   - cereal
+  - cereal-text
   - lens
   - containers
   - deepseq
@@ -47,7 +48,6 @@ dependencies:
   - time
   - text
   - pretty
-  - high-level-tensorflow
   - grenade
   - unliftio-core
   - bytestring

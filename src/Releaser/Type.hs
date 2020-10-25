@@ -23,9 +23,6 @@ import           Releaser.Reward.Type
 mkConfig :: Reader r a -> r -> a
 mkConfig = runReader
 
-type ListOfActions = [[Time]]
-
-
 type StRep = [Double]
 
 data RewardInFutureType
@@ -44,14 +41,14 @@ rewardFunctionConfig (RewardShippedSimple !config)   = config
 rewardFunctionConfig (RewardPeriodEndSimple !config) = config
 rewardFunctionConfig (RewardInFuture !config _)      = config
 
-type PLTs = M.Map ProductType Time
+type LTs = M.Map ProductType Time
 
 
 data St = St
   { _simulation           :: !SimSim         -- ^ The simulation itself.
   , _nextIncomingOrders   :: ![Order]        -- ^ The incoming orders for next period
   , _rewardFunctionOrders :: !RewardFunction -- ^ Defines how to calculate rewards
-  , _plannedLeadTimes     :: !PLTs           -- ^ Planned lead times currently set
+  , _plannedLeadTimes     :: !LTs           -- ^ Planned lead times currently set
   } deriving (Generic, NFData)
 makeLenses ''St
 
@@ -65,7 +62,7 @@ data StSerialisable = StSerialisable
   { _serSimulation           :: !SimSimSerialisable
   , _serNextIncomingOrders   :: ![Order]
   , _serRewardFunctionOrders :: !RewardFunction
-  , _serPlannedLeadTimes     :: !PLTs
+  , _serPlannedLeadTimes     :: !LTs
   } deriving (Generic, Serialize, Eq, Ord)
 makeLenses ''StSerialisable
 

@@ -15,7 +15,7 @@ demand :: ConfigDemand
 demand =
   -- demandConst9FixedDds
   demandUniformIn3To15FixedDds
+  -- demandUnif95_175
 
 generateOrders :: SimSim -> IO [Order]
 generateOrders = configDemandFunction demand
-

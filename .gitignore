@@ -47,3 +47,5 @@ test/bil3/
 /.stack-work.prof/
 /stateVAllStates_scaled
 /test/stateVAllStates_scaled
+/res
+/stateValuesAgents

@@ -5,7 +5,7 @@ gnuplot -e "set key autotitle columnhead; plot for [col=2:6] 'stateValues' using
 gnuplot -e "set key autotitle columnhead; plot for [col=7:8] 'stateValues' using 0:col with points; pause mouse close; " &
 gnuplot -e "set key autotitle columnhead; plot for [col=9:10] 'stateValues' using 0:col with points; pause mouse close; " &
 gnuplot -e "set key autotitle columnhead; plot for [col=2:3] 'costs' using 0:col with points; pause mouse close; " &
-gnuplot -e "set key autotitle columnhead; plot for [col=2:2] 'reward' using 0:col with points; pause mouse close; " &
+gnuplot -e "set key autotitle columnhead; plot for [col=2:2] 'reward' using 1:col with points; pause mouse close; " &
 
 NR="`head -n1 stateValuesAllStatesCount`"
 if [ $? -eq 0 ]; then

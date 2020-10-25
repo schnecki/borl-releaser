@@ -11,11 +11,12 @@ module Releaser.FeatureExtractor.Ops
     , featExtractorWipAsQueueCounters
     , featExtractorFullWoMachines
     , featExtractorFullMachinesToQueue
+    , featExtractorFullMachinesToQueueNbnBn
     , featExtractorFullWithMachines
     ) where
 
+import           Control.DeepSeq                (rnf1)
 import           Data.List                      (find, foldl', genericLength)
-
 import qualified Data.Map                       as M
 
 
@@ -146,6 +147,26 @@ featExtractorFullMachinesToQueue useReduce = ConfigFeatureExtractor "PLTS-OP-(Qu
         currentTime = simCurrentTime sim
         mkFromList = mkUntilDueList currentTime
         foreachPt f xs = map (\pt -> f (filter ((== pt) . productType) xs)) productTypes
+
+featExtractorFullMachinesToQueueNbnBn :: ReduceValues -> ConfigFeatureExtractor
+featExtractorFullMachinesToQueueNbnBn useReduce = ConfigFeatureExtractor "PLTS-OP-(Queues+Machines)-FGI-Shipped" featExt
+  where
+    featExt (St sim incOrds _ plts) =
+      Extraction
+        (map (realToFrac . timeToDouble) (M.elems plts))
+        (foreachPt (mkOrderPoolList currentTime) (incOrds ++ simOrdersOrderPool sim))
+        (M.elems $ fmap (foreachPt mkFromList) (foldl' (\m (b, (o, _)) -> M.insertWith (++) b [o] m) (simOrdersQueue sim) (M.toList $ simOrdersMachine sim)))
+        []
+        (foreachPt (mkFgiList currentTime) (simOrdersFgi sim))
+        (foreachPt (mkShippedDueList currentTime) (simOrdersShipped sim))
+        useReduce
+      where
+        currentTime = simCurrentTime sim
+        mkFromList = mkUntilDueList currentTime
+        foreachPt f xs = groupPts $ map (\pt -> f (filter ((== pt) . productType) xs)) productTypes
+        groupPts [p1, p2, p3, p4, p5, p6] = let xs =  [p1 +. p3 +. p4 +. p6, p2 +. p5] in rnf1 xs `seq` xs
+        groupPts _ = error "Wrong featureExtractor configuration, used featExtractorFullMachinesToQueueNbnBn but don't have 6 Products"
+        (+.) = zipWith (+)
 
 
 featExtractorFullWithMachines :: ReduceValues -> ConfigFeatureExtractor

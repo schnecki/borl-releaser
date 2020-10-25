@@ -14,9 +14,10 @@ module Releaser.FeatureExtractor.Type
 
 
 import           Control.Concurrent.MVar
-import           Data.List                         (foldl', genericLength)
+import           Data.List                         (genericLength)
 import           Data.Text                         (Text)
 import qualified Data.Vector.Storable              as V
+import           Prelude                           hiding (scaleFloat)
 import           System.IO.Unsafe
 import           Text.Printf
 
@@ -42,13 +43,13 @@ scaleOrderMax = 5 -- 12
 
 
 data Extraction = Extraction
-  { extPlts      :: ![Float]
-  , extOrderPool :: ![[Float]]
-  , extQueues    :: ![[[Float]]] -- ^ Queue, ProductType, Period
-  , extMachines  :: ![[Float]]   -- ^ Machine, Period
-  , extFgi       :: ![[Float]]   -- ^ ProductType, Period
-  , extShipped   :: ![[Float]]   -- ^ ProductType, Period
-  , scaleValues  :: !Bool
+  { extPlts        :: ![Float]
+  , extOrderPool   :: ![[Float]]
+  , extQueues      :: ![[[Float]]] -- ^ Queue, ProductType, Period
+  , extMachines    :: ![[Float]]   -- ^ Machine, Period
+  , extFgi         :: ![[Float]]   -- ^ ProductType, Period
+  , extShipped     :: ![[Float]]   -- ^ ProductType, Period
+  , extScaleValues :: !Bool
   }
 
 instance Show Extraction where
@@ -80,31 +81,31 @@ extractionToList (Extraction plts op que mac fgi shipped scale) =
 
 scalePlts, scaleOrder :: Bool -> Float -> Float
 scalePlts scale
-  | scale = scaleValue scaleAlg (Just (scalePltsMin, scalePltsMax))
+  | scale = scaleFloat scaleAlg (Just (scalePltsMin, scalePltsMax))
   | otherwise = id
 scaleOrder scale
-  | scale = scaleValue scaleAlg (Just (scaleOrderMin, scaleOrderMax))
+  | scale = scaleFloat scaleAlg (Just (scaleOrderMin, scaleOrderMax))
   | otherwise = id
 
 scaleMachines :: Bool -> [[Float]] -> [[Float]]
 scaleMachines _ [] = []
-scaleMachines True xs@[[_]] = map (map (scaleValue scaleAlg (Just (0, genericLength machines)))) xs
+scaleMachines True xs@[[_]] = map (map (scaleFloat scaleAlg (Just (0, genericLength machines)))) xs
 scaleMachines scale xs
-  | scale = map (map (scaleValue scaleAlg (Just (0, 1)))) xs
+  | scale = map (map (scaleFloat scaleAlg (Just (0, 1)))) xs
   | otherwise = xs
 
 unscalePlts, unscaleOrder :: Bool -> Float -> Float
 unscalePlts scale
-  | scale = unscaleValue scaleAlg (Just (scalePltsMin, scalePltsMax))
+  | scale = unscaleFloat scaleAlg (Just (scalePltsMin, scalePltsMax))
   | otherwise = id
 unscaleOrder scale
-  | scale = unscaleValue scaleAlg (Just (scaleOrderMin, scaleOrderMax))
+  | scale = unscaleFloat scaleAlg (Just (scaleOrderMin, scaleOrderMax))
   | otherwise = id
 unscaleMachines :: Bool -> [[Float]] -> [[Float]]
 unscaleMachines _ [] = []
-unscaleMachines True xs@[[_]] = map (map (unscaleValue scaleAlg (Just (0, genericLength machines)))) xs
+unscaleMachines True xs@[[_]] = map (map (unscaleFloat scaleAlg (Just (0, genericLength machines)))) xs
 unscaleMachines scale xs
-  | scale = map (map (unscaleValue scaleAlg (Just (0, 1)))) xs
+  | scale = map (map (unscaleFloat scaleAlg (Just (0, 1)))) xs
   | otherwise = xs
 
 
@@ -121,7 +122,7 @@ fromListToExtraction st (ConfigFeatureExtractor _ extr) netInp =
   where
     xs = V.toList netInp
     sample = extr st
-    scale = scaleValues sample
+    scale = extScaleValues sample
     plts = length (extPlts sample)
     macRoot = length (extMachines sample)
     machL1
