@@ -52,8 +52,8 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-  {   _replayMemoryMaxSize             = 20000 -- 1000 -- was 30k
-    , _replayMemoryStrategy            = ReplayMemorySingle -- ReplayMemoryPerAction
+  {   _replayMemoryMaxSize             = 1000 -- 20000 -- was 30k
+    , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
     , _trainBatchSize                  = 4
     , _trainingIterations              = 1
     , _grenadeLearningParams           = OptAdam 0.005 0.9 0.999 1e-7 1e-3
