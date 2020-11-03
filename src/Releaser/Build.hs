@@ -40,7 +40,7 @@ import           Data.Constraint                   (Dict (..))
 import           Data.Int                          (Int64)
 import           Data.List                         (find, genericLength)
 import qualified Data.Map                          as M
-import           Data.Maybe                        (isJust)
+import           Data.Maybe                        (fromMaybe, isJust)
 import qualified Data.Proxy                        as Px
 import           Data.Reflection                   (reifyNat)
 import           Data.Serialize                    as S
@@ -393,11 +393,10 @@ instance ExperimentDef (BORL St Act) where
         !psiRho    = StepResult "PsiRho" (Just $ fromIntegral borlT) (valV $ psis . _1)
         !psiV      = StepResult "PsiV" (Just $ fromIntegral borlT) (valV $ psis . _2)
         !psiW      = StepResult "PsiW" (Just $ fromIntegral borlT) (valV $ psis . _3)
-        !vAvg      = StepResult "VAvg" (Just $ fromIntegral borlT) (avg $ borl' ^. lastRewards)
-        !reward    = StepResult "Reward" (Just $ fromIntegral borlT) (realToFrac $headWithDefault 0 $ borl' ^. lastRewards)
+        !vAvg      = StepResult "VAvg" (Just $ fromIntegral borlT) (avg $ V.toList $ borl' ^. lastRewards)
+        !reward    = StepResult "Reward" (Just $ fromIntegral borlT) (realToFrac $ headWithDefault 0 $ borl' ^. lastRewards)
         avg !xs    = realToFrac $ sum xs / fromIntegral (length xs)
-        headWithDefault d []    = d
-        headWithDefault _ (x:_) = x
+        headWithDefault d vec    = fromMaybe d $ vec V.!? 0
     return $! force $
       if phase /= EvaluationPhase
       then ([

@@ -17,6 +17,7 @@ import           Data.Maybe                  (fromMaybe)
 import           Data.Serialize              as S
 import qualified Data.Text                   as T
 import           Data.Time.Clock             (diffUTCTime, getCurrentTime)
+import qualified Data.Vector                 as VB
 import qualified Data.Vector.Storable        as V
 import           Grenade
 import           Prelude                     hiding (scaleFloat)
@@ -233,7 +234,7 @@ askUser showHelp addUsage cmds ql = do
                prettyBORLMWithStInverse (Just $ mInverse ql') (setPrettyPrintElems ql') >>= liftIO . print
                askUser False addUsage cmds ql')
         Just (_, cmd) ->
-          liftIO $ stepExecute ql (map (False,) cmd, []) >>= askUser False addUsage cmds
+          liftIO $ stepExecute ql (VB.fromList $ map (False,) cmd, []) >>= askUser False addUsage cmds
           -- liftIO $ stepExecute ql (map (False,) cmd, []) >>= askUser mInverse False addUsage cmds
 
 getIOWithDefault :: forall a . (Read a) => a -> IO a
