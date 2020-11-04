@@ -28,6 +28,7 @@ borlSettings =
     , _workersMinExploration = replicate 10 0.01 ++ [0.05, 0.10, 0.20, 0.30]
     , _overEstimateRho = True
     , _independentAgents = length productTypes
+    , _independentAgentsSharedRho = True
     }
 
 

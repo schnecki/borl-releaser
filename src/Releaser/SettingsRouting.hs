@@ -24,13 +24,13 @@ routing :: ConfigRouting
 routing =
   -- routingSingleStageSingleProduct
   -- routingSingleStage
-  routingDiverging2Stages
-  -- routingDiverging3Stages
+  -- routingDiverging2Stages
+  routingDiverging3Stages
 
 procTimes :: ProcTimes
 procTimes =
-  procTimesDiverging2Stages
-  -- procTimesDiverging3Stages
+  -- procTimesDiverging2Stages
+  procTimesDiverging3Stages
 
 productTypes :: [ProductType]
 productTypes = sort $ nub $ map (fst . fst) (configRoutingRoutes routing)

@@ -67,14 +67,6 @@ combs (force -> base) [] _             = [[b] | b <- base]
 combs (force -> base) (force -> acc) _ = concat [ map (b:) acc | b <- base]
 
 
--- mkAction :: [Time] -> Reader ActionConfig (Action Act)
--- mkAction act = do
---   actionFun <- action act
---   return $ actionFun
-
---   where printInt :: Time -> String
---         printInt = printf "%.2f" . timeToDouble
-
 actionFun :: AgentType -> St -> [ActIndepAgents] -> IO (Reward St, St, EpisodeEnd)
 actionFun agentType (St sim incomingOrders rewardFun lts) acts
   | length acts == _independentAgents borlSettings = do

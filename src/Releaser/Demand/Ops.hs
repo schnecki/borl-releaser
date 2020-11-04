@@ -4,10 +4,12 @@ module Releaser.Demand.Ops
   ( demandUniformIn3To15FixedDds
   , demandConst9FixedDds
   , demandUnif95_175
+  , demandUnif78_158
+  , demandExp118
+  , demandExp105
   ) where
 
 
-import           Statistics.Distribution.DiscreteUniform
 import           Statistics.Distribution.Exponential
 import           Statistics.Distribution.Uniform
 
@@ -37,7 +39,41 @@ demandUnif95_175 =
     dds
     (\sim ->
        let pts = productTypes sim
-        in generateOrdersFixedDueDateSlack sim (uniformDistr (95 / 960) (175 / 960)) (uniformDistr 0.5001 (fromIntegral (length pts) + 0.4999)) dueDateSlack)
+        in generateOrdersFixedDueDateSlack sim (uniformDistr 0.098958333 0.182291667) (uniformDistr 0.5001 (fromIntegral (length pts) + 0.4999)) dueDateSlack)
+
+demandUnif78_158 :: ConfigDemand
+demandUnif78_158 =
+  ConfigDemand
+    ("Uniform interarrival-time w/ Unif(78,158) with DDS=" <> tshow dueDateSlack)
+    dds
+    (\sim ->
+       let pts = productTypes sim
+        in generateOrdersFixedDueDateSlack sim (uniformDistr (78 / 960) (158 / 960)) (uniformDistr 0.5001 (fromIntegral (length pts) + 0.4999)) dueDateSlack)
+
+demandExp118 :: ConfigDemand
+demandExp118 =
+  ConfigDemand
+    ("Uniform interarrival-time w/ Exp(118) with DDS=" <> tshow dueDateSlack)
+    dds
+    (\sim ->
+       let pts = productTypes sim
+        in generateOrdersFixedDueDateSlack sim (exponential (960 / 118)) (uniformDistr 0.5001 (fromIntegral (length pts) + 0.4999)) dueDateSlack)
+
+demandExp105 :: ConfigDemand
+demandExp105 =
+  ConfigDemand
+    ("Uniform interarrival-time w/ Exp(105) with DDS=" <> tshow dueDateSlack)
+    dds
+    (\sim ->
+       let pts = productTypes sim
+           -- test :: IO ()
+           -- test = do
+           --   nrs <- foldM (\xs _ -> do
+           --                  x <- generateOrdersFixedDueDateSlack sim (exponential (960 / 105)) (uniformDistr 0.5001 (fromIntegral (length pts) + 0.4999)) dueDateSlack
+           --                  return $ length x : xs
+           --              ) [] [0..10000]
+           --   putStrLn $ "res: " ++ show (fromIntegral (sum nrs) / fromIntegral (length nrs))
+        in generateOrdersFixedDueDateSlack sim (exponential (960 / 105)) (uniformDistr 0.5001 (fromIntegral (length pts) + 0.4999)) dueDateSlack)
 
 
 -- interArrivalTimeDistribution :: UniformDistribution

@@ -17,8 +17,11 @@ import           Releaser.Type
 
 featureExtractor :: ReduceValues -> ConfigFeatureExtractor
 featureExtractor = -- featExtractorSimple
+
   -- HERE
   featExtractorFullMachinesToQueue  -- was this
+
+
   -- featExtractorFullMachinesToQueueNbnBn
   -- featExtractorSimpleWipWithQueueCountsAndMachineCount -- for testing
 
@@ -28,7 +31,7 @@ featureExtractor = -- featExtractorSimple
   -- featExtractorSimpleWipWithQueueCounts   -- <- has been working up to -55 costs with const demand
   -- featExtractorSimpleWipWithQueueCountsAndMachineCount -- <- works!!!
 
-  -- featExtractorSimpleWithQueueCounts (no FGI does not make sense)
+  -- featExtractorSimpleWithQueueCounts -- (no FGI does not make sense)
   -- featExtractorWipAsQueueCounters
 
 
