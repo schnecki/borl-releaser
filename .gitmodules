@@ -1,9 +1,9 @@
 [submodule "borl"]
 	path = borl
-	url = git@git.uibk.ac.at:c4371143/borl.git
+	url = git@github.com:schnecki/borl.git
 [submodule "simsim"]
 	path = simsim
-	url = git@git.uibk.ac.at:c4371143/simsim.git
+	url = git@github.com:schnecki/simsim.git
 [submodule "experimenter"]
 	path = experimenter
-	url = git@git.uibk.ac.at:c4371143/experimenter.git
+	url = git@github.com:schnecki/experimenter.git
