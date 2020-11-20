@@ -22,7 +22,7 @@ module Releaser.Build
     , scaleAlg
     , nnConfig
     , netInp
-    , modelBuilderGrenade
+    , modelBuilder
     , actionConfig
     , experimentName
     , mInverse
@@ -37,6 +37,7 @@ import           Control.Lens
 import           Control.Monad
 import           Control.Monad.IO.Class
 import           Data.Constraint                   (Dict (..))
+import           Data.Default
 import           Data.Int                          (Int64)
 import           Data.List                         (find, genericLength)
 import qualified Data.Map                          as M
@@ -53,7 +54,7 @@ import           GHC.Exts                          (IsList (..))
 import           GHC.TypeLits                      (KnownNat)
 import           Grenade
 import           Network.HostName
-import           Prelude                           hiding (scaleFloat)
+import           Prelude
 import           Statistics.Distribution
 import           Statistics.Distribution.Uniform
 import           System.Directory
@@ -152,19 +153,19 @@ instance Show St where
   show st = show (extractFeatures False st)
 
 
-netInp :: St -> V.Vector Float
+netInp :: St -> V.Vector Double
 netInp = extractionToList . extractFeatures True
 
 mInverse :: BORL St Act -> NetInputWoAction -> Maybe (Either String St)
 mInverse borl = return . Left . show . fromListToExtraction (borl ^. s) (featureExtractor True)
 
-netInpTbl :: St -> V.Vector Float
+netInpTbl :: St -> V.Vector Double
 netInpTbl st = case extractFeatures False st of
   Extraction plts op que _ fgi shipped _ -> V.fromList $ plts ++ map reduce (concat $ op ++ map (map (fromIntegral . ceiling . (/9))) (concat que) ++ fgi ++ shipped)
   where
     reduce x = 7 * fromIntegral (ceiling (x / 7))
 
-netInpTblBinary :: St -> [Float]
+netInpTblBinary :: St -> [Double]
 netInpTblBinary st = case extractFeatures False st of
   Extraction plts op que _ fgi shipped _ -> plts ++ map reduce (concat op) ++ map (fromIntegral . ceiling . (/9)) (concat (concat que)) ++ map reduce (concat $ fgi ++ shipped)
   where
@@ -172,9 +173,9 @@ netInpTblBinary st = case extractFeatures False st of
              | otherwise = 1
 
 
-modelBuilderGrenade :: St -> Integer -> IO SpecConcreteNetwork
-modelBuilderGrenade initState cols =
-  buildModelWith UniformInit BuildSetup { printResultingSpecification = False } $
+modelBuilder :: St -> Integer -> IO SpecConcreteNetwork
+modelBuilder initState cols =
+  buildModelWith (NetworkInitSettings UniformInit BLAS Nothing) (DynamicBuildSetup False) $
   inputLayer1D lenIn >>
   -- fullyConnected (10*lenIn) >> dropout 0.99 >> leakyRelu >>
   -- fullyConnected (5*lenIn) >> leakyRelu >> dropout 0.95 >>
@@ -185,9 +186,10 @@ modelBuilderGrenade initState cols =
   -- fullyConnected (2*lenOut) >> leakyRelu >>
   -- fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
   -- fullyConnected (3*lenIn) >> relu >>
-
+  -- fullyConnected (2 * lenIn) >> relu >>
   fullyConnected (2*lenIn) >> relu >>
   fullyConnected lenIn >> relu >>
+  -- fullyConnected ((lenIn + lenOut) `div` 2) >> relu >>
   fullyConnected (2*lenOut) >> relu >>
   fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer
   where
@@ -221,7 +223,7 @@ buildBORLGrenade = do
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actFilter) = mkInitSt sim startOrds
   st <- liftIO $ initSt MainAgent
-  flipObjective . setPrettyPrintElems <$> mkUnichainGrenadeCombinedNet alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilderGrenade st) nnConfig borlSettings (Just initVals)
+  flipObjective . setPrettyPrintElems <$> mkUnichainGrenadeCombinedNet alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
 
 
 setPrettyPrintElems :: BORL St Act -> BORL St Act
@@ -257,20 +259,20 @@ databaseSetting = do
   return $ DatabaseSetting ("host=" <> getPsqlHost hostName <> " dbname=experimenter user=experimenter password=experimenter port=5432") 10
 
 
-mkMiniPrettyPrintElems :: St -> [V.Vector Float]
+mkMiniPrettyPrintElems :: St -> [V.Vector Double]
 mkMiniPrettyPrintElems st
   | length (head xs) /= length base' = error $ "wrong length in mkMiniPrettyPrintElems: " ++
-                                show (length $ head xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (unscaleFloat scaleAlg (Just (scaleOrderMin, scaleOrderMax))) base') ++
+                                show (length $ head xs) ++ " instead of " ++ show (length base') ++ ". E.g.: " ++ show (map (unscaleDouble scaleAlg (Just (scaleOrderMin, scaleOrderMax))) base') ++
                                 "\nCurrent state: " ++ show (extractFeatures True st)
 
-  | otherwise = map V.fromList $ concatMap (zipWith (++) plts . replicate (length plts) . map (scaleFloat scaleAlg (Just (scaleOrderMin, scaleOrderMax)))) xs
+  | otherwise = map V.fromList $ concatMap (zipWith (++) plts . replicate (length plts) . map (scaleDouble scaleAlg (Just (scaleOrderMin, scaleOrderMax)))) xs
   where
     len = V.length $ extractionToList $ extractFeatures True st
     base' = drop (length productTypes) (V.toList $ netInp st)
 
-    plts :: [[Float]]
-    plts = map (map (scaleFloat scaleAlg (Just (scalePltsMin, scalePltsMax))) . take (length productTypes)) [[1, 3, 1, 1, 3, 1], [3, 5, 3, 3, 5, 3]]
-    xs :: [[Float]]
+    plts :: [[Double]]
+    plts = map (map (scaleDouble scaleAlg (Just (scalePltsMin, scalePltsMax))) . take (length productTypes)) [[1, 3, 1, 1, 3, 1], [3, 5, 3, 3, 5, 3]]
+    xs :: [[Double]]
     xs | len - length (head plts) == 22 = [xsSimple, xsSimple2]
        | len - length (head plts) == 21 = map init [xsSimple, xsSimple2]
        | len - length (head plts) == 18 = [xs19, xs19']
@@ -312,9 +314,9 @@ mkMiniPrettyPrintElems st
     xs106 = concat [ concat[[ 0, 0, 0, 0, 0, 0, 3],[ 0, 0, 0, 0, 0, 0, 7]],concat [ concat[[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],[],concat [[ 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0],[ 0, 0, 0, 0]]]
     xs106' = concat[ concat [[ 0, 0, 3, 9, 4, 6, 1],[ 0, 0, 0, 0, 0, 0, 2]],concat [ concat [[ 0, 0, 0, 0, 0, 4, 5, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0,11, 2, 0]],concat [[ 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0]]],[],concat [[ 2, 0, 0, 0, 0, 0],[ 5, 1, 8, 0, 0, 0]],concat [[ 0, 0, 0, 0],[ 0, 0, 0, 0]]]
 
-    xs684 :: [Float]
+    xs684 :: [Double]
     xs684 = concat [ concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 3],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], concat[ concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],[], concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0],[ 0, 0, 0, 0],[ 0, 0, 0, 0],[ 0, 0, 0, 0],[ 0, 0, 0, 0],[ 0, 0, 0, 0]]]
-    xs226 :: [Float]
+    xs226 :: [Double]
     xs226 = concat [ concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 5],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]], concat [ concat[[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]],[],concat [[ 0, 0, 0, 0, 0, 0, 0, 0, 0],[ 0, 0, 0, 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0],[ 0, 0, 0, 0]]]
 
     xs23 = concat [ concat [[ 0, 0, 0, 0, 0, 0, 6]],concat[concat[[ 0]],concat [[ 0]],concat [[ 0]],concat [[ 0]],concat [[ 0]],concat [[ 0]]],[],concat [[ 0, 0, 0, 0, 0, 0]],concat [[ 0, 0, 0, 0]]]
@@ -669,20 +671,10 @@ instance ExperimentDef (BORL St Act) where
     | isNN
     ] ++
     [ ParameterSetup
-      "Update Target Interval (Disabled if smooththing >0)"
-      (setAllProxies (proxyNNConfig . updateTargetInterval))
-      (^?! proxies . v . proxyNNConfig . updateTargetInterval)
-      (Just $ return . const [10000])
-      Nothing
-      Nothing
-      Nothing
-    | isNN
-    ] ++
-    [ ParameterSetup
-      "Update Target Interval Decay"
-      (setAllProxies (proxyNNConfig . updateTargetIntervalDecay))
-      (^?! proxies . v . proxyNNConfig . updateTargetIntervalDecay)
-      (Just $ return . const [StepWiseIncrease (Just 500) 0.1 10000])
+      "Grenade Smooth Target Update Period"
+      (setAllProxies (proxyNNConfig . grenadeSmoothTargetUpdatePeriod))
+      (^?! proxies . v . proxyNNConfig . grenadeSmoothTargetUpdatePeriod)
+      (Just $ return . const [100, 10])
       Nothing
       Nothing
       Nothing

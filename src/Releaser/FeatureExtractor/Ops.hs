@@ -201,23 +201,23 @@ test =
   , newOrder (Product 1) 0 600866.0
   ]
 
-mkShippedDueList :: CurrentTime -> [Order] -> [Float]
+mkShippedDueList :: CurrentTime -> [Order] -> [Double]
 mkShippedDueList t =
   init .
   map genericLength . sortByTimeUntilDue (-maxBackorderPeriod) 0 t
 
-mkOrderPoolList :: CurrentTime -> [Order] -> [Float]
+mkOrderPoolList :: CurrentTime -> [Order] -> [Double]
 mkOrderPoolList t =
  tail .
  map genericLength . sortByTimeUntilDue (configActFilterMin actionFilterConfig) (configActFilterMax actionFilterConfig) t
 
-mkFgiList :: CurrentTime -> [Order] -> [Float]
+mkFgiList :: CurrentTime -> [Order] -> [Double]
 -- mkFgiList t = init . tail . mkUntilDueList t
 mkFgiList t =
   init . tail .
   map genericLength . sortByTimeUntilDue 1 (configActFilterMax actionFilterConfig) t
 
-mkUntilDueList :: CurrentTime -> [Order] -> [Float]
+mkUntilDueList :: CurrentTime -> [Order] -> [Double]
 mkUntilDueList t xs = map genericLength (sortByTimeUntilDue (-maxBackorderPeriod) (configActFilterMax actionFilterConfig) t xs)
 
 

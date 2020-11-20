@@ -20,7 +20,7 @@ import           Data.Time.Clock             (diffUTCTime, getCurrentTime)
 import qualified Data.Vector                 as VB
 import qualified Data.Vector.Storable        as V
 import           Grenade
-import           Prelude                     hiding (scaleFloat)
+import           Prelude                     hiding (scaleDouble)
 import           System.IO                   (hFlush, stdout)
 import           Text.PrettyPrint
 
@@ -141,7 +141,7 @@ askUser showHelp addUsage cmds ql = do
             liftIO $ maybe ql (\v' -> decaySetting . exploration .~ NoDecay $ parameters . exploration .~ v' $ ql) <$> getIOMWithDefault Nothing
           "eps" -> do
             liftIO $ putStr "New value: " >> hFlush stdout
-            liftIO $ maybe ql (\v' -> decaySetting . epsilon .~ Last NoDecay $ parameters . epsilon .~ Last (v' :: Float) $ ql) <$> getIOMWithDefault Nothing
+            liftIO $ maybe ql (\v' -> decaySetting . epsilon .~ Last NoDecay $ parameters . epsilon .~ Last (v' :: Double) $ ql) <$> getIOMWithDefault Nothing
           "lr" -> do
             liftIO $ putStr "New value: " >> hFlush stdout
             liftIO $
@@ -260,7 +260,7 @@ mkTime a = do
     liftIO $ putStrLn ("Computation Time: " ++ show (diffUTCTime end start))
     return val
 
-mkPrettyPrintElems :: Bool -> St -> [V.Vector Float]
+mkPrettyPrintElems :: Bool -> St -> [V.Vector Double]
 mkPrettyPrintElems usePlts st
   | usePlts = [netInp st]
   | otherwise = map V.fromList $ zipWith (++) plts (replicate (length plts) base)
@@ -268,5 +268,5 @@ mkPrettyPrintElems usePlts st
     base = drop (length productTypes) (V.toList $ netInp st)
     minVal = configActFilterMin actionFilterConfig
     maxVal = configActFilterMax actionFilterConfig
-    actList = map (scaleFloat scaleAlg (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal .. maxVal]
+    actList = map (scaleDouble scaleAlg (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal .. maxVal]
     plts = [[x, y] | x <- actList, y <- actList]

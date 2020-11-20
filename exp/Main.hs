@@ -10,7 +10,7 @@ import           Control.Lens
 import           Control.Monad          (forM_, void)
 import           Control.Monad.IO.Class
 import qualified Data.Vector.Storable   as V
-import           Prelude                hiding (scaleFloat)
+import           Prelude                hiding (scaleDouble)
 import           System.Environment     (getArgs, getProgName)
 
 import           Experimenter
@@ -118,11 +118,11 @@ eval dbSetting runner2 res = do
   print (view evalsResults evalRes)
   writeAndCompileLatex dbSetting evalRes
 
-mkPrettyPrintElems :: St -> [V.Vector Float]
+mkPrettyPrintElems :: St -> [V.Vector Double]
 mkPrettyPrintElems st = map V.fromList $ zipWith (++) plts (replicate (length plts) base)
   where
     base = drop (length productTypes) (V.toList $ netInp st)
     minVal = configActFilterMin actionFilterConfig
     maxVal = configActFilterMax actionFilterConfig
-    actList = map (scaleFloat scaleAlg (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal .. maxVal]
+    actList = map (scaleDouble scaleAlg (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal .. maxVal]
     plts = [[x, y] | x <- actList, y <- actList]

@@ -5,11 +5,7 @@ module Releaser.ActionFilter.Type
     ) where
 
 
-import           SimSim
-
 data ActionFilterConfig = ActionFilterConfig
   { configActFilterMin :: !Integer
   , configActFilterMax :: !Integer
   }
-
-

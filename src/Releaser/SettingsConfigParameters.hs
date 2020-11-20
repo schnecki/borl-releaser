@@ -25,7 +25,7 @@ borlSettings =
     , _explorationStrategy = EpsilonGreedy -- SoftmaxBoltzmann 5
     , _nStep = 3
     , _mainAgentSelectsGreedyActions = False
-    , _workersMinExploration = replicate 10 0.01 ++ [0.05, 0.10, 0.20, 0.30]
+    , _workersMinExploration = replicate 2 0.01 ++ [0.05, 0.10, 0.20, 0.30]
     , _overEstimateRho = True
     , _independentAgents = length productTypes
     , _independentAgentsSharedRho = True
@@ -33,7 +33,7 @@ borlSettings =
 
 
 -- | BORL Parameters.
-borlParams :: Parameters Float
+borlParams :: Parameters Double
 borlParams = Parameters
   { _alpha               = 0.01
   , _alphaRhoMin         = 0.001
@@ -58,7 +58,8 @@ nnConfig =
     , _trainBatchSize                  = 4
     , _trainingIterations              = 1
     , _grenadeLearningParams           = OptAdam 0.005 0.9 0.999 1e-7 1e-3
-    , _grenadeSmoothTargetUpdate       = 0.01
+    , _grenadeSmoothTargetUpdate       = 0.01 -- 0.025
+    , _grenadeSmoothTargetUpdatePeriod = 100  -- 300
     , _learningParamsDecay             = ExponentialDecay (Just 5e-6) (configDecayRate decay) (round $ 2 * fromIntegral (configDecaySteps decay))
     , _prettyPrintElems                = []      -- is set just before printing/at initialisation
     , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-3000) 3000 (-5000) 5000
@@ -66,8 +67,7 @@ nnConfig =
     , _cropTrainMaxValScaled           = Just 0.98 -- Nothing
     , _grenadeDropoutFlipActivePeriod  = 10^5
     , _grenadeDropoutOnlyInactiveAfter = 0 -- 10^6
-    , _updateTargetInterval            = 10000
-    , _updateTargetIntervalDecay       = StepWiseIncrease (Just 500) 0.1 10000
+    , _clipGradients                   = False
     }
 
 ------------------------------ ###########################################

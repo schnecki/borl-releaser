@@ -22,7 +22,7 @@ description:         Please see the README on GitHub at <https://github.com/gith
 flags:
   fast:
     description: Disables optimizations
-    manual: true
+    manual: false
     default: false
   debug:
     description: Turn on debug settings.
@@ -48,6 +48,7 @@ dependencies:
   - time
   - text
   - pretty
+  - data-default
   - grenade
   - unliftio-core
   - bytestring
@@ -70,8 +71,16 @@ library:
     -Wredundant-constraints
     -fwarn-tabs
     -fno-warn-name-shadowing
-    -O2
     -funbox-strict-fields
+  when:
+    - condition: flag(fast)
+      then:
+        ghc-options: -O0 # -fprof-auto
+      else:
+        ghc-options: -O2
+    - condition: flag(debug)
+      cpp-options: -DDEBUG
+
 
 executables:
   borl-releaser-exe:
