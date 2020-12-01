@@ -43,7 +43,7 @@ borlParams = Parameters
   -- Rest
   , _epsilon             = [0.30, 0.50] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
   , _exploration         = 1.0
-  , _learnRandomAbove    = 0.97
+  , _learnRandomAbove    = 0.5
   -- Multichain NBORL and etc.
   , _zeta                = 0.10
   , _xi                  = 5e-3
@@ -53,11 +53,11 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-  {   _replayMemoryMaxSize             = 1000 -- 20000 -- was 30k
+  {   _replayMemoryMaxSize             = 3000 -- 20000 -- was 30k
     , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
     , _trainBatchSize                  = 4
     , _trainingIterations              = 1
-    , _grenadeLearningParams           = OptAdam 0.005 0.9 0.999 1e-7 1e-3
+    , _grenadeLearningParams           = OptAdam 0.01 0.9 0.999 1e-7 1e-3 -- OptAdam 0.005 0.9 0.999 1e-7 1e-3
     , _grenadeSmoothTargetUpdate       = 0.01 -- 0.025
     , _grenadeSmoothTargetUpdatePeriod = 100  -- 300
     , _learningParamsDecay             = ExponentialDecay (Just 5e-6) (configDecayRate decay) (round $ 2 * fromIntegral (configDecaySteps decay))

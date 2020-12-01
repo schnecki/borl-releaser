@@ -15,6 +15,7 @@ decay :: ConfigDecay
 decay =
   -- decayRateStepsWith 0.6 100000 -- (3*10^6)
   -- decayRate50PctStepsk150k
-  decayRateStepsWith 0.55 50000 -- (10^5)
-  -- decayRateStepsWith 0.5 100000 -- (3*10^6)
+  -- decayRateStepsWith 0.55 50000 -- (10^5)
+  decayRateStepsWith 0.55 25000 -- (10^5)
 
+  -- decayRateStepsWith 0.5 100000 -- (3*10^6)
