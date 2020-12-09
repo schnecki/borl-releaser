@@ -256,7 +256,7 @@ databaseSetting = do
   let getPsqlHost h
         | isJust mHostArg = maybe "" (E.encodeUtf8 .T.pack) mHostArg
         | h `elem` ["schnecki-zenbook", "schnecki-laptop"] = "192.168.1.110"
-        | otherwise = "c437-pc141"
+        | otherwise = "c437-pc147"
   putStrLn $ "Using DB-Host: " <> show (getPsqlHost hostName)
   return $ DatabaseSetting ("host=" <> getPsqlHost hostName <> " dbname=experimenter user=experimenter password=experimenter port=5432") 10
 
@@ -591,7 +591,7 @@ instance ExperimentDef (BORL St Act) where
       "Epsilon (at period 0)"
       (set (B.parameters . epsilon))
       (^. B.parameters . epsilon)
-      (Just $ return . const [fromList [0.30, 0.50], fromList [3.00, 0.50]])
+      (Just $ return . const [fromList [3.00, 1.50]])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
