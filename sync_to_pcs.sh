@@ -2,7 +2,7 @@
 
 
 USER=schnecki
-PCS="c437-pc169 c437-pc161 c437-pc147"
+PCS="c437-pc169" # " c437-pc161 c437-pc147"
 DIR=`pwd`/
 
 if [ ${PWD##*/} == "test" ]; then
@@ -25,4 +25,3 @@ for PC in $PCS; do
   fi
 
 done
-
