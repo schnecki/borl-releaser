@@ -53,7 +53,7 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-  {   _replayMemoryMaxSize             = 3000 -- 20000 -- was 30k
+  {   _replayMemoryMaxSize             = 300 -- 20000 -- was 30k
     , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
     , _trainBatchSize                  = 4
     , _trainingIterations              = 1
@@ -62,12 +62,12 @@ nnConfig =
     , _grenadeSmoothTargetUpdatePeriod = 100  -- 300
     , _learningParamsDecay             = ExponentialDecay (Just 5e-6) (configDecayRate decay) (round $ 2 * fromIntegral (configDecaySteps decay))
     , _prettyPrintElems                = []      -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-3000) 3000 (-5000) 5000
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-300) 300 (-500) 500
     , _scaleOutputAlgorithm            = ScaleMinMax -- ScaleLog 1000 -- ScaleMinMax
     , _cropTrainMaxValScaled           = Just 0.98 -- Nothing
     , _grenadeDropoutFlipActivePeriod  = 10^5
     , _grenadeDropoutOnlyInactiveAfter = 0 -- 10^6
-    , _clipGradients                   = False
+    , _clipGradients                   = NoClipping -- ClipByGlobalNorm 0.01
     }
 
 ------------------------------ ###########################################
@@ -78,7 +78,7 @@ alg =
   -- AlgBORL defaultGamma0 defaultGamma1 ByStateValues Nothing
   -- AlgDQNAvgRewAdjusted 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
   -- AlgDQNAvgRewAdjusted 0.75 0.99 ByStateValues
-  AlgDQNAvgRewAdjusted 0.99 1.0 ByStateValues
+  AlgDQNAvgRewAdjusted 0.8 0.995 ByStateValues
   -- (ByStateValuesAndReward 0.5 NoDecay)
   -- (ByMovAvg 5000)
   -- algDQN
@@ -87,7 +87,7 @@ initVals :: InitValues
 initVals = InitValues {defaultRhoMinimum = 500, defaultRho = 120, defaultV = 0, defaultW = 0, defaultR0 = 0, defaultR1 = 0}
 
 experimentName :: T.Text
-experimentName = "02.06.2020 LOD Paper Setup"
+experimentName = "09.12.2020 First final runs"
 
 
 scaleAlg :: ScalingAlgorithm

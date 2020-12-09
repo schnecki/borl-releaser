@@ -224,8 +224,8 @@ buildBORLGrenade = do
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actFilter) = mkInitSt sim startOrds
   st <- liftIO $ initSt MainAgent
-  -- flipObjective . setPrettyPrintElems <$> mkUnichainGrenadeCombinedNet alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
-  flipObjective . setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
+  flipObjective . setPrettyPrintElems <$> mkUnichainGrenadeCombinedNet alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
+  -- flipObjective . setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
 
 
 setPrettyPrintElems :: BORL St Act -> BORL St Act
@@ -465,7 +465,7 @@ instance ExperimentDef (BORL St Act) where
         (view algorithm)
         (Just $ return .
          const
-           [ AlgDQNAvgRewAdjusted 0.75 1.0 ByStateValues
+           [ AlgDQNAvgRewAdjusted 0.75 0.995 ByStateValues
            ])
         Nothing
         Nothing
@@ -477,9 +477,9 @@ instance ExperimentDef (BORL St Act) where
         (Just $ return .
          const
            [
-            -- RewardPeriodEndSimple (ConfigRewardCosts (Just 500))
-             RewardPeriodEndSimple (ConfigRewardCosts (Just 750))
-           , RewardPeriodEndSimple (ConfigRewardCosts (Just 1250))
+            RewardPeriodEndSimple (ConfigRewardCosts (Just 500))
+             -- RewardPeriodEndSimple (ConfigRewardCosts (Just 750))
+           -- , RewardPeriodEndSimple (ConfigRewardCosts (Just 1250))
            ])
         Nothing
         Nothing
@@ -542,7 +542,7 @@ instance ExperimentDef (BORL St Act) where
       "Decay Alpha"
       (set (B.decaySetting . alpha))
       (^. B.decaySetting . alpha)
-      (Just $ return . const [ExponentialDecay (Just 1e-5) 0.55 30000])
+      (Just $ return . const [ExponentialDecay (Just 1e-5) 0.55 25000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -556,7 +556,7 @@ instance ExperimentDef (BORL St Act) where
       "Decay AlphaRhoMin"
       (set (B.decaySetting . alphaRhoMin))
       (^. B.decaySetting . alphaRhoMin)
-      (Just $ return . const [ExponentialDecay (Just 1e-5) 0.55 30000])
+      (Just $ return . const [ExponentialDecay (Just 1e-5) 0.55 25000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -619,14 +619,14 @@ instance ExperimentDef (BORL St Act) where
       "Learn Random Above (faster converging rho)"
       (set (B.parameters . learnRandomAbove))
       (^. B.parameters . learnRandomAbove)
-      (Just $ return . const [0.97])
+      (Just $ return . const [0.5])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Replay Memory Size"
       (setAllProxies (proxyNNConfig . replayMemoryMaxSize))
       (^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
-      (Just $ return . const [1000])
+      (Just $ return . const [300])
       Nothing
       Nothing
       Nothing
@@ -636,7 +636,7 @@ instance ExperimentDef (BORL St Act) where
       "Replay Memory Strategy"
       (setAllProxies (proxyNNConfig . replayMemoryStrategy))
       (^?! proxies . v . proxyNNConfig . replayMemoryStrategy)
-      (Just $ return . const [ReplayMemoryPerAction, ReplayMemorySingle])
+      (Just $ return . const [ReplayMemoryPerAction])
       Nothing
       Nothing
       Nothing
@@ -656,7 +656,7 @@ instance ExperimentDef (BORL St Act) where
       "ANN (Grenade) Learning Rate"
       (setAllProxies (proxyNNConfig . grenadeLearningParams))
       (^?! proxies . v . proxyNNConfig . grenadeLearningParams)
-      (Just $ return . const [OptAdam 0.005 0.9 0.999 1e-7 1e-3])
+      (Just $ return . const [OptAdam 0.01 0.9 0.999 1e-7 1e-3])
       Nothing
       Nothing
       Nothing
@@ -676,7 +676,7 @@ instance ExperimentDef (BORL St Act) where
       "Grenade Smooth Target Update Period"
       (setAllProxies (proxyNNConfig . grenadeSmoothTargetUpdatePeriod))
       (^?! proxies . v . proxyNNConfig . grenadeSmoothTargetUpdatePeriod)
-      (Just $ return . const [100, 10])
+      (Just $ return . const [100])
       Nothing
       Nothing
       Nothing
@@ -696,9 +696,7 @@ instance ExperimentDef (BORL St Act) where
       "ScaleParameters"
       (setAllProxies (proxyNNConfig . scaleParameters))
       (^?! proxies . v . proxyNNConfig . scaleParameters)
-      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-5000) 5000 (-1500) 5000 (-5000) 5000
-                             ,ScalingNetOutParameters (-800) 800 (-5000) 5000 (-1500) 3000 (-3000) 3000
-                             ])
+      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-5000) 5000 (-300) 300 (-500) 500])
       Nothing
       Nothing
       Nothing
@@ -738,7 +736,7 @@ instance ExperimentDef (BORL St Act) where
       "NStep"
       (set (settings . nStep))
       (^. settings . nStep)
-      (Just $ return . const [3])
+      (Just $ return . const [3,10])
       Nothing
       Nothing
       Nothing
@@ -758,7 +756,7 @@ instance ExperimentDef (BORL St Act) where
       "Workers Min Exploration"
       (set (settings . workersMinExploration))
       (^. settings . workersMinExploration)
-      (Just $ return . const [replicate 10 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
+      (Just $ return . const [replicate 4 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
       Nothing
       Nothing
       Nothing
@@ -776,9 +774,9 @@ instance ExperimentDef (BORL St Act) where
   beforeWarmUpHook _ _ _ g borl = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True borl
   beforeEvaluationHook _ _ _ g borl -- in case warm up phase is 0 periods
    = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True  borl
-  afterPreparationHook _ expNr repetNr = liftIO $ copyFiles "prep_" expNr repetNr Nothing
-  afterWarmUpHook _ expNr repetNr repliNr = liftIO $ copyFiles "warmup_" expNr repetNr (Just repliNr)
-  afterEvaluationHook _ expNr repetNr repliNr = liftIO $ copyFiles "eval_" expNr repetNr (Just repliNr)
+  -- afterPreparationHook _ expNr repetNr = liftIO $ copyFiles "prep_" expNr repetNr Nothing
+  -- afterWarmUpHook _ expNr repetNr repliNr = liftIO $ copyFiles "warmup_" expNr repetNr (Just repliNr)
+  -- afterEvaluationHook _ expNr repetNr repliNr = liftIO $ copyFiles "eval_" expNr repetNr (Just repliNr)
 
 
 expSetting :: BORL St Act -> ExperimentSetting

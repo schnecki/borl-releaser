@@ -14,13 +14,11 @@ decayRateStepsWith :: DecayRate -> DecaySteps -> ConfigDecay
 decayRateStepsWith rate steps =
   ConfigDecay rate steps ("Exponential decay with rate " <> tshow rate <> " in " <> tshow steps <> " steps") $
   Parameters
-    { _alpha = ExponentialDecay (Just 1e-5) rate (steps `div` 2)
-    , _alphaRhoMin = ExponentialDecay (Just 1e-5) rate (steps `div` 2)
-
+    { _alpha = ExponentialDecay (Just 1e-5) rate ((2 * steps) `div` 3)
+    , _alphaRhoMin = ExponentialDecay (Just 1e-5) rate ((2 * steps) `div` 3)
     , _beta = ExponentialDecay (Just 1e-4) rate steps
     , _delta = ExponentialDecay (Just 5e-4) rate steps
     , _gamma = ExponentialDecay (Just 1e-3) rate steps
-
     , _epsilon = [NoDecay] -- ExponentialDecay (Just 0.50) rate steps
     , _exploration = ExponentialDecay (Just 0.01) rate steps -- was (Just 0.20)
       -- not used in AverageRewardAdjusted
