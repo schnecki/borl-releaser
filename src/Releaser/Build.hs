@@ -488,17 +488,18 @@ instance ExperimentDef (BORL St Act) where
         "ReleaseAlgorithm"
         (\r -> over (s . simulation) (\sim -> sim {simRelease = r}))
         (simRelease . view (s . simulation))
-        (Just $ return .
-         const
-           [ mkReleasePLT initialPLTS
-           , releaseImmediate
-           , releaseBIL (M.fromList [(Product 1, 6), (Product 2, 6)])
-           , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
-           , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
-           , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
-           , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
-           , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
-           ])
+        (Just . const . return $
+           ([ mkReleasePLT initialPLTS
+            , releaseImmediate
+            -- , releaseBIL (M.fromList [(Product 1, 6), (Product 2, 6)])
+            -- , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
+            -- , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
+            -- , releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
+            -- , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
+            -- , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
+           ] ++
+            map (\lts -> releaseBIL (M.fromList (map (\pt -> (pt, lts)) productTypes))) [1..6]
+        ))
         Nothing
         (Just (\x -> uniqueReleaseName x /= pltReleaseName)) -- drop preparation phase for all release algorithms but the BORL releaser
         (Just
