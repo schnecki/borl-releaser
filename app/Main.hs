@@ -155,26 +155,29 @@ askUser showHelp addUsage cmds ql = do
           _ -> liftIO $ putStrLn "Did not understand the input" >> return ql
       askUser False addUsage cmds ql'
     "s" -> do
-      ser <- toSerialisableWith serializeSt id ql
-      liftIO $ BS.writeFile "savedModel" (S.runPut $ S.put ser)
+      liftIO $ save ql
       askUser showHelp addUsage cmds ql
+      -- ser <- toSerialisableWith serializeSt id ql
+      -- liftIO $ BS.writeFile "savedModel" (S.runPut $ S.put ser)
     "l" -> do
-      bs <- liftIO $ BS.readFile "savedModel"
-      case S.runGet S.get bs of
-        Left err -> do
-          liftIO $ putStrLn err
-          askUser showHelp addUsage cmds ql
-        Right ser -> do
-          let (St sim _ _ _) = ql ^. s
-          ql' <-
-            fromSerialisableWith
-              (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
-              id
-              action
-              (ql ^. actionFilter)
-              netInp
-              ser
-          askUser showHelp addUsage cmds ql'
+      mql <- liftIO load
+      askUser showHelp addUsage cmds (fromMaybe ql mql)
+      -- bs <- liftIO $ BS.readFile "savedModel"
+      -- case S.runGet S.get bs of
+      --   Left err -> do
+      --     liftIO $ putStrLn err
+      --     askUser showHelp addUsage cmds ql
+      --   Right ser -> do
+      --     let (St sim _ _ _) = ql ^. s
+      --     ql' <-
+      --       fromSerialisableWith
+      --         (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
+      --         id
+      --         action
+      --         (ql ^. actionFilter)
+      --         netInp
+      --         ser
+      --     askUser showHelp addUsage cmds ql'
     "r" -> do
       liftIO $ putStr "How many learning rounds should I execute: " >> hFlush stdout
       l <- liftIO getLine

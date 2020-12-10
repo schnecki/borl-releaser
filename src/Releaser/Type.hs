@@ -20,6 +20,7 @@ import           SimSim                     as S
 
 import           Releaser.Reward.Type
 
+
 mkConfig :: Reader r a -> r -> a
 mkConfig = runReader
 

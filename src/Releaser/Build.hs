@@ -25,6 +25,8 @@ module Releaser.Build
     , modelBuilder
     , actionConfig
     , experimentName
+    , load
+    , save
     , mInverse
     , databaseSetting
     , expSetting
@@ -36,6 +38,7 @@ import           Control.DeepSeq
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.IO.Class
+import qualified Data.ByteString                   as B
 import           Data.Constraint                   (Dict (..))
 import           Data.Default
 import           Data.Int                          (Int64)
@@ -329,9 +332,23 @@ mkMiniPrettyPrintElems st
 ------------------ ExperimentDef instance ------------------
 ------------------------------------------------------------
 
+save :: BORL St Act -> IO ()
+save borl = do
+  res <- toSerialisableWith serializeSt id borl
+  B.writeFile "saved.bin" (runPut $ put res)
+
+load :: IO (Maybe (BORL St Act))
+load = do
+  bs <- liftIO $ B.readFile "saved.bin"
+  case trace ("S.runGet") S.runGet S.get bs of
+    Left err -> putStrLn ("Could not deserialize to Serializable BORL. Error: " ++ err) >> return Nothing
+    Right ser -> trace ("ser") $ do
+     borl <- buildBORLGrenade
+     let (St sim _ _ _) = borl ^. s
+     Just <$> fromSerialisableWith (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim)) id action (borl ^. B.actionFilter) netInp ser
+
 
 instance ExperimentDef (BORL St Act) where
-  -- type ExpM (BORL St Act) = TF.SessionT IO
   type ExpM (BORL St Act) = IO
   type Serializable (BORL St Act) = BORLSerialisable StSerialisable Act
   serialisable = do
@@ -341,7 +358,6 @@ instance ExperimentDef (BORL St Act) where
     unsafePerformIO $ do
       borl <- buildBORLGrenade
       let (St sim _ _ _) = borl ^. s
-      -- let (_, actions) = mkConfig (action (borl ^. s)) actionConfig
       return $
         fromSerialisableWith
           (deserializeSt (simRelease sim) (simDispatch sim) (simShipment sim) (simProcessingTimes $ simInternal sim))
