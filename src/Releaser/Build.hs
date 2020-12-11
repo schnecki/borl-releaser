@@ -487,6 +487,7 @@ instance ExperimentDef (BORL St Act) where
         (Just $ return .
          const
            [ AlgDQNAvgRewAdjusted 0.75 0.995 ByStateValues
+           , AlgDQNAvgRewAdjusted 0.75 1.0 ByStateValues
            ])
         Nothing
         Nothing
@@ -500,7 +501,7 @@ instance ExperimentDef (BORL St Act) where
            [
             RewardPeriodEndSimple (ConfigRewardCosts (Just 500))
              -- RewardPeriodEndSimple (ConfigRewardCosts (Just 750))
-           -- , RewardPeriodEndSimple (ConfigRewardCosts (Just 1250))
+           , RewardPeriodEndSimple (ConfigRewardCosts (Just 1250))
            ])
         Nothing
         Nothing
@@ -613,7 +614,7 @@ instance ExperimentDef (BORL St Act) where
       "Epsilon (at period 0)"
       (set (B.parameters . epsilon))
       (^. B.parameters . epsilon)
-      (Just $ return . const [fromList [3.00, 1.50]])
+      (Just $ return . const [fromList [1.5, 0.75]])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -678,7 +679,7 @@ instance ExperimentDef (BORL St Act) where
       "ANN (Grenade) Learning Rate"
       (setAllProxies (proxyNNConfig . grenadeLearningParams))
       (^?! proxies . v . proxyNNConfig . grenadeLearningParams)
-      (Just $ return . const [OptAdam 0.01 0.9 0.999 1e-7 1e-3])
+      (Just $ return . const [OptAdam 0.005 0.9 0.999 1e-7 1e-3])
       Nothing
       Nothing
       Nothing
@@ -718,7 +719,7 @@ instance ExperimentDef (BORL St Act) where
       "ScaleParameters"
       (setAllProxies (proxyNNConfig . scaleParameters))
       (^?! proxies . v . proxyNNConfig . scaleParameters)
-      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-5000) 5000 (-300) 300 (-500) 500])
+      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-5000) 5000 (-3000) 3000 (-5000) 5000])
       Nothing
       Nothing
       Nothing
@@ -778,7 +779,7 @@ instance ExperimentDef (BORL St Act) where
       "Workers Min Exploration"
       (set (settings . workersMinExploration))
       (^. settings . workersMinExploration)
-      (Just $ return . const [replicate 4 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
+      (Just $ return . const [replicate 10 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
       Nothing
       Nothing
       Nothing
