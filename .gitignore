@@ -49,3 +49,8 @@ test/bil3/
 /test/stateVAllStates_scaled
 /res
 /stateValuesAgents
+/saved.bin
+/borl-releaser-exe.ps
+/borl-releaser-exe.prof
+/borl-releaser-exe.hp
+/borl-releaser-exe.aux
