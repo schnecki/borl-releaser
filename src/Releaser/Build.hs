@@ -499,9 +499,9 @@ instance ExperimentDef (BORL St Act) where
         (Just $ return .
          const
            [
-            RewardPeriodEndSimple (ConfigRewardCosts (Just 500))
-             -- RewardPeriodEndSimple (ConfigRewardCosts (Just 750))
-           , RewardPeriodEndSimple (ConfigRewardCosts (Just 1250))
+             RewardPeriodEndSimple (ConfigRewardCosts (Just 500))
+           -- , RewardPeriodEndSimple (ConfigRewardCosts (Just 750))
+           -- , RewardPeriodEndSimple (ConfigRewardCosts (Just 1250))
            ])
         Nothing
         Nothing
@@ -635,7 +635,7 @@ instance ExperimentDef (BORL St Act) where
       "Decay Exploration"
       (set (B.decaySetting . exploration))
       (^. B.decaySetting . exploration)
-      (Just $ return . const [ExponentialDecay (Just 0.01) 0.55 50000])
+      (Just $ return . const [ExponentialDecay Nothing 0.55 50000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -779,7 +779,7 @@ instance ExperimentDef (BORL St Act) where
       "Workers Min Exploration"
       (set (settings . workersMinExploration))
       (^. settings . workersMinExploration)
-      (Just $ return . const [replicate 10 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
+      (Just $ return . const [replicate 2 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
       Nothing
       Nothing
       Nothing
