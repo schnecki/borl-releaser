@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE DeriveAnyClass    #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -78,11 +79,11 @@ actionFun agentType (St sim incomingOrders rewardFun lts) acts
           | uniqueReleaseName (simRelease sim) == pltReleaseName = sim {simRelease = mkReleasePLT ltsNew}
           | otherwise = sim
     simWOrders <- addAdditionalOrdersToOrderPool simReleaseSet incomingOrders
-    sim' <- simulateUntil (simCurrentTime simWOrders + periodLength) simWOrders [] -- are set above
+    !sim' <- simulateUntil (simCurrentTime simWOrders + periodLength) simWOrders [] -- are set above
     let reward = mkReward rewardFun simWOrders sim'
     newIncomingOrders <- generateOrders sim'
     when (agentType == MainAgent) $ writeFiles ltsNew simWOrders sim'
-    return (reward, St sim' newIncomingOrders rewardFun ltsNew, False)
+    return (reward, St (force sim') newIncomingOrders rewardFun ltsNew, False)
   | otherwise = error $ "unexpected number of actions in actionFun: " ++ show acts
 
 

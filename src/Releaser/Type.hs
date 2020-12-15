@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns    #-}
 {-# LANGUAGE DeriveAnyClass  #-}
 {-# LANGUAGE DeriveGeneric   #-}
+{-# LANGUAGE Strict          #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 
@@ -50,8 +51,12 @@ data St = St
   , _nextIncomingOrders   :: ![Order]        -- ^ The incoming orders for next period
   , _rewardFunctionOrders :: !RewardFunction -- ^ Defines how to calculate rewards
   , _plannedLeadTimes     :: !LTs           -- ^ Planned lead times currently set
-  } deriving (Generic, NFData)
+  } deriving (Generic)
 makeLenses ''St
+
+instance NFData St where
+  rnf (St s ors rw pl) = rnf s `seq` rnf1 ors `seq` rnf rw `seq` rnf pl
+
 
 instance Eq St where
   (St !sim1 !inc1 !_ !plt1) == (St !sim2 !inc2 !_ !plt2) = (sim1,inc1,plt1) == (sim2,inc2,plt2)

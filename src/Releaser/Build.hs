@@ -642,7 +642,7 @@ instance ExperimentDef (BORL St Act) where
       "Learn Random Above (faster converging rho)"
       (set (B.parameters . learnRandomAbove))
       (^. B.parameters . learnRandomAbove)
-      (Just $ return . const [0.5])
+      (Just $ return . const [0.9])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -812,7 +812,7 @@ expSetting borl =
     , _evaluationWarmUpSteps = 1000
     , _evaluationSteps = 100000
     , _evaluationReplications = 1
-    , _maximumParallelEvaluations = 1
+    , _evaluationMaxStepsBetweenSaves = Just 100
     }
   where
     isNNFlag = isNeuralNetwork (borl ^. proxies . v)
