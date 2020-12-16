@@ -788,15 +788,15 @@ instance ExperimentDef (BORL St Act) where
     where
       isNN = isNeuralNetwork (borl ^. proxies . v)
   -- HOOKS
-  beforePreparationHook _ _ g borl =
-    liftIO $ do
-      let dir = "results/" <> T.unpack (T.replace " " "_" experimentName) <> "/data/"
-      createDirectoryIfMissing True dir
-      writeFile (dir ++ "plot.sh") gnuplot
-      mapMOf (s . simulation) (setSimulationRandomGen g) borl
-  beforeWarmUpHook _ _ _ g borl = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True borl
-  beforeEvaluationHook _ _ _ g borl -- in case warm up phase is 0 periods
-   = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True  borl
+  -- beforePreparationHook _ _ g borl =
+  --   liftIO $ do
+  --     let dir = "results/" <> T.unpack (T.replace " " "_" experimentName) <> "/data/"
+  --     createDirectoryIfMissing True dir
+  --     writeFile (dir ++ "plot.sh") gnuplot
+  --     mapMOf (s . simulation) (setSimulationRandomGen g) borl
+  -- beforeWarmUpHook _ _ _ g borl = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True borl
+  -- beforeEvaluationHook _ _ _ g borl -- in case warm up phase is 0 periods
+  --  = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True  borl
   -- afterPreparationHook _ expNr repetNr = liftIO $ copyFiles "prep_" expNr repetNr Nothing
   -- afterWarmUpHook _ expNr repetNr repliNr = liftIO $ copyFiles "warmup_" expNr repetNr (Just repliNr)
   -- afterEvaluationHook _ expNr repetNr repliNr = liftIO $ copyFiles "eval_" expNr repetNr (Just repliNr)
@@ -812,7 +812,7 @@ expSetting borl =
     , _evaluationWarmUpSteps = 1000
     , _evaluationSteps = 100000
     , _evaluationReplications = 1
-    , _evaluationMaxStepsBetweenSaves = Just 100
+    , _evaluationMaxStepsBetweenSaves = Nothing -- Just 1000
     }
   where
     isNNFlag = isNeuralNetwork (borl ^. proxies . v)
