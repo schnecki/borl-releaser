@@ -24,8 +24,8 @@ borlSettings =
     , _disableAllLearning = False
     , _explorationStrategy = EpsilonGreedy -- SoftmaxBoltzmann 5
     , _nStep = 3
-    , _mainAgentSelectsGreedyActions = False
-    , _workersMinExploration = replicate 2 0.01 ++ [0.05, 0.10, 0.20, 0.30]
+    , _mainAgentSelectsGreedyActions = False -- True
+    , _workersMinExploration = replicate 6 0.01 ++ [0.05, 0.10, 0.20, 0.30]
     , _overEstimateRho = True
     , _independentAgents = length productTypes
     , _independentAgentsSharedRho = True -- False
@@ -43,7 +43,7 @@ borlParams = Parameters
   -- Rest
   , _epsilon             = [0.30, 0.50] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
   , _exploration         = 1.0
-  , _learnRandomAbove    = 0.9
+  , _learnRandomAbove    = 0.1
   -- Multichain NBORL and etc.
   , _zeta                = 0.10
   , _xi                  = 5e-3
@@ -53,16 +53,16 @@ borlParams = Parameters
 nnConfig :: NNConfig
 nnConfig =
   NNConfig
-  {   _replayMemoryMaxSize             = 1000 -- 20000 -- was 30k
+  {   _replayMemoryMaxSize             = 300 -- 20000 -- was 30k
     , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
     , _trainBatchSize                  = 4
     , _trainingIterations              = 1
     , _grenadeLearningParams           = OptAdam 0.005 0.9 0.999 1e-7 1e-3 -- OptAdam 0.005 0.9 0.999 1e-7 1e-3
     , _grenadeSmoothTargetUpdate       = 0.01 -- 0.025
-    , _grenadeSmoothTargetUpdatePeriod = 25  -- 300
+    , _grenadeSmoothTargetUpdatePeriod = 300  -- 100
     , _learningParamsDecay             = ExponentialDecay (Just 5e-6) (configDecayRate decay) (round $ 2 * fromIntegral (configDecaySteps decay))
     , _prettyPrintElems                = []      -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-3000) 3000 (-5000) 5000
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-5000) 5000 (-1500) 3000 (-2500) 5000
     , _scaleOutputAlgorithm            = ScaleMinMax -- ScaleLog 1000 -- ScaleMinMax
     , _cropTrainMaxValScaled           = Just 0.98 -- Nothing
     , _grenadeDropoutFlipActivePeriod  = 10^5

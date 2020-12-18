@@ -189,8 +189,9 @@ modelBuilder initState cols =
   -- fullyConnected (2*lenOut) >> leakyRelu >>
   -- fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
   -- fullyConnected (3*lenIn) >> relu >>
-  fullyConnected (2 * lenIn) >> relu >>
+  -- fullyConnected (2 * lenIn) >> relu >>
   -- fullyConnected (round (1.5 * fromIntegral lenIn)) >> relu >>
+  fullyConnected lenIn >> relu >>
   fullyConnected lenIn >> relu >>
   fullyConnected (lenIn `div` 2) >> relu >>
   -- fullyConnected ((lenIn + lenOut) `div` 2) >> relu >>
@@ -487,7 +488,7 @@ instance ExperimentDef (BORL St Act) where
         (Just $ return .
          const
            [ AlgDQNAvgRewAdjusted 0.75 0.995 ByStateValues
-           , AlgDQNAvgRewAdjusted 0.75 1.0 ByStateValues
+           -- , AlgDQNAvgRewAdjusted 0.75 1.0 ByStateValues
            ])
         Nothing
         Nothing
@@ -499,7 +500,7 @@ instance ExperimentDef (BORL St Act) where
         (Just $ return .
          const
            [
-             RewardPeriodEndSimple (ConfigRewardCosts (Just 500))
+             RewardPeriodEndSimple (ConfigRewardCosts (Just 600))
            -- , RewardPeriodEndSimple (ConfigRewardCosts (Just 750))
            -- , RewardPeriodEndSimple (ConfigRewardCosts (Just 1250))
            ])
@@ -531,15 +532,15 @@ instance ExperimentDef (BORL St Act) where
                 else SingleInstance -- only evaluate once if ImRe or BIL
             ))
     ] ++
-    -- [ ParameterSetup
-    --     "Learn Random Above until Exploration hits"
-    --     (set (B.parameters . learnRandomAbove))
-    --     (^. B.parameters . learnRandomAbove)
-    --     (Just $ return . const [0.15])
-    --     Nothing
-    --     Nothing
-    --     Nothing
-    -- ] ++
+    [ ParameterSetup
+        "Learn Random Above until Exploration hits"
+        (set (B.parameters . learnRandomAbove))
+        (^. B.parameters . learnRandomAbove)
+        (Just $ return . const [0.10])
+        Nothing
+        Nothing
+        Nothing
+    ] ++
     -- [ ParameterSetup
     --   "Xi (at period 0)"
     --   (set (B.parameters . xi))
@@ -642,14 +643,14 @@ instance ExperimentDef (BORL St Act) where
       "Learn Random Above (faster converging rho)"
       (set (B.parameters . learnRandomAbove))
       (^. B.parameters . learnRandomAbove)
-      (Just $ return . const [0.9])
+      (Just $ return . const [0.1])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Replay Memory Size"
       (setAllProxies (proxyNNConfig . replayMemoryMaxSize))
       (^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
-      (Just $ return . const [300])
+      (Just $ return . const [1000])
       Nothing
       Nothing
       Nothing
@@ -756,6 +757,16 @@ instance ExperimentDef (BORL St Act) where
     | isNN
     ] ++
     [ ParameterSetup
+      "Gradient clipping"
+      (setAllProxies (proxyNNConfig . clipGradients))
+      (^?! proxies . v . proxyNNConfig . clipGradients)
+      (Just $ return . const [NoClipping])
+      Nothing
+      Nothing
+      Nothing
+    | isNN
+    ] ++
+    [ ParameterSetup
       "NStep"
       (set (settings . nStep))
       (^. settings . nStep)
@@ -784,6 +795,33 @@ instance ExperimentDef (BORL St Act) where
       Nothing
       Nothing
     | isNN
+    ] ++
+    [ ParameterSetup
+      "Independent Agents Share Rhos"
+      (set (settings . independentAgentsSharedRho))
+      (^. settings . independentAgentsSharedRho)
+      (Just $ return . const [True, False])
+      Nothing
+      Nothing
+      Nothing
+    ] ++
+    [ ParameterSetup
+      "Overestimate Rho"
+      (set (settings . overEstimateRho))
+      (^. settings . overEstimateRho)
+      (Just $ return . const [True])
+      Nothing
+      Nothing
+      Nothing
+    ] ++
+    [ ParameterSetup
+      "Main Agent Selects Greedy Actions"
+      (set (settings . mainAgentSelectsGreedyActions))
+      (^. settings . mainAgentSelectsGreedyActions)
+      (Just $ return . const [False])
+      Nothing
+      Nothing
+      Nothing
     ]
     where
       isNN = isNeuralNetwork (borl ^. proxies . v)
