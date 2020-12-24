@@ -60,6 +60,7 @@ dependencies:
   - singletons
   - vector
   - reflection
+  - experimenter
 
 library:
   source-dirs: src

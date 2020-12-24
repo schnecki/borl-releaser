@@ -189,11 +189,11 @@ modelBuilder initState cols =
   -- fullyConnected (2*lenOut) >> leakyRelu >>
   -- fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
   -- fullyConnected (3*lenIn) >> relu >>
-  -- fullyConnected (2 * lenIn) >> relu >>
+  fullyConnected (2 * lenIn) >> relu >>
   -- fullyConnected (round (1.5 * fromIntegral lenIn)) >> relu >>
+  -- fullyConnected lenIn >> relu >>
   fullyConnected lenIn >> relu >>
-  fullyConnected lenIn >> relu >>
-  fullyConnected (lenIn `div` 2) >> relu >>
+  -- fullyConnected (lenIn `div` 2) >> relu >>
   -- fullyConnected ((lenIn + lenOut) `div` 2) >> relu >>
   fullyConnected (2*lenOut) >> relu >>
   fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer
@@ -228,8 +228,8 @@ buildBORLGrenade = do
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actFilter) = mkInitSt sim startOrds
   st <- liftIO $ initSt MainAgent
-  flipObjective . setPrettyPrintElems <$> mkUnichainGrenadeCombinedNet alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
-  -- flipObjective . setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
+  -- flipObjective . setPrettyPrintElems <$> mkUnichainGrenadeCombinedNet alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
+  flipObjective . setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
 
 
 setPrettyPrintElems :: BORL St Act -> BORL St Act
@@ -487,8 +487,9 @@ instance ExperimentDef (BORL St Act) where
         (view algorithm)
         (Just $ return .
          const
-           [ AlgDQNAvgRewAdjusted 0.75 0.995 ByStateValues
-           -- , AlgDQNAvgRewAdjusted 0.75 1.0 ByStateValues
+           [
+             -- AlgDQNAvgRewAdjusted 0.75 0.995 ByStateValues,
+             AlgDQNAvgRewAdjusted 0.99 1.0 ByStateValues
            ])
         Nothing
         Nothing
@@ -500,9 +501,8 @@ instance ExperimentDef (BORL St Act) where
         (Just $ return .
          const
            [
-             RewardPeriodEndSimple (ConfigRewardCosts (Just 600))
-           -- , RewardPeriodEndSimple (ConfigRewardCosts (Just 750))
-           -- , RewardPeriodEndSimple (ConfigRewardCosts (Just 1250))
+             -- RewardPeriodEndSimple (ConfigRewardCosts (Just 750))
+             RewardPeriodEndSimple (ConfigRewardCosts (Just 1250))
            ])
         Nothing
         Nothing
@@ -532,15 +532,6 @@ instance ExperimentDef (BORL St Act) where
                 else SingleInstance -- only evaluate once if ImRe or BIL
             ))
     ] ++
-    [ ParameterSetup
-        "Learn Random Above until Exploration hits"
-        (set (B.parameters . learnRandomAbove))
-        (^. B.parameters . learnRandomAbove)
-        (Just $ return . const [0.10])
-        Nothing
-        Nothing
-        Nothing
-    ] ++
     -- [ ParameterSetup
     --   "Xi (at period 0)"
     --   (set (B.parameters . xi))
@@ -559,28 +550,14 @@ instance ExperimentDef (BORL St Act) where
       "Alpha (at period 0)"
       (set (B.parameters . alpha))
       (^. B.parameters . alpha)
-      (Just $ return . const [0.01])
-      Nothing Nothing Nothing
-    ] ++
-    [ ParameterSetup
-      "Decay Alpha"
-      (set (B.decaySetting . alpha))
-      (^. B.decaySetting . alpha)
-      (Just $ return . const [ExponentialDecay (Just 1e-5) 0.55 25000])
+      (Just $ return . const [0.001])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "AlphaRhoMin (at period 0)"
       (set (B.parameters . alphaRhoMin))
       (^. B.parameters . alphaRhoMin)
-      (Just $ return . const [0.001])
-      Nothing Nothing Nothing
-    ] ++
-    [ ParameterSetup
-      "Decay AlphaRhoMin"
-      (set (B.decaySetting . alphaRhoMin))
-      (^. B.decaySetting . alphaRhoMin)
-      (Just $ return . const [ExponentialDecay (Just 1e-5) 0.55 25000])
+      (Just $ return . const [0.0001])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -591,13 +568,6 @@ instance ExperimentDef (BORL St Act) where
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
-      "Decay Delta"
-      (set (B.decaySetting . delta))
-      (^. B.decaySetting . delta)
-      (Just $ return . const [ExponentialDecay (Just 5e-4) 0.55 50000])
-      Nothing Nothing Nothing
-    ] ++
-    [ ParameterSetup
       "Gamma (at period 0)"
       (set (B.parameters . gamma))
       (^. B.parameters . gamma)
@@ -605,24 +575,10 @@ instance ExperimentDef (BORL St Act) where
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
-      "Decay Gamma"
-      (set (B.decaySetting . gamma))
-      (^. B.decaySetting . gamma)
-      (Just $ return . const [ExponentialDecay (Just 1e-3) 0.55 50000])
-      Nothing Nothing Nothing
-    ] ++
-    [ ParameterSetup
       "Epsilon (at period 0)"
       (set (B.parameters . epsilon))
       (^. B.parameters . epsilon)
-      (Just $ return . const [fromList [1.5, 0.75]])
-      Nothing Nothing Nothing
-    ] ++
-    [ ParameterSetup
-      "Decay Epsilon"
-      (set (B.decaySetting . epsilon))
-      (^. B.decaySetting . epsilon)
-      (Just $ return . const [fromList [NoDecay]])
+      (Just $ return . const [fromList [1.0, 0.5]])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -633,39 +589,75 @@ instance ExperimentDef (BORL St Act) where
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
+      "Decay Alpha"
+      (set (B.decaySetting . alpha))
+      (^. B.decaySetting . alpha)
+      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.55 25000])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Decay AlphaRhoMin"
+      (set (B.decaySetting . alphaRhoMin))
+      (^. B.decaySetting . alphaRhoMin)
+      (Just $ return . const [ExponentialDecay (Just 2e-5) 0.55 25000])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Decay Delta"
+      (set (B.decaySetting . delta))
+      (^. B.decaySetting . delta)
+      (Just $ return . const [ExponentialDecay (Just 5e-4) 0.55 50000])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Decay Gamma"
+      (set (B.decaySetting . gamma))
+      (^. B.decaySetting . gamma)
+      (Just $ return . const [ExponentialDecay (Just 1e-3) 0.55 50000])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
+      "Decay Epsilon"
+      (set (B.decaySetting . epsilon))
+      (^. B.decaySetting . epsilon)
+      (Just $ return . const [fromList [NoDecay]])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
       "Decay Exploration"
       (set (B.decaySetting . exploration))
       (^. B.decaySetting . exploration)
-      (Just $ return . const [ExponentialDecay Nothing 0.55 50000])
+      (Just $ return . const [ExponentialDecay Nothing 0.55 25000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Learn Random Above (faster converging rho)"
       (set (B.parameters . learnRandomAbove))
       (^. B.parameters . learnRandomAbove)
-      (Just $ return . const [0.1])
+      (Just $ return . const [0.75])
       Nothing Nothing Nothing
     ] ++
-    [ ParameterSetup
-      "Replay Memory Size"
-      (setAllProxies (proxyNNConfig . replayMemoryMaxSize))
-      (^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
-      (Just $ return . const [1000])
-      Nothing
-      Nothing
-      Nothing
-    | isNN
-    ] ++
-    [ ParameterSetup
-      "Replay Memory Strategy"
-      (setAllProxies (proxyNNConfig . replayMemoryStrategy))
-      (^?! proxies . v . proxyNNConfig . replayMemoryStrategy)
-      (Just $ return . const [ReplayMemoryPerAction])
-      Nothing
-      Nothing
-      Nothing
-    | isNN
-    ] ++
+    -- Cannot be changed here!!!
+    -- [ ParameterSetup
+    --   "Replay Memory Size"  Cannot be changed here as initialised!!!
+    --   (setAllProxies (proxyNNConfig . replayMemoryMaxSize))
+    --   (^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
+    --   (Just $ return . const [10000])
+    --   Nothing
+    --   Nothing
+    --   Nothing
+    -- | isNN
+    -- ] ++
+    -- [ ParameterSetup
+    --   "Replay Memory Strategy" Cannot be changed here as initialised!!!!!!
+    --   (setAllProxies (proxyNNConfig . replayMemoryStrategy))
+    --   (^?! proxies . v . proxyNNConfig . replayMemoryStrategy)
+    --   (Just $ return . const [ReplayMemoryPerAction])
+    --   Nothing
+    --   Nothing
+    --   Nothing
+    -- | isNN
+    -- ] ++
     [ ParameterSetup
       "Training Batch Size"
       (setAllProxies (proxyNNConfig . trainBatchSize))
@@ -677,10 +669,31 @@ instance ExperimentDef (BORL St Act) where
     | isNN
     ] ++
     [ ParameterSetup
+      "Training Iterations"
+      (setAllProxies (proxyNNConfig . trainingIterations))
+      (^?! proxies . v . proxyNNConfig . trainingIterations)
+      (Just $ return . const [3])
+      Nothing
+      Nothing
+      Nothing
+    | isNN
+    ] ++
+    [ ParameterSetup
       "ANN (Grenade) Learning Rate"
       (setAllProxies (proxyNNConfig . grenadeLearningParams))
       (^?! proxies . v . proxyNNConfig . grenadeLearningParams)
-      (Just $ return . const [OptAdam 0.005 0.9 0.999 1e-7 1e-3])
+      (Just $ return . const [OptAdam 0.001 0.9 0.999 1e-8 1e-3])
+      Nothing
+      Nothing
+      Nothing
+    | isNN
+    ] ++
+    [ ParameterSetup
+      "ANN Learning Rate Decay"
+      (setAllProxies (proxyNNConfig . learningParamsDecay))
+      (^?! proxies . v . proxyNNConfig . learningParamsDecay)
+      (Just $ return . const [NoDecay -- ExponentialDecay (Just 5e-6) 0.55 100000
+                             ])
       Nothing
       Nothing
       Nothing
@@ -707,20 +720,10 @@ instance ExperimentDef (BORL St Act) where
     | isNN
     ] ++
     [ ParameterSetup
-      "ANN Learning Rate Decay"
-      (setAllProxies (proxyNNConfig . learningParamsDecay))
-      (^?! proxies . v . proxyNNConfig . learningParamsDecay)
-      (Just $ return . const [ExponentialDecay (Just 5e-6) 0.55 100000])
-      Nothing
-      Nothing
-      Nothing
-    | isNN
-    ] ++
-    [ ParameterSetup
       "ScaleParameters"
       (setAllProxies (proxyNNConfig . scaleParameters))
       (^?! proxies . v . proxyNNConfig . scaleParameters)
-      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-5000) 5000 (-3000) 3000 (-5000) 5000])
+      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-5000) 5000 (-5000) 5000 (-6000) 6000])
       Nothing
       Nothing
       Nothing
@@ -760,7 +763,10 @@ instance ExperimentDef (BORL St Act) where
       "Gradient clipping"
       (setAllProxies (proxyNNConfig . clipGradients))
       (^?! proxies . v . proxyNNConfig . clipGradients)
-      (Just $ return . const [NoClipping])
+      (Just $ return . const [
+          -- ClipByGlobalNorm 0.01
+          NoClipping
+                             ])
       Nothing
       Nothing
       Nothing
@@ -770,7 +776,7 @@ instance ExperimentDef (BORL St Act) where
       "NStep"
       (set (settings . nStep))
       (^. settings . nStep)
-      (Just $ return . const [3,10])
+      (Just $ return . const [4])  -- 5 ?
       Nothing
       Nothing
       Nothing
@@ -790,7 +796,8 @@ instance ExperimentDef (BORL St Act) where
       "Workers Min Exploration"
       (set (settings . workersMinExploration))
       (^. settings . workersMinExploration)
-      (Just $ return . const [replicate 2 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
+      (Just $ return . const [replicate 10 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
+      --[0.01, 0.02, 0.03, 0.05, 0.10, 0.20, 0.30]])
       Nothing
       Nothing
       Nothing
@@ -800,7 +807,7 @@ instance ExperimentDef (BORL St Act) where
       "Independent Agents Share Rhos"
       (set (settings . independentAgentsSharedRho))
       (^. settings . independentAgentsSharedRho)
-      (Just $ return . const [True, False])
+      (Just $ return . const [True])
       Nothing
       Nothing
       Nothing
@@ -809,7 +816,7 @@ instance ExperimentDef (BORL St Act) where
       "Overestimate Rho"
       (set (settings . overEstimateRho))
       (^. settings . overEstimateRho)
-      (Just $ return . const [True])
+      (Just $ return . const [False])
       Nothing
       Nothing
       Nothing
@@ -832,9 +839,8 @@ instance ExperimentDef (BORL St Act) where
   --     createDirectoryIfMissing True dir
   --     writeFile (dir ++ "plot.sh") gnuplot
   --     mapMOf (s . simulation) (setSimulationRandomGen g) borl
-  -- beforeWarmUpHook _ _ _ g borl = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True borl
-  -- beforeEvaluationHook _ _ _ g borl -- in case warm up phase is 0 periods
-  --  = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True  borl
+  beforeWarmUpHook _ _ _ g borl = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True borl
+  beforeEvaluationHook _ _ _ g borl = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True  borl
   -- afterPreparationHook _ expNr repetNr = liftIO $ copyFiles "prep_" expNr repetNr Nothing
   -- afterWarmUpHook _ expNr repetNr repliNr = liftIO $ copyFiles "warmup_" expNr repetNr (Just repliNr)
   -- afterEvaluationHook _ expNr repetNr repliNr = liftIO $ copyFiles "eval_" expNr repetNr (Just repliNr)
@@ -844,12 +850,12 @@ expSetting :: BORL St Act -> ExperimentSetting
 expSetting borl =
   ExperimentSetting
     { _experimentBaseName = experimentName
-    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN]
+    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN] ++ concat [[repMemSize, repMemStrat] | isNNFlag]
     , _experimentRepetitions = 1
-    , _preparationSteps = 1 * 10 ^ 6
+    , _preparationSteps = 300000 -- 1 * 10 ^ 6
     , _evaluationWarmUpSteps = 1000
     , _evaluationSteps = 100000
-    , _evaluationReplications = 1
+    , _evaluationReplications = 5
     , _evaluationMaxStepsBetweenSaves = Nothing -- Just 1000
     }
   where
@@ -862,3 +868,5 @@ expSetting borl =
     dem = ExperimentInfoParameter "Demand" (configDemandName demand)
     ftExtr = ExperimentInfoParameter "Feature Extractor (State Representation)" (configFeatureExtractorName $ featureExtractor True)
     rout = ExperimentInfoParameter "Routing (Simulation Setup)" (configRoutingName routing)
+    repMemSize = ExperimentInfoParameter "Replay Memory Size" (borl ^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
+    repMemStrat = ExperimentInfoParameter "Replay Memory Strategy" (borl ^?! proxies . v . proxyNNConfig . replayMemoryStrategy)

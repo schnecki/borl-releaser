@@ -75,7 +75,8 @@ loadAndWriteCsv runner mkInitSt = do
 
 eval :: ExperimentDef a => DatabaseSetting -> (ExpM a (Evals a) -> IO (Evals a)) -> Experiments a -> IO ()
 eval dbSetting runner2 res = do
-  let evals = [ Sum OverPeriods $ Of "SUMC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")
+  let evals = [ -- Sum OverPeriods $ Of "SUMC",
+                Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")
               -- , Sum OverPeriods $ Of "EARN", Mean OverReplications (Stats $ Sum OverPeriods $ Of "EARN")
               -- , Sum OverPeriods $ Of "BOC" , Mean OverReplications (Stats $ Sum OverPeriods $ Of "BOC")
               -- , Sum OverPeriods $ Of "WIPC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "WIPC")
