@@ -228,8 +228,8 @@ buildBORLGrenade = do
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actFilter) = mkInitSt sim startOrds
   st <- liftIO $ initSt MainAgent
-  -- flipObjective . setPrettyPrintElems <$> mkUnichainGrenadeCombinedNet alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
-  flipObjective . setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
+  flipObjective . setPrettyPrintElems <$> mkUnichainGrenadeCombinedNet alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
+  -- flipObjective . setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
 
 
 setPrettyPrintElems :: BORL St Act -> BORL St Act
@@ -384,7 +384,7 @@ instance ExperimentDef (BORL St Act) where
   runStep !phase !borl !incOrds !_ = do
     !borl' <- stepM (set (s . nextIncomingOrders) incOrds borl)
     -- helpers
-    when (borl ^. t `mod` 5000 == 0) $ liftIO $ prettyBORLHead True (Just $ mInverse borl) (setStPrettyPrintElems borl) >>= print
+    when (borl ^. t `mod` 10000 == 0) $ liftIO $ prettyBORLMWithStInverse (Just $ mInverse borl) (setStPrettyPrintElems borl) >>= print
     let !simT = timeToDouble $ simCurrentTime $ borl' ^. s . simulation
     let !borlT = borl' ^. t
     -- demand
@@ -489,7 +489,8 @@ instance ExperimentDef (BORL St Act) where
          const
            [
              -- AlgDQNAvgRewAdjusted 0.75 0.995 ByStateValues,
-             AlgDQNAvgRewAdjusted 0.99 1.0 ByStateValues
+             AlgDQNAvgRewAdjusted 0.8 1.0 ByStateValues,
+             AlgDQNAvgRewAdjusted 0.8 0.99 ByStateValues
            ])
         Nothing
         Nothing
@@ -807,7 +808,7 @@ instance ExperimentDef (BORL St Act) where
       "Independent Agents Share Rhos"
       (set (settings . independentAgentsSharedRho))
       (^. settings . independentAgentsSharedRho)
-      (Just $ return . const [False])
+      (Just $ return . const [True, False])
       Nothing
       Nothing
       Nothing
