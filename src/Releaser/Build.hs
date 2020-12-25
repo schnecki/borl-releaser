@@ -384,7 +384,7 @@ instance ExperimentDef (BORL St Act) where
   runStep !phase !borl !incOrds !_ = do
     !borl' <- stepM (set (s . nextIncomingOrders) incOrds borl)
     -- helpers
-    when (borl ^. t `mod` 5000 == 0) $ liftIO $ prettyBORLHead True (Just $ mInverse borl) borl >>= print
+    when (borl ^. t `mod` 5000 == 0) $ liftIO $ prettyBORLHead True (Just $ mInverse borl) (setStPrettyPrintElems borl) >>= print
     let !simT = timeToDouble $ simCurrentTime $ borl' ^. s . simulation
     let !borlT = borl' ^. t
     -- demand
@@ -550,7 +550,7 @@ instance ExperimentDef (BORL St Act) where
       "Alpha (at period 0)"
       (set (B.parameters . alpha))
       (^. B.parameters . alpha)
-      (Just $ return . const [0.001])
+      (Just $ return . const [0.01])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -592,14 +592,14 @@ instance ExperimentDef (BORL St Act) where
       "Decay Alpha"
       (set (B.decaySetting . alpha))
       (^. B.decaySetting . alpha)
-      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.55 25000])
+      (Just $ return . const [ExponentialDecay (Just 1e-4) 0.55 25000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Decay AlphaRhoMin"
       (set (B.decaySetting . alphaRhoMin))
       (^. B.decaySetting . alphaRhoMin)
-      (Just $ return . const [ExponentialDecay (Just 2e-5) 0.55 25000])
+      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.55 50000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -634,7 +634,7 @@ instance ExperimentDef (BORL St Act) where
       "Learn Random Above (faster converging rho)"
       (set (B.parameters . learnRandomAbove))
       (^. B.parameters . learnRandomAbove)
-      (Just $ return . const [0.75])
+      (Just $ return . const [0.5])
       Nothing Nothing Nothing
     ] ++
     -- Cannot be changed here!!!
@@ -776,7 +776,7 @@ instance ExperimentDef (BORL St Act) where
       "NStep"
       (set (settings . nStep))
       (^. settings . nStep)
-      (Just $ return . const [4])  -- 5 ?
+      (Just $ return . const [4])
       Nothing
       Nothing
       Nothing
@@ -807,7 +807,7 @@ instance ExperimentDef (BORL St Act) where
       "Independent Agents Share Rhos"
       (set (settings . independentAgentsSharedRho))
       (^. settings . independentAgentsSharedRho)
-      (Just $ return . const [True])
+      (Just $ return . const [False])
       Nothing
       Nothing
       Nothing
@@ -845,6 +845,8 @@ instance ExperimentDef (BORL St Act) where
   -- afterWarmUpHook _ expNr repetNr repliNr = liftIO $ copyFiles "warmup_" expNr repetNr (Just repliNr)
   -- afterEvaluationHook _ expNr repetNr repliNr = liftIO $ copyFiles "eval_" expNr repetNr (Just repliNr)
 
+setStPrettyPrintElems :: BORL St Act -> BORL St Act
+setStPrettyPrintElems borl = setAllProxies (proxyNNConfig . prettyPrintElems) [netInp $ borl ^. s] borl
 
 expSetting :: BORL St Act -> ExperimentSetting
 expSetting borl =
