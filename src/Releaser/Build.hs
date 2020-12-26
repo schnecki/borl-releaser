@@ -297,7 +297,8 @@ mkMiniPrettyPrintElems st
        | len - length (head plts) == 138 = [xs138]
        | len - length (head plts) == 40 = [xs40]
        | trace ("len - length (head plts): " ++ show (len - length (head plts)))len - length (head plts) == 678 = [xs684]
-       | otherwise = error ("No mkMiniPrettyPrintElems in Build.hs setup for length: " ++ show len ++ "\nCurrent state: " ++ show (extractFeatures True st))
+       --  | otherwise = error ("No mkMiniPrettyPrintElems in Build.hs setup for length: " ++ show len ++ "\nCurrent state: " ++ show (extractFeatures True st))
+       | otherwise = [replicate (len - length (head plts)) 0]
     xsSimple =              concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2]        ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 0, 0, 5, 4]]]
                             -- concat [concat [[ 0, 6, 8, 4, 4, 9, 9]], concat [ concat [[ 2],  [2],[2]  ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 5, 4]]]
     xsSimple2 =             concat [concat [[ 0, 0, 7,10,10, 9,14]], concat [ concat [[23]         ]], concat [[ 1]], concat [[ 0, 0, 0, 0, 0, 0]], concat [[ 0, 0, 0, 3, 4, 9, 0]]

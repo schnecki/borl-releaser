@@ -14,11 +14,13 @@ import           Releaser.Demand.Type
 demand :: ConfigDemand
 demand =
   -- demandConst9FixedDds
+  -- demandConst10FixedDds
+  -- demandConst11FixedDds
   -- demandUniformIn3To15FixedDds
   -- demandUnif95_175
   -- demandUnif78_158
-  -- demandExp118
-  demandExp105
+  demandExp118
+  -- demandExp105
 
 generateOrders :: SimSim -> IO [Order]
 generateOrders = configDemandFunction demand

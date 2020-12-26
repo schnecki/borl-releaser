@@ -3,6 +3,8 @@
 module Releaser.Demand.Ops
   ( demandUniformIn3To15FixedDds
   , demandConst9FixedDds
+  , demandConst10FixedDds
+  , demandConst11FixedDds
   , demandUnif95_175
   , demandUnif78_158
   , demandExp118
@@ -31,6 +33,14 @@ demandUniformIn3To15FixedDds = ConfigDemand ("U(3,15) with DDS=" <> tshow dueDat
 
 demandConst9FixedDds :: ConfigDemand
 demandConst9FixedDds = ConfigDemand ("Const(9) with DDS=" <> tshow dueDateSlack) dds (\sim -> generateOrdersUniform sim 9 9 dueDateSlack)
+
+demandConst10FixedDds :: ConfigDemand
+demandConst10FixedDds = ConfigDemand ("Const(10) with DDS=" <> tshow dueDateSlack) dds (\sim -> generateOrdersUniform sim 10 10 dueDateSlack)
+
+
+demandConst11FixedDds :: ConfigDemand
+demandConst11FixedDds = ConfigDemand ("Const(11) with DDS=" <> tshow dueDateSlack) dds (\sim -> generateOrdersUniform sim 11 11 dueDateSlack)
+
 
 demandUnif95_175 :: ConfigDemand
 demandUnif95_175 =
