@@ -7,6 +7,7 @@ module Releaser.Demand.Ops
   , demandConst11FixedDds
   , demandUnif95_175
   , demandUnif78_158
+  , demandExp135
   , demandExp118
   , demandExp105
   ) where
@@ -68,6 +69,16 @@ demandExp118 =
     (\sim ->
        let pts = productTypes sim
         in generateOrdersFixedDueDateSlack sim (exponential (960 / 118)) (uniformDistr 0.5001 (fromIntegral (length pts) + 0.4999)) dueDateSlack)
+
+demandExp135 :: ConfigDemand
+demandExp135 =
+  ConfigDemand
+    ("Uniform interarrival-time w/ Exp(135) with DDS=" <> tshow dueDateSlack)
+    dds
+    (\sim ->
+       let pts = productTypes sim
+        in generateOrdersFixedDueDateSlack sim (exponential (960 / 135)) (uniformDistr 0.5001 (fromIntegral (length pts) + 0.4999)) dueDateSlack)
+
 
 demandExp105 :: ConfigDemand
 demandExp105 =

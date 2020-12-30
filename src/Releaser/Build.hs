@@ -100,13 +100,13 @@ buildSim =
   newSimSimIO
     (configRoutingRoutes routing)
     -- procTimesConst
-    procTimes
+    (configProcTimes procTimes)
     periodLength
     -- (releaseBIL $ M.fromList [(Product 1, 1), (Product 2, 1)])
     -- (releaseBIL $ M.fromList [(Product 1, 2), (Product 2, 2)])
     -- (releaseBIL $ M.fromList [(Product 1, 3), (Product 2, 3)])
-    -- (releaseBIL $ M.fromList [(Product 1, 4), (Product 2, 4), (Product 3, 4), (Product 4, 4), (Product 5, 4), (Product 6, 4)])
-    -- (releaseBIL $ M.fromList (map (\pt -> (pt, 8)) productTypes))
+    -- (releaseBIL $ M.fromLisqt [(Product 1, 4), (Product 2, 4), (Product 3, 4), (Product 4, 4), (Product 5, 4), (Product 6, 4)])
+    -- (releaseBIL $ M.fromList (map (\pt -> (pt, 2)) productTypes))
     -- releaseImmediate
     (mkReleasePLT initialPLTS)
     dispatchFirstComeFirstServe
@@ -490,8 +490,8 @@ instance ExperimentDef (BORL St Act) where
          const
            [
              -- AlgDQNAvgRewAdjusted 0.75 0.995 ByStateValues,
-             AlgDQNAvgRewAdjusted 0.8 1.0 ByStateValues,
-             AlgDQNAvgRewAdjusted 0.8 0.99 ByStateValues
+             AlgDQNAvgRewAdjusted 0.8 1.0 ByStateValues
+             -- , AlgDQNAvgRewAdjusted 0.8 0.99 ByStateValues
            ])
         Nothing
         Nothing
@@ -504,7 +504,7 @@ instance ExperimentDef (BORL St Act) where
          const
            [
              -- RewardPeriodEndSimple (ConfigRewardCosts (Just 750))
-             RewardPeriodEndSimple (ConfigRewardCosts (Just 1250))
+             RewardPeriodEndSimple (ConfigRewardCosts (Just 300))
            ])
         Nothing
         Nothing
@@ -674,7 +674,7 @@ instance ExperimentDef (BORL St Act) where
       "Training Iterations"
       (setAllProxies (proxyNNConfig . trainingIterations))
       (^?! proxies . v . proxyNNConfig . trainingIterations)
-      (Just $ return . const [1]) -- 3
+      (Just $ return . const [1])
       Nothing
       Nothing
       Nothing
@@ -725,7 +725,9 @@ instance ExperimentDef (BORL St Act) where
       "ScaleParameters"
       (setAllProxies (proxyNNConfig . scaleParameters))
       (^?! proxies . v . proxyNNConfig . scaleParameters)
-      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-300) 600 (-300) 600 (-300) 600])
+      (Just $ return . const [
+            ScalingNetOutParameters (-800) 800 (-200) 200 (-200) 200 (-200) 200
+          , ScalingNetOutParameters (-800) 800 (-300) 300 (-300) 300 (-300) 300])
       Nothing
       Nothing
       Nothing
@@ -778,7 +780,7 @@ instance ExperimentDef (BORL St Act) where
       "NStep"
       (set (settings . nStep))
       (^. settings . nStep)
-      (Just $ return . const [3])
+      (Just $ return . const [50])
       Nothing
       Nothing
       Nothing
@@ -798,7 +800,7 @@ instance ExperimentDef (BORL St Act) where
       "Workers Min Exploration"
       (set (settings . workersMinExploration))
       (^. settings . workersMinExploration)
-      (Just $ return . const [replicate 10 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
+      (Just $ return . const [replicate 3 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
       Nothing
       Nothing
       Nothing
@@ -808,7 +810,7 @@ instance ExperimentDef (BORL St Act) where
       "Independent Agents Share Rhos"
       (set (settings . independentAgentsSharedRho))
       (^. settings . independentAgentsSharedRho)
-      (Just $ return . const [True, False])
+      (Just $ return . const [True]) -- , False])
       Nothing
       Nothing
       Nothing
@@ -817,7 +819,7 @@ instance ExperimentDef (BORL St Act) where
       "Overestimate Rho"
       (set (settings . overEstimateRho))
       (^. settings . overEstimateRho)
-      (Just $ return . const [False, True])
+      (Just $ return . const [True]) -- , False])
       Nothing
       Nothing
       Nothing
@@ -853,7 +855,7 @@ expSetting :: BORL St Act -> ExperimentSetting
 expSetting borl =
   ExperimentSetting
     { _experimentBaseName = experimentName
-    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, dec, isNN] ++ concat [[repMemSize, repMemStrat] | isNNFlag]
+    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, procT, dec, isNN] ++ concat [[repMemSize, repMemStrat] | isNNFlag]
     , _experimentRepetitions = 1
     , _preparationSteps = 300000 -- 1 * 10 ^ 6
     , _evaluationWarmUpSteps = 1000
@@ -871,5 +873,6 @@ expSetting borl =
     dem = ExperimentInfoParameter "Demand" (configDemandName demand)
     ftExtr = ExperimentInfoParameter "Feature Extractor (State Representation)" (configFeatureExtractorName $ featureExtractor True)
     rout = ExperimentInfoParameter "Routing (Simulation Setup)" (configRoutingName routing)
+    procT = ExperimentInfoParameter "Processing Time (Simulation Setup)" (configProcTimesName procTimes)
     repMemSize = ExperimentInfoParameter "Replay Memory Size" (borl ^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
     repMemStrat = ExperimentInfoParameter "Replay Memory Strategy" (borl ^?! proxies . v . proxyNNConfig . replayMemoryStrategy)
