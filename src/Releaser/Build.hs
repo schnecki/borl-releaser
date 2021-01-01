@@ -189,9 +189,9 @@ modelBuilder initState cols =
   -- fullyConnected (2*lenOut) >> leakyRelu >>
   -- fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
   -- fullyConnected (3*lenIn) >> relu >>
-  fullyConnected (2 * lenIn) >> relu >>
+  -- fullyConnected (2 * lenIn) >> relu >>
   -- fullyConnected (round (1.5 * fromIntegral lenIn)) >> relu >>
-  -- fullyConnected lenIn >> relu >>
+  fullyConnected (round $ 1.5 * fromIntegral lenIn) >> relu >>
   fullyConnected lenIn >> relu >>
   -- fullyConnected (lenIn `div` 2) >> relu >>
   -- fullyConnected ((lenIn + lenOut) `div` 2) >> relu >>
@@ -726,8 +726,8 @@ instance ExperimentDef (BORL St Act) where
       (setAllProxies (proxyNNConfig . scaleParameters))
       (^?! proxies . v . proxyNNConfig . scaleParameters)
       (Just $ return . const [
-            ScalingNetOutParameters (-800) 800 (-200) 200 (-200) 200 (-200) 200
-          , ScalingNetOutParameters (-800) 800 (-300) 300 (-300) 300 (-300) 300])
+            ScalingNetOutParameters (-800) 800 (-200) 200 (-2000) 2000 (-2000) 2000
+          , ScalingNetOutParameters (-800) 800 (-300) 300 (-500) 500 (-500) 500])
       Nothing
       Nothing
       Nothing
@@ -828,7 +828,7 @@ instance ExperimentDef (BORL St Act) where
       "Main Agent Selects Greedy Actions"
       (set (settings . mainAgentSelectsGreedyActions))
       (^. settings . mainAgentSelectsGreedyActions)
-      (Just $ return . const [False])
+      (Just $ return . const [False]) -- ,True])
       Nothing
       Nothing
       Nothing
@@ -855,13 +855,13 @@ expSetting :: BORL St Act -> ExperimentSetting
 expSetting borl =
   ExperimentSetting
     { _experimentBaseName = experimentName
-    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, procT, dec, isNN] ++ concat [[repMemSize, repMemStrat] | isNNFlag]
+    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, procT, dec, isNN] ++ concat [[repMemSize, repMemStrat, nnSetup] | isNNFlag]
     , _experimentRepetitions = 1
     , _preparationSteps = 300000 -- 1 * 10 ^ 6
     , _evaluationWarmUpSteps = 1000
     , _evaluationSteps = 100000
     , _evaluationReplications = 3
-    , _evaluationMaxStepsBetweenSaves = Nothing
+    , _evaluationMaxStepsBetweenSaves = Just 6000
     }
   where
     isNNFlag = isNeuralNetwork (borl ^. proxies . v)
@@ -876,3 +876,7 @@ expSetting borl =
     procT = ExperimentInfoParameter "Processing Time (Simulation Setup)" (configProcTimesName procTimes)
     repMemSize = ExperimentInfoParameter "Replay Memory Size" (borl ^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
     repMemStrat = ExperimentInfoParameter "Replay Memory Strategy" (borl ^?! proxies . v . proxyNNConfig . replayMemoryStrategy)
+    nnSetup = ExperimentInfoParameter "ANN Architecture" netSpec
+    netSpec = case borl ^?! proxies . v of
+      Grenade t _ _ _ _ _ -> T.replace "Spec" "" $ T.replace ",1,1)" ")" $ T.replace "SpecRelu " "Relu" $ T.replace "SpecFullyConnected" "FC" $ tshow (networkToSpecification t)
+      _ -> ("" :: T.Text)

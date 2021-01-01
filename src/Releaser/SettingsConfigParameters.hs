@@ -23,7 +23,7 @@ borlSettings =
     { _useProcessForking             = True
     , _disableAllLearning            = False
     , _explorationStrategy           = EpsilonGreedy -- SoftmaxBoltzmann 5
-    , _nStep                         = 50
+    , _nStep                         = 5
     , _mainAgentSelectsGreedyActions = False
     , _workersMinExploration         = replicate 3 0.01 ++ [0.05, 0.10, 0.20, 0.30]
     , _overEstimateRho               = False -- True
@@ -62,7 +62,7 @@ nnConfig =
     , _grenadeSmoothTargetUpdatePeriod = 100
     , _learningParamsDecay             = ExponentialDecay (Just 1e-6) 0.75 10000 -- (configDecayRate decay) -- (round $ 2 * fromIntegral (configDecaySteps decay))
     , _prettyPrintElems                = []      -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-300) 300 (-300) 300
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-3000) 3000 (-3000) 3000
     , _scaleOutputAlgorithm            = ScaleMinMax -- ScaleLog 150 -- TODO ScaleMinMax --
     , _cropTrainMaxValScaled           = Just 0.98
     , _grenadeDropoutFlipActivePeriod  = 10^5
@@ -79,7 +79,7 @@ alg =
   -- AlgDQNAvgRewAdjusted 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
   -- AlgDQNAvgRewAdjusted 0.75 0.99 ByStateValues
   -- AlgDQNAvgRewAdjusted 0.8 0.995 ByStateValues
-  AlgDQNAvgRewAdjusted 0.80 1.0 ByStateValues
+  AlgDQNAvgRewAdjusted 0.99 1.0 ByStateValues
   -- AlgDQNAvgRewAdjusted 0.99 1.0 ByStateValues
   -- (ByStateValuesAndReward 0.5 NoDecay)
   -- (ByMovAvg 5000)

@@ -75,7 +75,7 @@ type SimTPlus1 = SimSim
 fromDouble :: ConfigReward -> Double -> Reward St
 fromDouble (ConfigRewardCosts Nothing) r = Reward $ realToFrac r
 fromDouble (ConfigRewardCosts (Just maxVal)) r = Reward $ realToFrac $ min maxVal r
-fromDouble config r = Reward $ realToFrac $ maxFun (base - scale * r)
+fromDouble config@ConfigReward{} r = Reward $ realToFrac $ maxFun (base - scale * r)
   where
     base = configRewardBaseline config
     scale = configRewardScale config
@@ -180,5 +180,3 @@ calcRewardShipped sim order =
    in
     -- trace (show order ++ " (wip,fgi,bo): " ++ show (wip, fgi, bo))
     wip + fgi + bo
-
-
