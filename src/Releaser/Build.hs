@@ -504,7 +504,7 @@ instance ExperimentDef (BORL St Act) where
          const
            [
              -- RewardPeriodEndSimple (ConfigRewardCosts (Just 750))
-             RewardPeriodEndSimple (ConfigRewardCosts (Just 300))
+             RewardPeriodEndSimple (ConfigRewardCosts (Just 200))
            ])
         Nothing
         Nothing
