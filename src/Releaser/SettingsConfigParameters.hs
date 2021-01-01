@@ -89,7 +89,7 @@ initVals :: InitValues
 initVals = InitValues {defaultRhoMinimum = 300, defaultRho = 120, defaultV = 0, defaultW = 0, defaultR0 = 0, defaultR1 = 0}
 
 experimentName :: T.Text
-experimentName = "3 stage setup 30.12.2020"
+experimentName = "3 stage setup 01.01.2021"
 
 
 scaleAlg :: ScalingAlgorithm
