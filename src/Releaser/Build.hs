@@ -859,8 +859,8 @@ expSetting borl =
     , _experimentRepetitions = 1
     , _preparationSteps = 300000 -- 1 * 10 ^ 6
     , _evaluationWarmUpSteps = 1000
-    , _evaluationSteps = 100000
-    , _evaluationReplications = 3
+    , _evaluationSteps = 7000
+    , _evaluationReplications = 10
     , _evaluationMaxStepsBetweenSaves = Just 6000
     }
   where
