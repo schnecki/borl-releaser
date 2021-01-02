@@ -726,8 +726,8 @@ instance ExperimentDef (BORL St Act) where
       (setAllProxies (proxyNNConfig . scaleParameters))
       (^?! proxies . v . proxyNNConfig . scaleParameters)
       (Just $ return . const [
-            ScalingNetOutParameters (-800) 800 (-200) 200 (-2000) 2000 (-2000) 2000
-          , ScalingNetOutParameters (-800) 800 (-300) 300 (-500) 500 (-500) 500])
+            -- ScalingNetOutParameters (-800) 800 (-200) 200 (-2000) 2000 (-2000) 2000
+          ScalingNetOutParameters (-800) 800 (-300) 300 (-500) 500 (-500) 500])
       Nothing
       Nothing
       Nothing
@@ -780,7 +780,7 @@ instance ExperimentDef (BORL St Act) where
       "NStep"
       (set (settings . nStep))
       (^. settings . nStep)
-      (Just $ return . const [5])
+      (Just $ return . const [3, 5])
       Nothing
       Nothing
       Nothing
@@ -876,7 +876,8 @@ expSetting borl =
     procT = ExperimentInfoParameter "Processing Time (Simulation Setup)" (configProcTimesName procTimes)
     repMemSize = ExperimentInfoParameter "Replay Memory Size" (borl ^?! proxies . v . proxyNNConfig . replayMemoryMaxSize)
     repMemStrat = ExperimentInfoParameter "Replay Memory Strategy" (borl ^?! proxies . v . proxyNNConfig . replayMemoryStrategy)
-    nnSetup = ExperimentInfoParameter "ANN Architecture" netSpec
-    netSpec = case borl ^?! proxies . v of
+    nnSetup = ExperimentInfoParameter "ANN Architecture" (netSpec $ borl ^?! proxies . v)
+    netSpec px = case px of
       Grenade t _ _ _ _ _ -> T.replace "Spec" "" $ T.replace ",1,1)" ")" $ T.replace "SpecRelu " "Relu" $ T.replace "SpecFullyConnected" "FC" $ tshow (networkToSpecification t)
+      CombinedProxy s _ _ -> netSpec s
       _ -> ("" :: T.Text)
