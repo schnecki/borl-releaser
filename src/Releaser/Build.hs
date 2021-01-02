@@ -780,7 +780,7 @@ instance ExperimentDef (BORL St Act) where
       "NStep"
       (set (settings . nStep))
       (^. settings . nStep)
-      (Just $ return . const [50])
+      (Just $ return . const [5])
       Nothing
       Nothing
       Nothing

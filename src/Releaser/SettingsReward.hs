@@ -10,7 +10,7 @@ import           Releaser.Type
 
 rewardFunction :: RewardFunction
 rewardFunction =
-  RewardPeriodEndSimple (ConfigRewardCosts (Just 200))
+  RewardPeriodEndSimple (ConfigRewardCosts (Just 250))
   -- configReward50
 
   -- RewardShippedSimple configReward500
