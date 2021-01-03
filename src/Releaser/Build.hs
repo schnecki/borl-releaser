@@ -191,11 +191,11 @@ modelBuilder initState cols =
   -- fullyConnected (3*lenIn) >> relu >>
   -- fullyConnected (2 * lenIn) >> relu >>
   -- fullyConnected (round (1.5 * fromIntegral lenIn)) >> relu >>
-  fullyConnected (round $ 1.5 * fromIntegral lenIn) >> relu >>
+  -- fullyConnected (round $ 1.5 * fromIntegral lenIn) >> relu >>
   fullyConnected lenIn >> relu >>
   -- fullyConnected (lenIn `div` 2) >> relu >>
   -- fullyConnected ((lenIn + lenOut) `div` 2) >> relu >>
-  fullyConnected (2*lenOut) >> relu >>
+  fullyConnected ((lenOut + lenIn) `div` 2) >> relu >>
   fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer
   where
     lenOut = lenActs * cols
@@ -780,7 +780,7 @@ instance ExperimentDef (BORL St Act) where
       "NStep"
       (set (settings . nStep))
       (^. settings . nStep)
-      (Just $ return . const [3, 5])
+      (Just $ return . const [5])
       Nothing
       Nothing
       Nothing
@@ -800,7 +800,7 @@ instance ExperimentDef (BORL St Act) where
       "Workers Min Exploration"
       (set (settings . workersMinExploration))
       (^. settings . workersMinExploration)
-      (Just $ return . const [replicate 3 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
+      (Just $ return . const [replicate 7 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
       Nothing
       Nothing
       Nothing
@@ -828,7 +828,7 @@ instance ExperimentDef (BORL St Act) where
       "Main Agent Selects Greedy Actions"
       (set (settings . mainAgentSelectsGreedyActions))
       (^. settings . mainAgentSelectsGreedyActions)
-      (Just $ return . const [False]) -- ,True])
+      (Just $ return . const [False, True])
       Nothing
       Nothing
       Nothing
