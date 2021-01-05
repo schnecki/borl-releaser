@@ -24,11 +24,11 @@ borlSettings =
     , _disableAllLearning            = False
     , _explorationStrategy           = EpsilonGreedy -- SoftmaxBoltzmann 5
     , _nStep                         = 5
-    , _mainAgentSelectsGreedyActions = False
-    , _workersMinExploration         = replicate 7 0.01 ++ [0.05, 0.10, 0.20, 0.30]
-    , _overEstimateRho               = False -- True
+    , _mainAgentSelectsGreedyActions = True -- False
+    , _workersMinExploration         = replicate 3 0.01 ++ [0.05, 0.10, 0.20, 0.30]
+    , _overEstimateRho               = True -- False
     , _independentAgents             = length productTypes
-    , _independentAgentsSharedRho    = True -- False
+    , _independentAgentsSharedRho    = False -- True
     }
 
 
@@ -36,7 +36,7 @@ borlSettings =
 borlParams :: Parameters Double
 borlParams = Parameters
   { _alpha               = 0.01
-  , _alphaRhoMin         = 0 -- 0.001
+  , _alphaRhoMin         = 0.001
   , _beta                = 0.01
   , _delta               = 0.005
   , _gamma               = 0.01
@@ -57,14 +57,14 @@ nnConfig =
     , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
     , _trainBatchSize                  = 4
     , _trainingIterations              = 1
-    , _grenadeLearningParams           = OptAdam 0.001 0.9 0.999 1e-8 1e-3
+    , _grenadeLearningParams           = OptAdam 0.0001 0.9 0.999 1e-8 1e-3
     , _grenadeSmoothTargetUpdate       = 0.01
     , _grenadeSmoothTargetUpdatePeriod = 100
-    , _learningParamsDecay             = ExponentialDecay (Just 1e-6) 0.75 10000 -- (configDecayRate decay) -- (round $ 2 * fromIntegral (configDecaySteps decay))
+    , _learningParamsDecay             = ExponentialDecay (Just 1e-6) 0.75 30000 -- (configDecayRate decay) -- (round $ 2 * fromIntegral (configDecaySteps decay))
     , _prettyPrintElems                = []      -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-1000) 1000 (-1000) 1000
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-800) 800 (-800) 800
     , _scaleOutputAlgorithm            = ScaleMinMax -- ScaleLog 150 -- TODO ScaleMinMax --
-    , _cropTrainMaxValScaled           = Just 0.98
+    , _cropTrainMaxValScaled           = Nothing -- Just 0.98
     , _grenadeDropoutFlipActivePeriod  = 10^5
     , _grenadeDropoutOnlyInactiveAfter = 0 -- 10^6
     , _clipGradients                   = NoClipping -- ClipByGlobalNorm 0.01
@@ -79,7 +79,7 @@ alg =
   -- AlgDQNAvgRewAdjusted 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
   -- AlgDQNAvgRewAdjusted 0.75 0.99 ByStateValues
   -- AlgDQNAvgRewAdjusted 0.8 0.995 ByStateValues
-  AlgDQNAvgRewAdjusted 0.99 1.0 ByStateValues
+  AlgDQNAvgRewAdjusted 0.8 0.995 ByStateValues
   -- AlgDQNAvgRewAdjusted 0.99 1.0 ByStateValues
   -- (ByStateValuesAndReward 0.5 NoDecay)
   -- (ByMovAvg 5000)
@@ -89,7 +89,7 @@ initVals :: InitValues
 initVals = InitValues {defaultRhoMinimum = 300, defaultRho = 120, defaultV = 0, defaultW = 0, defaultR0 = 0, defaultR1 = 0}
 
 experimentName :: T.Text
-experimentName = "3 stage setup 01.01.2021"
+experimentName = "3 stage setup 05.01.2021"
 
 
 scaleAlg :: ScalingAlgorithm

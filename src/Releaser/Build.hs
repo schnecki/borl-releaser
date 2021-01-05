@@ -188,15 +188,19 @@ modelBuilder initState cols =
   -- fullyConnected lenIn >> leakyRelu >>
   -- fullyConnected (2*lenOut) >> leakyRelu >>
   -- fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
-  -- fullyConnected (3*lenIn) >> relu >>
-  -- fullyConnected (2 * lenIn) >> relu >>
-  -- fullyConnected (round (1.5 * fromIntegral lenIn)) >> relu >>
+
+  -- Sol 1
+  fullyConnected (3*lenIn) >> relu >>
+  fullyConnected (1*lenIn) >> relu >>
+
+  -- Test 2
   -- fullyConnected (round $ 1.5 * fromIntegral lenIn) >> relu >>
-  fullyConnected lenIn >> relu >>
+  -- fullyConnected (1 * lenIn) >> relu >>
   -- fullyConnected (lenIn `div` 2) >> relu >>
-  -- fullyConnected ((lenIn + lenOut) `div` 2) >> relu >>
-  fullyConnected ((lenOut + lenIn) `div` 2) >> relu >>
-  fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer
+
+
+  fullyConnected (2 * lenOut) >> relu >>
+  fullyConnected lenOut >> reshape (lenActs, cols, 1) >> leakyTanhLayer 0.98
   where
     lenOut = lenActs * cols
     lenIn = fromIntegral $ V.length (netInp initState)
@@ -491,6 +495,7 @@ instance ExperimentDef (BORL St Act) where
            [
              -- AlgDQNAvgRewAdjusted 0.75 0.995 ByStateValues,
              AlgDQNAvgRewAdjusted 0.8 1.0 ByStateValues
+           , AlgDQNAvgRewAdjusted 0.8 0.995 ByStateValues
              -- , AlgDQNAvgRewAdjusted 0.8 0.99 ByStateValues
            ])
         Nothing
@@ -559,7 +564,7 @@ instance ExperimentDef (BORL St Act) where
       "AlphaRhoMin (at period 0)"
       (set (B.parameters . alphaRhoMin))
       (^. B.parameters . alphaRhoMin)
-      (Just $ return . const [2e-5])
+      (Just $ return . const [0.001])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -594,14 +599,14 @@ instance ExperimentDef (BORL St Act) where
       "Decay Alpha"
       (set (B.decaySetting . alpha))
       (^. B.decaySetting . alpha)
-      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.50 10000])
+      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.50 30000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Decay AlphaRhoMin"
       (set (B.decaySetting . alphaRhoMin))
       (^. B.decaySetting . alphaRhoMin)
-      (Just $ return . const [ExponentialDecay (Just 2e-5) 0.50 10000])
+      (Just $ return . const [ExponentialDecay (Just 2e-5) 0.50 30000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -629,7 +634,7 @@ instance ExperimentDef (BORL St Act) where
       "Decay Exploration"
       (set (B.decaySetting . exploration))
       (^. B.decaySetting . exploration)
-      (Just $ return . const [ExponentialDecay Nothing 0.50 25000])
+      (Just $ return . const [ExponentialDecay Nothing 0.50 30000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -684,7 +689,7 @@ instance ExperimentDef (BORL St Act) where
       "ANN (Grenade) Learning Rate"
       (setAllProxies (proxyNNConfig . grenadeLearningParams))
       (^?! proxies . v . proxyNNConfig . grenadeLearningParams)
-      (Just $ return . const [OptAdam 0.001 0.9 0.999 1e-8 1e-3])
+      (Just $ return . const [OptAdam 0.0001 0.9 0.999 1e-8 1e-3])
       Nothing
       Nothing
       Nothing
@@ -694,7 +699,7 @@ instance ExperimentDef (BORL St Act) where
       "ANN Learning Rate Decay"
       (setAllProxies (proxyNNConfig . learningParamsDecay))
       (^?! proxies . v . proxyNNConfig . learningParamsDecay)
-      (Just $ return . const [ExponentialDecay (Just 1e-6) 0.75 10000
+      (Just $ return . const [ExponentialDecay (Just 1e-6) 0.75 30000
                              ])
       Nothing
       Nothing
@@ -800,7 +805,7 @@ instance ExperimentDef (BORL St Act) where
       "Workers Min Exploration"
       (set (settings . workersMinExploration))
       (^. settings . workersMinExploration)
-      (Just $ return . const [replicate 7 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
+      (Just $ return . const [replicate 3 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
       Nothing
       Nothing
       Nothing
@@ -810,7 +815,7 @@ instance ExperimentDef (BORL St Act) where
       "Independent Agents Share Rhos"
       (set (settings . independentAgentsSharedRho))
       (^. settings . independentAgentsSharedRho)
-      (Just $ return . const [True]) -- , False])
+      (Just $ return . const [False]) -- , True])
       Nothing
       Nothing
       Nothing
@@ -828,7 +833,7 @@ instance ExperimentDef (BORL St Act) where
       "Main Agent Selects Greedy Actions"
       (set (settings . mainAgentSelectsGreedyActions))
       (^. settings . mainAgentSelectsGreedyActions)
-      (Just $ return . const [False, True])
+      (Just $ return . const [True])
       Nothing
       Nothing
       Nothing
