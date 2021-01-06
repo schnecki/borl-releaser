@@ -268,7 +268,9 @@ mkPrettyPrintElems usePlts st
   | usePlts = [netInp st]
   | otherwise = map V.fromList $ zipWith (++) plts (replicate (length plts) base)
   where
-    base = drop (length productTypes) (V.toList $ netInp st)
+    len | bnNbn = 2
+        | otherwise = length productTypes
+    base = drop len (V.toList $ netInp st)
     minVal = configActFilterMin actionFilterConfig
     maxVal = configActFilterMax actionFilterConfig
     actList = map (scaleDouble scaleAlg (Just (fromIntegral minVal, fromIntegral maxVal)) . fromIntegral) [minVal .. maxVal]

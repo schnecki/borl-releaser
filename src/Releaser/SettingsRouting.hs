@@ -3,6 +3,8 @@
 {-# LANGUAGE TupleSections     #-}
 module Releaser.SettingsRouting
     ( routing
+    , bnNbn
+    , mapProductType
     , productTypes
     , ConfigRouting (..)
     , ConfigProcTimes (..)
@@ -42,6 +44,18 @@ procTimes =
 productTypes :: [ProductType]
 productTypes = sort $ nub $ map (fst . fst) (configRoutingRoutes routing)
 
+bnNbn :: Bool
+bnNbn = True
+
+mapProductType :: ProductType -> ProductType
+mapProductType x | not bnNbn = x
+mapProductType (Product 1) = Product 1
+mapProductType (Product 2) = Product 2
+mapProductType (Product 3) = Product 1
+mapProductType (Product 4) = Product 1
+mapProductType (Product 5) = Product 2
+mapProductType (Product 6) = Product 1
+mapProductType _ = error "function mapProductType not complete in SettingsRouting"
 
 allBlocks :: [Block]
 allBlocks = nub $ map (snd . fst) (configRoutingRoutes routing)

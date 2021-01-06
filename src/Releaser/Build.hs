@@ -113,7 +113,11 @@ buildSim =
     shipOnDueDate
 
 initialPLTS :: M.Map ProductType Time
-initialPLTS = M.fromList $ zip productTypes [1 ..]
+initialPLTS = M.fromList $ zip productTypes (replicate len 1)
+  where
+    len
+      | bnNbn = 2
+      | otherwise = length productTypes
 
 
 -- testDemand :: IO ()
@@ -213,7 +217,7 @@ modelBuilder initState cols =
 
 mkInitSt :: SimSim -> [Order] -> (AgentType -> IO St, St -> [V.Vector Bool])
 mkInitSt sim startOrds =
-  let initSt = St sim startOrds rewardFunction (M.fromList $ zip productTypes (repeat (Time 1)))
+  let initSt = St sim startOrds rewardFunction initialPLTS
       actFilter = mkConfig actionFilter actionFilterConfig
   in (return . const initSt, actFilter)
 
@@ -278,10 +282,12 @@ mkMiniPrettyPrintElems st
   | otherwise = map V.fromList $ concatMap (zipWith (++) plts . replicate (length plts) . map (scaleDouble scaleAlg (Just (scaleOrderMin, scaleOrderMax)))) xs
   where
     len = V.length $ extractionToList $ extractFeatures True st
-    base' = drop (length productTypes) (V.toList $ netInp st)
+    base' = drop lenPt (V.toList $ netInp st)
+    lenPt | bnNbn = 2
+          | otherwise = length productTypes
 
     plts :: [[Double]]
-    plts = map (map (scaleDouble scaleAlg (Just (scalePltsMin, scalePltsMax))) . take (length productTypes)) [[1, 3, 1, 1, 3, 1], [3, 5, 3, 3, 5, 3]]
+    plts = map (map (scaleDouble scaleAlg (Just (scalePltsMin, scalePltsMax))) . take lenPt) [[1, 3, 1, 1, 3, 1], [3, 5, 3, 3, 5, 3]]
     xs :: [[Double]]
     xs | len - length (head plts) == 22 = [xsSimple, xsSimple2]
        | len - length (head plts) == 21 = map init [xsSimple, xsSimple2]
@@ -599,7 +605,7 @@ instance ExperimentDef (BORL St Act) where
       "Decay Alpha"
       (set (B.decaySetting . alpha))
       (^. B.decaySetting . alpha)
-      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.50 30000])
+      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.50 30000]) -- 25k HERE? ################################
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -699,7 +705,8 @@ instance ExperimentDef (BORL St Act) where
       "ANN Learning Rate Decay"
       (setAllProxies (proxyNNConfig . learningParamsDecay))
       (^?! proxies . v . proxyNNConfig . learningParamsDecay)
-      (Just $ return . const [ExponentialDecay (Just 1e-6) 0.75 30000
+      (Just $ return . const [NoDecay
+                             -- , ExponentialDecay (Just 1e-6) 0.75 30000
                              ])
       Nothing
       Nothing

@@ -12,7 +12,7 @@ import           Grenade
 
 import           ML.BORL                  as B hiding (actionFilter, featureExtractor)
 import           Releaser.SettingsDecay
-import           Releaser.SettingsRouting (productTypes)
+import           Releaser.SettingsRouting (bnNbn, productTypes)
 
 -- useHeuristicToFillReplMem :: Maybe Release
 -- useHeuristicToFillReplMem = Just $ releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
@@ -24,11 +24,11 @@ borlSettings =
     , _disableAllLearning            = False
     , _explorationStrategy           = EpsilonGreedy -- SoftmaxBoltzmann 5
     , _nStep                         = 5
-    , _mainAgentSelectsGreedyActions = True -- False
+    , _mainAgentSelectsGreedyActions = False -- True
     , _workersMinExploration         = replicate 3 0.01 ++ [0.05, 0.10, 0.20, 0.30]
     , _overEstimateRho               = True -- False
-    , _independentAgents             = length productTypes
-    , _independentAgentsSharedRho    = False -- True
+    , _independentAgents             = if bnNbn then 2 else length productTypes
+    , _independentAgentsSharedRho    = True -- False
     }
 
 
@@ -60,9 +60,9 @@ nnConfig =
     , _grenadeLearningParams           = OptAdam 0.0001 0.9 0.999 1e-8 1e-3
     , _grenadeSmoothTargetUpdate       = 0.01
     , _grenadeSmoothTargetUpdatePeriod = 100
-    , _learningParamsDecay             = ExponentialDecay (Just 1e-6) 0.75 30000 -- (configDecayRate decay) -- (round $ 2 * fromIntegral (configDecaySteps decay))
+    , _learningParamsDecay             = NoDecay -- ExponentialDecay (Just 1e-6) 0.75 30000 -- (configDecayRate decay) -- (round $ 2 * fromIntegral (configDecaySteps decay))
     , _prettyPrintElems                = []      -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-800) 800 (-800) 800
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-400) 800 (-400) 800
     , _scaleOutputAlgorithm            = ScaleMinMax -- ScaleLog 150 -- TODO ScaleMinMax --
     , _cropTrainMaxValScaled           = Nothing -- Just 0.98
     , _grenadeDropoutFlipActivePeriod  = 10^5

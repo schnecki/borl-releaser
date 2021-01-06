@@ -11,7 +11,6 @@ module Releaser.FeatureExtractor.Ops
     , featExtractorWipAsQueueCounters
     , featExtractorFullWoMachines
     , featExtractorFullMachinesToQueue
-    , featExtractorFullMachinesToQueueNbnBn
     , featExtractorFullWithMachines
     ) where
 
@@ -132,7 +131,9 @@ featExtractorFullWoMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-F
 
 
 featExtractorFullMachinesToQueue :: ReduceValues -> ConfigFeatureExtractor
-featExtractorFullMachinesToQueue useReduce = ConfigFeatureExtractor "PLTS-OP-(Queues+Machines)-FGI-Shipped" featExt
+featExtractorFullMachinesToQueue useReduce
+  | bnNbn = featExtractorFullMachinesToQueueNbnBn useReduce
+  | otherwise = ConfigFeatureExtractor "PLTS-OP-(Queues+Machines)-FGI-Shipped" featExt
   where
     featExt (St sim incOrds _ plts) =
       Extraction
@@ -149,7 +150,7 @@ featExtractorFullMachinesToQueue useReduce = ConfigFeatureExtractor "PLTS-OP-(Qu
         foreachPt f xs = map (\pt -> f (filter ((== pt) . productType) xs)) productTypes
 
 featExtractorFullMachinesToQueueNbnBn :: ReduceValues -> ConfigFeatureExtractor
-featExtractorFullMachinesToQueueNbnBn useReduce = ConfigFeatureExtractor "PLTS-OP-(Queues+Machines)-FGI-Shipped" featExt
+featExtractorFullMachinesToQueueNbnBn useReduce = ConfigFeatureExtractor "BN/NB: PLTS-OP-(Queues+Machines)-FGI-Shipped" featExt
   where
     featExt (St sim incOrds _ plts) =
       Extraction

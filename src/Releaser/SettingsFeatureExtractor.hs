@@ -19,6 +19,7 @@ featureExtractor :: ReduceValues -> ConfigFeatureExtractor
 featureExtractor = -- featExtractorSimple
 
   -- HERE
+  featExtractorFullMachinesToQueue
   -- featExtractorFullMachinesToQueue  -- was this
 
 
@@ -32,7 +33,7 @@ featureExtractor = -- featExtractorSimple
  -- featExtractorSimpleWipWithQueueCountsAndMachineCount -- <- works!!!
 
   -- featextractorsimplewithqueuecounts -- (no FGI does not make sense)
-  featExtractorWipAsQueueCounters
+  -- featExtractorWipAsQueueCounters
 
 
 extractFeatures :: ReduceValues -> St -> Extraction

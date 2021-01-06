@@ -7,10 +7,11 @@ module Releaser.Release.ReleasePlt
     ) where
 
 import           ClassyPrelude
-import qualified Data.Map      as M
+import qualified Data.Map                 as M
 
 import           SimSim
 
+import           Releaser.SettingsRouting
 import           Releaser.Type
 
 
@@ -22,6 +23,6 @@ mkReleasePLT plts = Release (releaseFun plts) pltReleaseName
 
 releaseFun :: LTs -> Time -> [Order] -> IO [Order]
 releaseFun plts t orders = return $ filter isInPlt orders
-  where isInPlt order = case M.lookup (productType order) plts of
+  where isInPlt order = case M.lookup (mapProductType $ productType order) plts of
           Nothing -> error $ "Could not find planned lead time for product type: " ++ show (productType order)
           Just plt -> dueDate order - plt <= t
