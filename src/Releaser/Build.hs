@@ -194,22 +194,32 @@ modelBuilder initState cols =
   -- fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
 
   -- Sol 1
-  fullyConnected (3*lenIn) >> relu >>
-  fullyConnected (1*lenIn) >> relu >>
+  -- fullyConnected (3*lenIn) >> relu >>
+  -- fullyConnected (1*lenIn) >> relu >>
+  -- fullyConnected (2 * lenOut) >> relu >>
 
   -- Test 2
+  fullyConnected (2*lenIn) >> relu >>
+  -- fullyConnected (1*lenIn) >> leakyRelu >>
+  -- fullyConnected (lenIn `div` 2) >> leakyRelu >>
+
+
   -- fullyConnected (round $ 1.5 * fromIntegral lenIn) >> relu >>
   -- fullyConnected (1 * lenIn) >> relu >>
   -- fullyConnected (lenIn `div` 2) >> relu >>
+  fullyConnected lenIn >> relu >>
 
 
-  fullyConnected (2 * lenOut) >> relu >>
   fullyConnected lenOut >> reshape (lenActs, cols, 1) >> leakyTanhLayer 0.98
   where
     lenOut = lenActs * cols
     lenIn = fromIntegral $ V.length (netInp initState)
     lenActs = genericLength actions * fromIntegral (borlSettings ^. independentAgents)
     actions = [minBound .. maxBound] :: [Action Act]
+
+
+-- SpecFullyConnected 180 540 :=> SpecRelu (540,1,1) :=> SpecFullyConnected 540 180 :=> SpecRelu (180,1,1) :=> SpecFullyConnected 180 24 :=> SpecRelu (24,1,1) :=> SpecFullyConnected 24 12 :=> SpecReshape (12,1,1) (6,2,1) :=> SpecLeakyTanh 0.98 (6,2,1) :=> SpecNNil2D 6x2
+
 
 --  *GOOD RESULTS* with DDS=12 and
 -- SpecFullyConnected 45 90 :=> SpecRelu (90,1,1) :=> SpecFullyConnected 90 45 :=> SpecRelu (45,1,1) :=> SpecFullyConnected 45 6 :=> SpecRelu (6,1,1) :=> SpecFullyConnected 6 3 :=> SpecTanh (3,1,1) :=> SpecNNil1D 3
@@ -499,10 +509,8 @@ instance ExperimentDef (BORL St Act) where
         (Just $ return .
          const
            [
-             -- AlgDQNAvgRewAdjusted 0.75 0.995 ByStateValues,
-             AlgDQNAvgRewAdjusted 0.8 1.0 ByStateValues
-           , AlgDQNAvgRewAdjusted 0.8 0.995 ByStateValues
-             -- , AlgDQNAvgRewAdjusted 0.8 0.99 ByStateValues
+             -- AlgDQNAvgRewAdjusted 0.8 1.0 ByStateValues
+           AlgDQNAvgRewAdjusted 0.8 0.995 ByStateValues
            ])
         Nothing
         Nothing
@@ -534,7 +542,7 @@ instance ExperimentDef (BORL St Act) where
             -- , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
             -- , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
            ] ++
-            map (\lts -> releaseBIL (M.fromList (map (\pt -> (pt, lts)) productTypes))) [1..6]
+            map (\lts -> releaseBIL (M.fromList (map (\pt -> (pt, lts)) productTypes))) [1..4]
         ))
         Nothing
         (Just (\x -> uniqueReleaseName x /= pltReleaseName)) -- drop preparation phase for all release algorithms but the BORL releaser
@@ -591,7 +599,7 @@ instance ExperimentDef (BORL St Act) where
       "Epsilon (at period 0)"
       (set (B.parameters . epsilon))
       (^. B.parameters . epsilon)
-      (Just $ return . const [fromList [0.50, 0.30]])
+      (Just $ return . const [fromList [1.00, 0.30]])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -605,28 +613,28 @@ instance ExperimentDef (BORL St Act) where
       "Decay Alpha"
       (set (B.decaySetting . alpha))
       (^. B.decaySetting . alpha)
-      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.50 30000]) -- 25k HERE? ################################
+      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.25 100000]) -- 25k HERE? ################################
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Decay AlphaRhoMin"
       (set (B.decaySetting . alphaRhoMin))
       (^. B.decaySetting . alphaRhoMin)
-      (Just $ return . const [ExponentialDecay (Just 2e-5) 0.50 30000])
+      (Just $ return . const [ExponentialDecay (Just 2e-5) 0.25 100000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Decay Delta"
       (set (B.decaySetting . delta))
       (^. B.decaySetting . delta)
-      (Just $ return . const [ExponentialDecay (Just 5e-4) 0.50 25000])
+      (Just $ return . const [ExponentialDecay (Just 5e-4) 0.25 100000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Decay Gamma"
       (set (B.decaySetting . gamma))
       (^. B.decaySetting . gamma)
-      (Just $ return . const [ExponentialDecay (Just 1e-3) 0.50 25000])
+      (Just $ return . const [ExponentialDecay (Just 1e-3) 0.25 100000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -640,14 +648,14 @@ instance ExperimentDef (BORL St Act) where
       "Decay Exploration"
       (set (B.decaySetting . exploration))
       (^. B.decaySetting . exploration)
-      (Just $ return . const [ExponentialDecay Nothing 0.50 30000])
+      (Just $ return . const [ExponentialDecay Nothing 0.25 100000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Learn Random Above (faster converging rho)"
       (set (B.parameters . learnRandomAbove))
       (^. B.parameters . learnRandomAbove)
-      (Just $ return . const [0.8])
+      (Just $ return . const [0.5])
       Nothing Nothing Nothing
     ] ++
     -- Cannot be changed here!!!
@@ -739,7 +747,7 @@ instance ExperimentDef (BORL St Act) where
       (^?! proxies . v . proxyNNConfig . scaleParameters)
       (Just $ return . const [
             -- ScalingNetOutParameters (-800) 800 (-200) 200 (-2000) 2000 (-2000) 2000
-          ScalingNetOutParameters (-800) 800 (-300) 300 (-500) 500 (-500) 500])
+          ScalingNetOutParameters (-800) 800 (-300) 300 (-300) 1000 (-300) 1000])
       Nothing
       Nothing
       Nothing
@@ -812,7 +820,9 @@ instance ExperimentDef (BORL St Act) where
       "Workers Min Exploration"
       (set (settings . workersMinExploration))
       (^. settings . workersMinExploration)
-      (Just $ return . const [replicate 3 0.01 ++ [0.05, 0.10, 0.20, 0.30]])
+      (Just $ return . const [[]
+                             -- ,[0.01]  ----------------------- TODO
+                             ])
       Nothing
       Nothing
       Nothing
@@ -822,7 +832,7 @@ instance ExperimentDef (BORL St Act) where
       "Independent Agents Share Rhos"
       (set (settings . independentAgentsSharedRho))
       (^. settings . independentAgentsSharedRho)
-      (Just $ return . const [False]) -- , True])
+      (Just $ return . const [True]) -- , False])
       Nothing
       Nothing
       Nothing
@@ -840,7 +850,7 @@ instance ExperimentDef (BORL St Act) where
       "Main Agent Selects Greedy Actions"
       (set (settings . mainAgentSelectsGreedyActions))
       (^. settings . mainAgentSelectsGreedyActions)
-      (Just $ return . const [True])
+      (Just $ return . const [False])
       Nothing
       Nothing
       Nothing
@@ -867,7 +877,7 @@ expSetting :: BORL St Act -> ExperimentSetting
 expSetting borl =
   ExperimentSetting
     { _experimentBaseName = experimentName
-    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, procT, dec, isNN] ++ concat [[repMemSize, repMemStrat, nnSetup] | isNNFlag]
+    , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, procT, isNN] ++ concat [[repMemSize, repMemStrat, nnSetup] | isNNFlag]
     , _experimentRepetitions = 1
     , _preparationSteps = 300000 -- 1 * 10 ^ 6
     , _evaluationWarmUpSteps = 1000
@@ -878,7 +888,7 @@ expSetting borl =
   where
     isNNFlag = isNeuralNetwork (borl ^. proxies . v)
     isNN = ExperimentInfoParameter "Is Neural Network" isNNFlag
-    dec = ExperimentInfoParameter "Decay" (configDecayName decay)
+    -- dec = ExperimentInfoParameter "Decay" (configDecayName decay) -- decay is not used in experiment
     actBounds = ExperimentInfoParameter "Action Bounds" (configActLower actionConfig, configActUpper actionConfig)
     pltBounds = ExperimentInfoParameter "Action Filter (Min/Max PLT)" (configActFilterMin actionFilterConfig, configActFilterMax actionFilterConfig)
     csts = ExperimentInfoParameter "Costs" costConfig

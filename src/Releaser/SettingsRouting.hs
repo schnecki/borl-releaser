@@ -18,11 +18,13 @@ module Releaser.SettingsRouting
 import           Control.Arrow                       (second)
 import           Data.List                           (nub, sort)
 import           Data.Text                           (Text)
+import           Prelude
 import           SimSim                              hiding (allBlocks, productTypes,
                                                       queues)
 import           Statistics.Distribution
 import           Statistics.Distribution.Exponential
 import           Statistics.Distribution.Uniform
+import           System.Random.MWC
 
 import           Releaser.Routing.Ops
 import           Releaser.Routing.Type
@@ -45,7 +47,7 @@ productTypes :: [ProductType]
 productTypes = sort $ nub $ map (fst . fst) (configRoutingRoutes routing)
 
 bnNbn :: Bool
-bnNbn = True
+bnNbn = False
 
 mapProductType :: ProductType -> ProductType
 mapProductType x | not bnNbn = x
@@ -75,16 +77,24 @@ data ConfigProcTimes = ConfigProcTimes
   , configProcTimes     :: !ProcTimes
   }
 
+test :: IO ()
+test = do
+  let mkTime = timeFromDouble <$> withSystemRandom (asGenIO $ genContVar (exponential (960 / 80)))
+      nr = 10000
+  ts <- mapM (const mkTime ) [1..nr]
+
+  print (sum ts / fromIntegral nr)
+
 
 procTimesDiverging3StagesExp :: ConfigProcTimes
 procTimesDiverging3StagesExp = ConfigProcTimes "Proc Times diverging 3 stages: Exp" $
   map (second $ filter ((`elem` productTypes) . fst)) $ filter ((`elem` allBlocks) . fst)
-  [ (Machine 1, forAllProducts (fmap timeFromDouble . genContVar (exponential (80  / 960))))
-  , (Machine 2, forAllProducts (fmap timeFromDouble . genContVar (exponential (160 / 960))))
-  , (Machine 3, forAllProducts (fmap timeFromDouble . genContVar (exponential (155 / 960))))
-  , (Machine 4, forAllProducts (fmap timeFromDouble . genContVar (exponential (210 / 960))))
-  , (Machine 5, forAllProducts (fmap timeFromDouble . genContVar (exponential (285 / 960))))
-  , (Machine 6, forAllProducts (fmap timeFromDouble . genContVar (exponential (215 / 960))))
+  [ (Machine 1, forAllProducts (fmap timeFromDouble . genContVar (exponential (960  / 80))))
+  , (Machine 2, forAllProducts (fmap timeFromDouble . genContVar (exponential (960 / 160))))
+  , (Machine 3, forAllProducts (fmap timeFromDouble . genContVar (exponential (960 / 155))))
+  , (Machine 4, forAllProducts (fmap timeFromDouble . genContVar (exponential (960 / 210))))
+  , (Machine 5, forAllProducts (fmap timeFromDouble . genContVar (exponential (960 / 285))))
+  , (Machine 6, forAllProducts (fmap timeFromDouble . genContVar (exponential (960 / 215))))
   ]
 
   where forAllProducts x = map (,x) productTypes

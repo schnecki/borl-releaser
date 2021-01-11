@@ -9,13 +9,13 @@ import           ML.BORL
 import           Releaser.Decay.Type
 import           Releaser.Util
 
--- | Decay function of parameters.
+-- | Decay function of parameters.d
 decayRateStepsWith :: DecayRate -> DecaySteps -> ConfigDecay
 decayRateStepsWith rate steps =
   ConfigDecay rate steps ("Exponential decay with rate " <> tshow rate <> " in " <> tshow steps <> " steps") $
   Parameters
-    { _alpha            = ExponentialDecay (Just 5e-5) rate 30000 -- (3 * steps `div` 5)
-    , _alphaRhoMin      = ExponentialDecay (Just 2e-5) rate 30000 -- (3 * steps `div` 5)
+    { _alpha            = ExponentialDecay (Just 5e-5) rate steps -- (3 * steps `div` 5)
+    , _alphaRhoMin      = ExponentialDecay (Just 2e-5) rate steps -- (3 * steps `div` 5)
     , _beta             = ExponentialDecay (Just 1e-4) rate steps
     , _delta            = ExponentialDecay (Just 5e-4) rate steps
     , _gamma            = ExponentialDecay (Just 1e-3) rate steps
