@@ -64,7 +64,7 @@ demandUnif78_158 =
 demandExp118 :: ConfigDemand
 demandExp118 =
   ConfigDemand
-    ("Uniform interarrival-time w/ Exp(118) with DDS=" <> tshow dueDateSlack)
+    ("Exponential interarrival-time w/ Exp(118) with DDS=" <> tshow dueDateSlack)
     dds
     (\sim ->
        let pts = productTypes sim
@@ -73,7 +73,7 @@ demandExp118 =
 demandExp135 :: ConfigDemand
 demandExp135 =
   ConfigDemand
-    ("Uniform interarrival-time w/ Exp(135) with DDS=" <> tshow dueDateSlack)
+    ("Exponential interarrival-time w/ Exp(135) with DDS=" <> tshow dueDateSlack)
     dds
     (\sim ->
        let pts = productTypes sim
@@ -83,7 +83,7 @@ demandExp135 =
 demandExp105 :: ConfigDemand
 demandExp105 =
   ConfigDemand
-    ("Uniform interarrival-time w/ Exp(105) with DDS=" <> tshow dueDateSlack)
+    ("Exponential interarrival-time w/ Exp(105) with DDS=" <> tshow dueDateSlack)
     dds
     (\sim ->
        let pts = productTypes sim

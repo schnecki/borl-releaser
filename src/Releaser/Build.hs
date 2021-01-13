@@ -199,7 +199,7 @@ modelBuilder initState cols =
   -- fullyConnected (2 * lenOut) >> relu >>
 
   -- Test 2
-  fullyConnected (2*lenIn) >> relu >>
+  fullyConnected (2*lenIn) >> leakyRelu >>
   -- fullyConnected (1*lenIn) >> leakyRelu >>
   -- fullyConnected (lenIn `div` 2) >> leakyRelu >>
 
@@ -208,8 +208,7 @@ modelBuilder initState cols =
   -- fullyConnected (1 * lenIn) >> relu >>
   -- fullyConnected (lenIn `div` 2) >> relu >>
   fullyConnected lenIn >> relu >>
-
-
+  -- fullyConnected (lenIn `div` 2) >> relu >>
   fullyConnected lenOut >> reshape (lenActs, cols, 1) >> leakyTanhLayer 0.98
   where
     lenOut = lenActs * cols
@@ -534,7 +533,7 @@ instance ExperimentDef (BORL St Act) where
         (simRelease . view (s . simulation))
         (Just . const . return $
            ([ mkReleasePLT initialPLTS
-            , releaseImmediate
+            -- , releaseImmediate
             -- , releaseBIL (M.fromList [(Product 1, 6), (Product 2, 6)])
             -- , releaseBIL (M.fromList [(Product 1, 5), (Product 2, 5)])
             -- , releaseBIL (M.fromList [(Product 1, 4), (Product 2, 4)])
@@ -542,7 +541,7 @@ instance ExperimentDef (BORL St Act) where
             -- , releaseBIL (M.fromList [(Product 1, 2), (Product 2, 2)])
             -- , releaseBIL (M.fromList [(Product 1, 1), (Product 2, 1)])
            ] ++
-            map (\lts -> releaseBIL (M.fromList (map (\pt -> (pt, lts)) productTypes))) [1..4]
+            map (\lts -> releaseBIL (M.fromList (map (\pt -> (pt, lts)) productTypes))) [1..0]
         ))
         Nothing
         (Just (\x -> uniqueReleaseName x /= pltReleaseName)) -- drop preparation phase for all release algorithms but the BORL releaser
@@ -613,28 +612,28 @@ instance ExperimentDef (BORL St Act) where
       "Decay Alpha"
       (set (B.decaySetting . alpha))
       (^. B.decaySetting . alpha)
-      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.25 100000]) -- 25k HERE? ################################
+      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.5 30000]) -- 30k HERE? ################################
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Decay AlphaRhoMin"
       (set (B.decaySetting . alphaRhoMin))
       (^. B.decaySetting . alphaRhoMin)
-      (Just $ return . const [ExponentialDecay (Just 2e-5) 0.25 100000])
+      (Just $ return . const [ExponentialDecay (Just 2e-5) 0.5 30000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Decay Delta"
       (set (B.decaySetting . delta))
       (^. B.decaySetting . delta)
-      (Just $ return . const [ExponentialDecay (Just 5e-4) 0.25 100000])
+      (Just $ return . const [ExponentialDecay (Just 5e-4) 0.1 100000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Decay Gamma"
       (set (B.decaySetting . gamma))
       (^. B.decaySetting . gamma)
-      (Just $ return . const [ExponentialDecay (Just 1e-3) 0.25 100000])
+      (Just $ return . const [ExponentialDecay (Just 1e-3) 0.1 100000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -648,14 +647,14 @@ instance ExperimentDef (BORL St Act) where
       "Decay Exploration"
       (set (B.decaySetting . exploration))
       (^. B.decaySetting . exploration)
-      (Just $ return . const [ExponentialDecay Nothing 0.25 100000])
+      (Just $ return . const [ExponentialDecay Nothing 0.1 100000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Learn Random Above (faster converging rho)"
       (set (B.parameters . learnRandomAbove))
       (^. B.parameters . learnRandomAbove)
-      (Just $ return . const [0.5])
+      (Just $ return . const [0.8])
       Nothing Nothing Nothing
     ] ++
     -- Cannot be changed here!!!
@@ -713,8 +712,9 @@ instance ExperimentDef (BORL St Act) where
       "ANN Learning Rate Decay"
       (setAllProxies (proxyNNConfig . learningParamsDecay))
       (^?! proxies . v . proxyNNConfig . learningParamsDecay)
-      (Just $ return . const [NoDecay
-                             -- , ExponentialDecay (Just 1e-6) 0.75 30000
+      (Just $ return . const [-- ExponentialDecay Nothing 0.95 10000
+          NoDecay
+                             -- ExponentialDecay (Just 1e-6) 0.95 10000
                              ])
       Nothing
       Nothing
@@ -800,7 +800,7 @@ instance ExperimentDef (BORL St Act) where
       "NStep"
       (set (settings . nStep))
       (^. settings . nStep)
-      (Just $ return . const [5])
+      (Just $ return . const [3])
       Nothing
       Nothing
       Nothing
@@ -864,8 +864,10 @@ instance ExperimentDef (BORL St Act) where
   --     createDirectoryIfMissing True dir
   --     writeFile (dir ++ "plot.sh") gnuplot
   --     mapMOf (s . simulation) (setSimulationRandomGen g) borl
-  beforeWarmUpHook _ _ _ g borl = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True borl
-  beforeEvaluationHook _ _ _ g borl = liftIO $ mapMOf (s . simulation) (setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True  borl
+  beforeWarmUpHook _ _ _ g borl = liftIO $ mapMOf (s . simulation) (fmap resetStatistics . setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True borl
+  beforeEvaluationHook _ _ _ g borl = liftIO $
+
+    mapMOf (s . simulation) (fmap resetStatistics . setSimulationRandomGen g) $ set (B.parameters . exploration) 0.00 $ set (B.settings . disableAllLearning) True  borl
   -- afterPreparationHook _ expNr repetNr = liftIO $ copyFiles "prep_" expNr repetNr Nothing
   -- afterWarmUpHook _ expNr repetNr repliNr = liftIO $ copyFiles "warmup_" expNr repetNr (Just repliNr)
   -- afterEvaluationHook _ expNr repetNr repliNr = liftIO $ copyFiles "eval_" expNr repetNr (Just repliNr)
