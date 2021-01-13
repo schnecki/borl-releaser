@@ -41,7 +41,7 @@ borlParams = Parameters
   , _delta               = 0.005
   , _gamma               = 0.01
   -- Rest
-  , _epsilon             = [1.00, 0.30] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
+  , _epsilon             = [0.50, 0.30] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
   , _exploration         = 1.0
   , _learnRandomAbove    = 0.5
   -- Multichain NBORL and etc.
@@ -60,9 +60,10 @@ nnConfig =
     , _grenadeLearningParams           = OptAdam 0.0001 0.9 0.999 1e-8 1e-3
     , _grenadeSmoothTargetUpdate       = 0.01
     , _grenadeSmoothTargetUpdatePeriod = 100
-    , _learningParamsDecay             = ExponentialDecay Nothing 0.95 10000 -- (Just 1e-6)
+    , _learningParamsDecay             = NoDecay -- ExponentialDecay Nothing 0.95 10000 -- (Just 1e-6)
     , _prettyPrintElems                = []      -- is set just before printing/at initialisation
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-300) 1000 (-300) 1000
+    -- , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-300) 1000 (-300) 1000
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-400) 800 (-400) 800
     , _scaleOutputAlgorithm            = ScaleMinMax -- ScaleLog 150 -- TODO ScaleMinMax --
     , _cropTrainMaxValScaled           = Nothing -- Just 0.98
     , _grenadeDropoutFlipActivePeriod  = 10^5
@@ -89,7 +90,7 @@ initVals :: InitValues
 initVals = InitValues {defaultRhoMinimum = 300, defaultRho = 120, defaultV = 0, defaultW = 0, defaultR0 = 0, defaultR1 = 0}
 
 experimentName :: T.Text
-experimentName = "3 stage setup 05.01.2021"
+experimentName = "Final runs: 3 stage setup on 13/01/2021"
 
 
 scaleAlg :: ScalingAlgorithm

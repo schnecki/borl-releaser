@@ -63,25 +63,31 @@ loadAndEval ::
 loadAndEval runner runner2 mkInitSt = do
   dbSetting <- databaseSetting
   Just res <- loadExperimentsResultsM True runner dbSetting expSetting () mkInitSt 1
-  liftIO $ putStrLn "RES"
   eval dbSetting runner2 res
 
 loadAndWriteCsv :: (ExpM (BORL St Act) (Maybe (Experiments (BORL St Act))) -> IO (Maybe (Experiments (BORL St Act)))) -> ExpM (BORL St Act) (BORL St Act) -> IO ()
 loadAndWriteCsv runner mkInitSt = do
   dbSetting <- databaseSetting
   Just res <- loadExperimentsResultsM False runner dbSetting expSetting () mkInitSt 1
-  liftIO $ writeCsvMeasure dbSetting res (SmoothingMovAvg 300) ["AvgReward", "BOC", "WIPC", "FGIC", "SUMC", "VAvg", "PsiV", "PsiW"]
+  liftIO $ writeCsvMeasure dbSetting res (SmoothingMovAvg 300) ["AvgReward", "BOC", "WIPC", "FGIC", "SUMC"] -- , "VAvg", "PsiV", "PsiW"]
 
 
 eval :: ExperimentDef a => DatabaseSetting -> (ExpM a (Evals a) -> IO (Evals a)) -> Experiments a -> IO ()
 eval dbSetting runner2 res = do
   let evals = [ -- Sum OverPeriods $ Of "SUMC",
-                Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")
+                -- Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")
               -- , Sum OverPeriods $ Of "EARN", Mean OverReplications (Stats $ Sum OverPeriods $ Of "EARN")
-              -- , Sum OverPeriods $ Of "BOC" , Mean OverReplications (Stats $ Sum OverPeriods $ Of "BOC")
-              -- , Sum OverPeriods $ Of "WIPC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "WIPC")
-              -- , Sum OverPeriods $ Of "FGIC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "FGIC")
-              -- , Sum OverPeriods $ Of "SUMC", Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")
+              -- , Sum OverPeriods $ Of "BOC"
+                Mean OverReplications (Stats $ Sum OverPeriods $ Of "WIPC")
+              , Mean OverReplications (Stats $ Sum OverPeriods $ Of "FGIC")
+              , Mean OverReplications (Stats $ Sum OverPeriods $ Of "BOC")
+              , Name "FGIC+BOC" $ Id $ Stats (Mean OverReplications (Stats $ Sum OverPeriods $ Of "FGIC")) `Add` Stats (Mean OverReplications (Stats $ Sum OverPeriods $ Of "BOC"))
+              , Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")
+              , Name "Costs per Period" $ Id $ Stats (Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")) `Div` Length (Stats $ Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC"))
+              , Name "Average Reward" $ Mean OverReplications (Last $ Of "AvgReward")
+              -- , Sum OverPeriods $ Of "WIPC"
+              -- , Sum OverPeriods $ Of "FGIC"
+              -- , Sum OverPeriods $ Of "SUMC"
 
               -- -- , Id $ EveryXthElem 4 $ Of "demand"
               -- -- , Id $ EveryXthElem 4 $ Of "op"
@@ -89,16 +95,17 @@ eval dbSetting runner2 res = do
               -- -- , Id $ EveryXthElem 4 $ Of "bo"
               -- -- , Id $ EveryXthElem 4 $ Of "fgi"
 
-              -- -- , Id $ Last $ Of "FTMeanFloorAndFgi", Mean OverReplications (Last $ Of "FTMeanFloorAndFgi")
-              -- -- , Id $ Last $ Of "FTStdDevFloorAndFgi", Mean OverReplications (Last $ Of "FTStdDevFloorAndFgi")
-              -- -- , Id $ Last $ Of "TARDPctFloorAndFgi", Mean OverReplications (Last $ Of "TARDPctFloorAndFgi")
-              -- -- , Id $ Last $ Of "TARDMeanFloorAndFGI"
+              , Name "SFTP" $ Mean OverReplications (Last $ Of "FTMeanFloor")
+              , Name "SFTP StdDev" $ Mean OverReplications (Last $ Of "FTStdDevFloor") -- ,Id $ Last $ Of "FTStdDevFloor",
+              , Name "SFTP+FGIT" $ Mean OverReplications (Last $ Of "FTMeanFloorAndFgi") -- , Id $ Last $ Of "FTMeanFloorAndFgi",
+              , Name "SFTP+FGIT StdDev" $ Mean OverReplications (Last $ Of "FTStdDevFloorAndFgi") -- , Id $ Last $ Of "FTStdDevFloorAndFgi",
+              , Name "Tardiness SF" $ Mean OverReplications (Last $ Of "TARDPctFloor")
+              , Name "Tardiness SF+FGI" $ Mean OverReplications (Last $ Of "TARDPctFloorAndFgi") -- , Id $ Last $ Of "TARDMeanFloorAndFGI"
               -- , Mean OverReplications (Last $ Of "TARDMeanFloorAndFGI")
               -- -- , Id $ Last $ Of "TARDStdDevFloorAndFGI"
               -- , Mean OverReplications (Last $ Of "TARDStdDevFloorAndFGI")
 
               -- -- , Id $ Last $ Of "FTMeanFloor"
-              -- , Mean OverReplications (Last $ Of "FTMeanFloor")
               -- -- , Id $ Last $ Of "FTStdDevFloor", Mean OverReplications (Last $ Of "FTStdDevFloor")
               -- -- , Id $ Last $ Of "TARDPctFloor", Mean OverReplications (Last $ Of "TARDPctFloor")
               -- -- , Id $ Last $ Of "TARDMeanFloor", Mean OverReplications (Last $ Of "TARDMeanFloor")
@@ -114,6 +121,9 @@ eval dbSetting runner2 res = do
               -- -- , Id $ Last $ Of "PsiRho", Mean OverReplications (Last $ Of "PsiRho")
               -- -- , Id $ Last $ Of "PsiV", Mean OverReplications (Last $ Of "PsiV")
               -- -- , Id $ Last $ Of "PsiW", Mean OverReplications (Last $ Of "PsiW")
+
+
+              , Sum OverPeriods $ Of "SUMC"
               ]
   evalRes <- genEvals runner2 dbSetting res evals
   print (view evalsResults evalRes)

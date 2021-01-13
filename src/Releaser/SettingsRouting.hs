@@ -47,7 +47,7 @@ productTypes :: [ProductType]
 productTypes = sort $ nub $ map (fst . fst) (configRoutingRoutes routing)
 
 bnNbn :: Bool
-bnNbn = False
+bnNbn = True
 
 mapProductType :: ProductType -> ProductType
 mapProductType x | not bnNbn = x
