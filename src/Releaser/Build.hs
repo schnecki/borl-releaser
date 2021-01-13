@@ -873,10 +873,10 @@ expSetting borl =
     { _experimentBaseName = experimentName
     , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, procT, isNN] ++ concat [[repMemSize, repMemStrat, nnSetup] | isNNFlag]
     , _experimentRepetitions = 1
-    , _preparationSteps = 300000 -- 1 * 10 ^ 6
+    , _preparationSteps = 150000
     , _evaluationWarmUpSteps = 1000
     , _evaluationSteps = 7000
-    , _evaluationReplications = 10
+    , _evaluationReplications = 30
     , _evaluationMaxStepsBetweenSaves = Just 6000
     }
   where
