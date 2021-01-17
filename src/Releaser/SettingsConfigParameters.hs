@@ -22,13 +22,13 @@ borlSettings =
   Settings
     { _useProcessForking             = True
     , _disableAllLearning            = False
-    , _explorationStrategy           = EpsilonGreedy -- SoftmaxBoltzmann 5
+    , _explorationStrategy           = EpsilonGreedy
     , _nStep                         = 5
-    , _mainAgentSelectsGreedyActions = False -- True
-    , _workersMinExploration         = [0.01] -- replicate 2 0.01 -- ++ [0.02, 0.03]
-    , _overEstimateRho               = True -- False
+    , _mainAgentSelectsGreedyActions = False
+    , _workersMinExploration         = replicate 2 0.01
+    , _overEstimateRho               = False -- True
     , _independentAgents             = if bnNbn then 2 else length productTypes
-    , _independentAgentsSharedRho    = True -- False
+    , _independentAgentsSharedRho    = True
     }
 
 
@@ -36,14 +36,14 @@ borlSettings =
 borlParams :: Parameters Double
 borlParams = Parameters
   { _alpha               = 0.01
-  , _alphaRhoMin         = 0.001
+  , _alphaRhoMin         = 0.005
   , _beta                = 0.01
   , _delta               = 0.005
   , _gamma               = 0.01
   -- Rest
   , _epsilon             = [0.50, 0.30] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
   , _exploration         = 1.0
-  , _learnRandomAbove    = 0.5
+  , _learnRandomAbove    = 0.8
   -- Multichain NBORL and etc.
   , _zeta                = 0.10
   , _xi                  = 5e-3
@@ -60,10 +60,10 @@ nnConfig =
     , _grenadeLearningParams           = OptAdam 0.0001 0.9 0.999 1e-8 1e-3
     , _grenadeSmoothTargetUpdate       = 0.01
     , _grenadeSmoothTargetUpdatePeriod = 100
-    , _learningParamsDecay             = NoDecay -- ExponentialDecay Nothing 0.95 10000 -- (Just 1e-6)
+    , _learningParamsDecay             = NoDecay -- ExponentialDecay (Just 1e-6) 0.5 (configDecaySteps deca)y
     , _prettyPrintElems                = []      -- is set just before printing/at initialisation
     -- , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-300) 1000 (-300) 1000
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-400) 800 (-400) 800
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-400) 500 (-400) 500
     , _scaleOutputAlgorithm            = ScaleMinMax -- ScaleLog 150 -- TODO ScaleMinMax --
     , _cropTrainMaxValScaled           = Nothing -- Just 0.98
     , _grenadeDropoutFlipActivePeriod  = 10^5
