@@ -28,7 +28,7 @@ borlSettings =
     , _workersMinExploration         = replicate 2 0.01
     , _overEstimateRho               = False -- True
     , _independentAgents             = if bnNbn then 2 else length productTypes
-    , _independentAgentsSharedRho    = True
+    , _independentAgentsSharedRho    = True -- False
     }
 
 
@@ -43,7 +43,7 @@ borlParams = Parameters
   -- Rest
   , _epsilon             = [0.50, 0.30] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
   , _exploration         = 1.0
-  , _learnRandomAbove    = 0.8
+  , _learnRandomAbove    = 0.5
   -- Multichain NBORL and etc.
   , _zeta                = 0.10
   , _xi                  = 5e-3
@@ -60,10 +60,10 @@ nnConfig =
     , _grenadeLearningParams           = OptAdam 0.0001 0.9 0.999 1e-8 1e-3
     , _grenadeSmoothTargetUpdate       = 0.01
     , _grenadeSmoothTargetUpdatePeriod = 100
-    , _learningParamsDecay             = NoDecay -- ExponentialDecay (Just 1e-6) 0.5 (configDecaySteps deca)y
+    , _learningParamsDecay             = ExponentialDecay (Just 1e-6) 0.5 (configDecaySteps decay) -- NoDecay --
     , _prettyPrintElems                = []      -- is set just before printing/at initialisation
     -- , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-300) 1000 (-300) 1000
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-400) 500 (-400) 500
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-400) 2000 (-400) 2000
     , _scaleOutputAlgorithm            = ScaleMinMax -- ScaleLog 150 -- TODO ScaleMinMax --
     , _cropTrainMaxValScaled           = Nothing -- Just 0.98
     , _grenadeDropoutFlipActivePeriod  = 10^5

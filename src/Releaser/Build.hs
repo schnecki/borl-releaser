@@ -194,24 +194,24 @@ modelBuilder initState cols =
   -- fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
 
   -- Sol 1
-  -- fullyConnected (1*lenIn) >> relu >>
-  -- fullyConnected (lenIn `div` 2) >> relu >>
-  -- fullyConnected (4*lenOut) >> relu >>
+  fullyConnected (1*lenIn) >> relu >>
+  fullyConnected (lenIn `div` 2) >> relu >>
+  fullyConnected (4*lenOut) >> relu >>
 
 
   -- Test 2
-
-  -- now: SpecFullyConnected 540 1080 :=> SpecRelu (1080,1,1) :=> SpecFullyConnected 1080 540 :=> SpecRelu (540,1,1) :=> SpecFullyConnected 540 270 :=> SpecRelu (270,1,1) :=> SpecFullyConnected 270 36
-  -- :=> SpecReshape (36,1,1) (18,2,1) :=> SpecTanh (18,2,1) :=> SpecNNil2D 18x2
-
 
   -- fullyConnected (2*lenIn) >> relu >>
   -- fullyConnected (3 * lenIn `div` 2) >> relu >>
   -- fullyConnected (lenIn `div` 2) >> relu >>
   -- fullyConnected (lenIn `div` 2) >> relu >>
-
   -- fullyConnected (2*lenIn) >> relu >>
-  fullyConnected (1*lenIn) >> relu >>
+
+  -- before:
+  -- fullyConnected (1*lenIn) >> relu >>
+
+
+  -- current:
   -- fullyConnected (lenIn `div` 2) >> relu >>
 
 
@@ -220,7 +220,7 @@ modelBuilder initState cols =
   -- fullyConnected (lenIn `div` 2) >> relu >>
   -- fullyConnected lenIn >> relu >>
   -- fullyConnected (lenIn `div` 2) >> relu >>
-  fullyConnected lenOut >> reshape (lenActs, cols, 1) >> leakyTanhLayer 0.98
+  fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- leakyTanhLayer 0.98
   where
     lenOut = lenActs * cols
     lenIn = fromIntegral $ V.length (netInp initState)

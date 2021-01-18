@@ -16,6 +16,6 @@ decay =
   -- decayRateStepsWith 0.6 100000 -- (3*10^6)
   -- decayRate50PctStepsk150k
   -- decayRateStepsWith 0.55 50000 -- (10^5)
-  decayRateStepsWith 0.5 50000
+  decayRateStepsWith 0.5 60000
 
   -- decayRateStepsWith 0.5 100000 -- (3*10^6)
