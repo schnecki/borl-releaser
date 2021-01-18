@@ -81,9 +81,9 @@ eval dbSetting runner2 res = do
                 Mean OverReplications (Stats $ Sum OverPeriods $ Of "WIPC")
               , Mean OverReplications (Stats $ Sum OverPeriods $ Of "FGIC")
               , Mean OverReplications (Stats $ Sum OverPeriods $ Of "BOC")
-              , Name "FGIC+BOC" $ Id $ Stats (Mean OverReplications (Stats $ Sum OverPeriods $ Of "FGIC")) `Add` Stats (Mean OverReplications (Stats $ Sum OverPeriods $ Of "BOC"))
+              -- , Name "FGIC+BOC" $ Id $ Stats (Mean OverReplications (Stats $ Sum OverPeriods $ Of "FGIC")) `Add` Stats (Mean OverReplications (Stats $ Sum OverPeriods $ Of "BOC"))
               , Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")
-              , Name "Costs per Period" $ Id $ Stats (Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")) `Div` Length (Stats $ Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC"))
+              -- , Name "Costs per Period" $ Id $ Stats (Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC")) `Div` Length (Stats $ Mean OverReplications (Stats $ Sum OverPeriods $ Of "SUMC"))
               , Name "Average Reward" $ Mean OverReplications (Last $ Of "AvgReward")
               -- , Sum OverPeriods $ Of "WIPC"
               -- , Sum OverPeriods $ Of "FGIC"
