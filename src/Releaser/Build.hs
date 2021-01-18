@@ -464,11 +464,11 @@ instance ExperimentDef (BORL St Act) where
     return $! force $
       if phase /= EvaluationPhase
       then ([
-          avgRew
-        , avgRewMin
-        , expAvgRew
-        -- , vAvg
-        , reward
+        --   avgRew
+        -- , avgRewMin
+        -- , expAvgRew
+        -- -- , vAvg
+        -- , reward
 
         ], borl')
 
@@ -498,15 +498,15 @@ instance ExperimentDef (BORL St Act) where
         , tTardStdDevFloor
              -- BORL related measures
         , avgRew
-        , avgRewMin
-        , expAvgRew
-        , pltP1
-        , pltP2
-        , psiRho
-        , psiV
-        , psiW
-        , vAvg
-        , reward
+        -- , avgRewMin
+        -- , expAvgRew
+        -- , pltP1
+        -- , pltP2
+        -- , psiRho
+        -- , psiV
+        -- , psiW
+        -- , vAvg
+        -- , reward
         ]
       , borl')
   -- ^ Provides the parameter setting.
@@ -520,7 +520,7 @@ instance ExperimentDef (BORL St Act) where
          const
            [
              AlgDQNAvgRewAdjusted 0.8 1.0 ByStateValues
-           , AlgDQNAvgRewAdjusted 0.8 0.995 ByStateValues
+           , AlgDQNAvgRewAdjusted 0.8 0.99 ByStateValues
            , AlgDQN 0.99 Exact
            ])
         Nothing
@@ -589,7 +589,7 @@ instance ExperimentDef (BORL St Act) where
       "AlphaRhoMin (at period 0)"
       (set (B.parameters . alphaRhoMin))
       (^. B.parameters . alphaRhoMin)
-      (Just $ return . const [0.001])
+      (Just $ return . const [0.005])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -621,31 +621,38 @@ instance ExperimentDef (BORL St Act) where
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
+      "Learn Random Above (faster converging rho)"
+      (set (B.parameters . learnRandomAbove))
+      (^. B.parameters . learnRandomAbove)
+      (Just $ return . const [0.5])
+      Nothing Nothing Nothing
+    ] ++
+    [ ParameterSetup
       "Decay Alpha"
       (set (B.decaySetting . alpha))
       (^. B.decaySetting . alpha)
-      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.5 30000])
+      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.5 50000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Decay AlphaRhoMin"
       (set (B.decaySetting . alphaRhoMin))
       (^. B.decaySetting . alphaRhoMin)
-      (Just $ return . const [ExponentialDecay (Just 2e-5) 0.5 30000])
+      (Just $ return . const [ExponentialDecay (Just 2e-5) 0.5 50000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Decay Delta"
       (set (B.decaySetting . delta))
       (^. B.decaySetting . delta)
-      (Just $ return . const [ExponentialDecay (Just 5e-4) 0.5 30000])
+      (Just $ return . const [ExponentialDecay (Just 5e-4) 0.5 50000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Decay Gamma"
       (set (B.decaySetting . gamma))
       (^. B.decaySetting . gamma)
-      (Just $ return . const [ExponentialDecay (Just 1e-3) 0.5 30000])
+      (Just $ return . const [ExponentialDecay (Just 1e-3) 0.5 50000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -659,14 +666,7 @@ instance ExperimentDef (BORL St Act) where
       "Decay Exploration"
       (set (B.decaySetting . exploration))
       (^. B.decaySetting . exploration)
-      (Just $ return . const [ExponentialDecay Nothing 0.5 25000])
-      Nothing Nothing Nothing
-    ] ++
-    [ ParameterSetup
-      "Learn Random Above (faster converging rho)"
-      (set (B.parameters . learnRandomAbove))
-      (^. B.parameters . learnRandomAbove)
-      (Just $ return . const [0.5])
+      (Just $ return . const [ExponentialDecay Nothing 0.5 50000])
       Nothing Nothing Nothing
     ] ++
     -- Cannot be changed here!!!
@@ -724,7 +724,7 @@ instance ExperimentDef (BORL St Act) where
       "ANN Learning Rate Decay"
       (setAllProxies (proxyNNConfig . learningParamsDecay))
       (^?! proxies . v . proxyNNConfig . learningParamsDecay)
-      (Just $ return . const [ NoDecay ])
+      (Just $ return . const [ExponentialDecay (Just 1e-6) 0.5 (configDecaySteps decay) ])
       Nothing
       Nothing
       Nothing
@@ -754,7 +754,7 @@ instance ExperimentDef (BORL St Act) where
       "ScaleParameters"
       (setAllProxies (proxyNNConfig . scaleParameters))
       (^?! proxies . v . proxyNNConfig . scaleParameters)
-      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-300) 300 (-400) 800 (-400) 800])
+      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-300) 300 (-400) 2000 (-400) 2000])
       Nothing
       Nothing
       Nothing
@@ -824,7 +824,7 @@ instance ExperimentDef (BORL St Act) where
       "Workers Min Exploration"
       (set (settings . workersMinExploration))
       (^. settings . workersMinExploration)
-      (Just $ return . const [[0.01]])
+      (Just $ return . const [[0.01, 0.01]])
       Nothing
       Nothing
       Nothing
@@ -843,7 +843,7 @@ instance ExperimentDef (BORL St Act) where
       "Overestimate Rho"
       (set (settings . overEstimateRho))
       (^. settings . overEstimateRho)
-      (Just $ return . const [True]) -- , False])
+      (Just $ return . const [False])
       Nothing
       Nothing
       Nothing

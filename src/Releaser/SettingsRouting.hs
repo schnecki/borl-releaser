@@ -40,8 +40,8 @@ routing =
 procTimes :: ConfigProcTimes
 procTimes =
   -- procTimesDiverging2Stages
-  procTimesDiverging3StagesUnif
-  -- procTimesDiverging3StagesExp
+  -- procTimesDiverging3StagesUnif
+  procTimesDiverging3StagesExp
 
 productTypes :: [ProductType]
 productTypes = sort $ nub $ map (fst . fst) (configRoutingRoutes routing)
