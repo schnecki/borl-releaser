@@ -5,31 +5,34 @@
 - Set min alpha to something higher? (does not seem to be necessary)
 - Learn rho only from last or from all calcs? (currently: only last experience, seems to work)
 
+- AvgReward: ByReward
+
 
 # Basic Experimental Setup
 
-|                      |                                                                       |
-|----------------------+-----------------------------------------------------------------------|
-| ANN                  | lenIn -> lenIn -> lenIn/2 -> 4*lenOut -> lenOut                       |
-| State Representation | Full                                                                  |
-| N-Step               | 5                                                                     |
-| BatchSize            | 4                                                                     |
-| LearnRandAbove       | 0.5                                                                   |
-| # Workers            | 2 (BS = 4*3 = 12)                                                     |
-| Scaling              | {(-400, 2000)}                                                        |
-| Decay Steps          | 30k, 50k, 60k  ???                                                    |
-| Epsilon              | {(0.5, 0.3)}                                                          |
-| ReplayMemoryStategy  | ReplayMemoryPerAction                                                 |
-| ReplayMemorySize     | 10800                                                                 |
-| Overestimate Rho     | False                                                                 |
-| Share Rho            | True                                                                  |
-| Clip Gradients       | NoClipping                                                            |
-|                      |                                                                       |
-| Demand-ProcTimes     | 70%: Unif-Exp, Exp-Unif, Exp-Exp; 80%: Unif-Exp, Exp-Unif, Exp-Exp    |
-|                      |                                                                       |
-| Release              | AvgRewAdjDRL(0.8, 1.0), AvgRewAdjDRL(0.8, 0.99), DQN(0.99), BIL1-BIL4 |
-|                      |                                                                       |
-|----------------------+-----------------------------------------------------------------------|
+|                      |                                                                                          |
+|----------------------+------------------------------------------------------------------------------------------|
+| ANN                  | lenIn -> lenIn -> lenIn/2 -> 4*lenOut -> lenOut                                          |
+| State Representation | Full                                                                                     |
+| N-Step               | 5                                                                                        |
+| BatchSize            | 4                                                                                        |
+| LearnRandAbove       | 0.5                                                                                      |
+| # Workers            | 2 (BS = 4*3 = 12)                                                                        |
+| Scaling              | {(-400, 2000)}                                                                           |
+| Decay Steps          | 50k                                                                                      |
+| Epsilon              | {(0.5, 0.3)}                                                                             |
+| ReplayMemoryStategy  | ReplayMemoryPerAction                                                                    |
+| ReplayMemorySize     | 10800                                                                                    |
+| Overestimate Rho     | False                                                                                    |
+| Share Rho            | True                                                                                     |
+| Clip Gradients       | NoClipping                                                                               |
+|                      |                                                                                          |
+| Demand-ProcTimes     | 70%: Unif-Exp, Exp-Unif, Exp-Exp; 80%: Unif-Exp, Exp-Unif, Exp-Exp                       |
+|                      |                                                                                          |
+| Release Algorithms   | AvgRewAdjDRL(0.8, 1.0), AvgRewAdjDRL(0.8, 0.99), DQN(0.99), DQN(0.99)-ohneTanh,BIL1-BIL4 |
+|----------------------+------------------------------------------------------------------------------------------|
+
+Todo: DQN(0.99)-ohneTanhLayer
 
 
 # Ideas for Possible Sensitivity Analysis for Base Scenario: 80-Exp-Exp

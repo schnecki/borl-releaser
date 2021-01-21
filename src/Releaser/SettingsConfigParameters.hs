@@ -12,7 +12,9 @@ import           Grenade
 
 import           ML.BORL                  as B hiding (actionFilter, featureExtractor)
 import           Releaser.SettingsDecay
+import           Releaser.SettingsReward
 import           Releaser.SettingsRouting (bnNbn, productTypes)
+import           Releaser.Type
 
 -- useHeuristicToFillReplMem :: Maybe Release
 -- useHeuristicToFillReplMem = Just $ releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
@@ -25,8 +27,8 @@ borlSettings =
     , _explorationStrategy           = EpsilonGreedy
     , _nStep                         = 5
     , _mainAgentSelectsGreedyActions = False
-    , _workersMinExploration         = replicate 2 0.01
-    , _overEstimateRho               = False -- True
+    , _workersMinExploration         = replicate 5 0.01
+    , _overEstimateRho               = True
     , _independentAgents             = if bnNbn then 2 else length productTypes
     , _independentAgentsSharedRho    = True -- False
     }
@@ -36,14 +38,14 @@ borlSettings =
 borlParams :: Parameters Double
 borlParams = Parameters
   { _alpha               = 0.01
-  , _alphaRhoMin         = 0.005
+  , _alphaRhoMin         = 0 -- 0.001
   , _beta                = 0.01
   , _delta               = 0.005
   , _gamma               = 0.01
   -- Rest
-  , _epsilon             = [0.50, 0.30] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
+  , _epsilon             = [0.25, 0.25] -- If epsilon is too big, R0 will decrease the LT to collect more reward sooner!!!
   , _exploration         = 1.0
-  , _learnRandomAbove    = 0.5
+  , _learnRandomAbove    = 1.0 -- 0.8
   -- Multichain NBORL and etc.
   , _zeta                = 0.10
   , _xi                  = 5e-3
@@ -57,19 +59,20 @@ nnConfig =
     , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
     , _trainBatchSize                  = 4
     , _trainingIterations              = 1
-    , _grenadeLearningParams           = OptAdam 0.0001 0.9 0.999 1e-8 1e-3
+    , _grenadeLearningParams           = OptAdam 0.005 0.9 0.999 1e-8 1e-3
     , _grenadeSmoothTargetUpdate       = 0.01
     , _grenadeSmoothTargetUpdatePeriod = 100
-    , _learningParamsDecay             = ExponentialDecay (Just 1e-6) 0.5 (configDecaySteps decay) -- NoDecay --
+    , _learningParamsDecay             = ExponentialDecay (Just 5e-6) (configDecayRate decay) (configDecaySteps decay)
     , _prettyPrintElems                = []      -- is set just before printing/at initialisation
-    -- , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-300) 1000 (-300) 1000
-    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-400) 2000 (-400) 2000
-    , _scaleOutputAlgorithm            = ScaleMinMax -- ScaleLog 150 -- TODO ScaleMinMax --
+    -- , _scaleParameters                 = ScalignNetOutParameters (-800) 800 (-300) 300 (-300) 1000 (-300) 1000
+    , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-400) 800 (-400) 800
+    , _scaleOutputAlgorithm            = ScaleMinMax
     , _cropTrainMaxValScaled           = Nothing -- Just 0.98
     , _grenadeDropoutFlipActivePeriod  = 10^5
     , _grenadeDropoutOnlyInactiveAfter = 0 -- 10^6
     , _clipGradients                   = NoClipping -- ClipByGlobalNorm 0.01
     }
+
 
 ------------------------------ ###########################################
 -- |!!!!! TODO: initial states for experiments have to be independent on this selection!!!!!
@@ -87,7 +90,8 @@ alg =
   -- algDQN
 
 initVals :: InitValues
-initVals = InitValues {defaultRhoMinimum = 300, defaultRho = 120, defaultV = 0, defaultW = 0, defaultR0 = 0, defaultR1 = 0}
+initVals = InitValues {defaultRhoMinimum = 300, defaultRho = 0, defaultV = 0, defaultW = 0, defaultR0 = 0, defaultR1 = 0}
+
 
 experimentName :: T.Text
 experimentName = "Final runs: 3 stage setup on 13/01/2021"

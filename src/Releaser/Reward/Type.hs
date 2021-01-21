@@ -17,7 +17,6 @@ data ConfigReward = ConfigReward
   , configRewardMinimum  :: !(Maybe Double)
   } |
   ConfigRewardCosts
-  { configRewardMaximum  :: !(Maybe Double)
+  { configRewardMaximum :: !(Maybe Double)
   }
   deriving (Generic, Serialize, NFData, Show, Eq, Ord)
-

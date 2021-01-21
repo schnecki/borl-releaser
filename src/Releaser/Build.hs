@@ -194,9 +194,17 @@ modelBuilder initState cols =
   -- fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
 
   -- Sol 1
+  fullyConnected (3*lenIn) >> relu >>
   fullyConnected (1*lenIn) >> relu >>
-  fullyConnected (lenIn `div` 2) >> relu >>
-  fullyConnected (4*lenOut) >> relu >>
+  -- fullyConnected (lenIn `div` 2) >> relu >>
+  fullyConnected (2*lenOut) >> relu >>
+
+  -- fullyConnected (1*lenIn) >> relu >>
+  -- fullyConnected (lenIn `div` 2) >> relu >>
+  -- fullyConnected (4*lenOut) >> relu >>
+
+
+   -- SpecFullyConnected 540 540 :=> SpecRelu (540,1,1) :=> SpecFullyConnected 540 270 :=> SpecRelu (270,1,1) :=> SpecFullyConnected 270 36 :=> SpecReshape (36,1,1) (18,2,1) :=> SpecNNil2D 18x2
 
 
   -- Test 2
@@ -220,7 +228,7 @@ modelBuilder initState cols =
   -- fullyConnected (lenIn `div` 2) >> relu >>
   -- fullyConnected lenIn >> relu >>
   -- fullyConnected (lenIn `div` 2) >> relu >>
-  fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- leakyTanhLayer 0.98
+  fullyConnected lenOut >> reshape (lenActs, cols, 1) -- >> tanhLayer -- leakyTanhLayer 0.98
   where
     lenOut = lenActs * cols
     lenIn = fromIntegral $ V.length (netInp initState)
@@ -256,7 +264,8 @@ buildBORLGrenade = do
   startOrds <- liftIO $ generateOrders sim
   let (initSt, actFilter) = mkInitSt sim startOrds
   st <- liftIO $ initSt MainAgent
-  flipObjective . setPrettyPrintElems <$> mkUnichainGrenadeCombinedNet alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
+  flipObjective . setPrettyPrintElems <$>
+    mkUnichainGrenadeCombinedNet alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
   -- flipObjective . setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
 
 
