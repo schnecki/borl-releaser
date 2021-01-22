@@ -102,13 +102,14 @@ featExtractorWipAsQueueCounters useReduce = ConfigFeatureExtractor "PLTS-OP-Queu
       Extraction
         (map (realToFrac . timeToDouble) (M.elems plts))
         (foreachPt (mkOrderPoolList currentTime) (incOrds ++ simOrdersOrderPool sim))
-        (M.elems $ fmap (foreachPt (return . fromIntegral . length)) (simOrdersQueue sim))
+        (M.elems $ M.mapWithKey (foreachPtTp (return . fromIntegral . length)) (simOrdersQueue sim))
         []
         (foreachPt (mkFgiList currentTime) (simOrdersFgi sim))
         (foreachPt (mkShippedDueList currentTime) (simOrdersShipped sim))
         useReduce
       where
         currentTime = simCurrentTime sim
+        foreachPtTp f bl xs = map (\pt -> f (filter ((== pt) . productType) xs)) (filter (isRoutedOver' bl) productTypes)
         foreachPt f xs = map (\pt -> f (filter ((== pt) . productType) xs)) productTypes
 
 
@@ -119,7 +120,7 @@ featExtractorFullWoMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-F
       Extraction
         (map (realToFrac . timeToDouble) (M.elems plts))
         (foreachPt (mkOrderPoolList currentTime) (incOrds ++ simOrdersOrderPool sim))
-        (M.elems $ fmap (foreachPt mkFromList) (simOrdersQueue sim))
+        (M.elems $ M.mapWithKey (foreachPtTp mkFromList) (simOrdersQueue sim))
         []
         (foreachPt (mkFgiList currentTime) (simOrdersFgi sim))
         (foreachPt (mkShippedDueList currentTime) (simOrdersShipped sim))
@@ -127,6 +128,7 @@ featExtractorFullWoMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues-F
       where
         currentTime = simCurrentTime sim
         mkFromList = mkUntilDueList currentTime
+        foreachPtTp f bl xs = map (\pt -> f (filter ((== pt) . productType) xs)) (filter (isRoutedOver' bl) productTypes)
         foreachPt f xs = map (\pt -> f (filter ((== pt) . productType) xs)) productTypes
 
 
@@ -139,7 +141,7 @@ featExtractorFullMachinesToQueue useReduce
       Extraction
         (map (realToFrac . timeToDouble) (M.elems plts))
         (foreachPt (mkOrderPoolList currentTime) (incOrds ++ simOrdersOrderPool sim))
-        (M.elems $ fmap (foreachPt mkFromList) (foldl' (\m (b, (o, _)) -> M.insertWith (++) b [o] m) (simOrdersQueue sim) (M.toList $ simOrdersMachine sim)))
+        (M.elems $ M.mapWithKey (foreachPtTp mkFromList) (foldl' (\m (b, (o, _)) -> M.insertWith (++) b [o] m) (simOrdersQueue sim) (M.toList $ simOrdersMachine sim)))
         []
         (foreachPt (mkFgiList currentTime) (simOrdersFgi sim))
         (foreachPt (mkShippedDueList currentTime) (simOrdersShipped sim))
@@ -147,6 +149,7 @@ featExtractorFullMachinesToQueue useReduce
       where
         currentTime = simCurrentTime sim
         mkFromList = mkUntilDueList currentTime
+        foreachPtTp f bl xs = map (\pt -> f (filter ((== pt) . productType) xs)) (filter (isRoutedOver' bl) productTypes)
         foreachPt f xs = map (\pt -> f (filter ((== pt) . productType) xs)) productTypes
 
 featExtractorFullMachinesToQueueNbnBn :: ReduceValues -> ConfigFeatureExtractor
@@ -177,7 +180,7 @@ featExtractorFullWithMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues
       Extraction
         (map (realToFrac . timeToDouble) (M.elems plts))
         (foreachPt (mkOrderPoolList currentTime) (incOrds ++ simOrdersOrderPool sim))
-        (M.elems $ fmap (foreachPt mkFromList) (simOrdersQueue sim))
+        (M.elems $ M.mapWithKey (foreachPtTp mkFromList) (simOrdersQueue sim))
         (foreachMachine (mkUntilDueList currentTime) (M.toList (simOrdersMachine sim)))
         (foreachPt (mkFgiList currentTime) (simOrdersFgi sim))
         (foreachPt (mkShippedDueList currentTime) (simOrdersShipped sim))
@@ -185,6 +188,7 @@ featExtractorFullWithMachines useReduce = ConfigFeatureExtractor "PLTS-OP-Queues
       where
         currentTime = simCurrentTime sim
         mkFromList = mkUntilDueList currentTime
+        foreachPtTp f bl xs = map (\pt -> f (filter ((== pt) . productType) xs)) (filter (isRoutedOver' bl) productTypes)
         foreachPt f xs = map (\pt -> f (filter ((== pt) . productType) xs)) productTypes
         foreachMachine f xs = map (\machine -> f . map (fst . snd) $ filter ((== machine) . fst) xs) machines
 

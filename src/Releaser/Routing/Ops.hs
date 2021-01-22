@@ -46,6 +46,12 @@ routingDiverging2Stages = ConfigRouting "Diverging with 2 stages and no return v
   ]
 
 
+-- isRoutedOver :: Routes -> ProductType -> Block -> Bool
+-- isRoutedOver routes pt bl = bl `elem` blocks
+--   where
+--     routing = filter ((== pt) . fst . fst) routes
+--     blocks = map snd routes ++ map (snd . fst) routes
+
 -- 1: M1 -> M2 -> M4
 -- 2: M1 -> M2 -> M5
 -- 3: M1 -> M2 -> M6

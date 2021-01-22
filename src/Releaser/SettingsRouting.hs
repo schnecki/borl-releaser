@@ -9,6 +9,7 @@ module Releaser.SettingsRouting
     , ConfigRouting (..)
     , ConfigProcTimes (..)
     , queues
+    , isRoutedOver'
     , machines
     , allBlocks
     , procTimes
@@ -46,8 +47,12 @@ procTimes =
 productTypes :: [ProductType]
 productTypes = sort $ nub $ map (fst . fst) (configRoutingRoutes routing)
 
+
+isRoutedOver' :: Block -> ProductType -> Bool
+isRoutedOver' bl pt = isRoutedOver (configRoutingRoutes routing) pt bl
+
 bnNbn :: Bool
-bnNbn = True -- False
+bnNbn = False -- True
 
 mapProductType :: ProductType -> ProductType
 mapProductType x | not bnNbn = x
