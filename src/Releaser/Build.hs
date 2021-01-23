@@ -194,10 +194,10 @@ modelBuilder initState cols =
   -- fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
 
   -- Sol 1
-  fullyConnected (3*lenIn) >> relu >>
-  fullyConnected (1*lenIn) >> relu >>
-  -- fullyConnected (lenIn `div` 2) >> relu >>
-  fullyConnected (2*lenOut) >> relu >>
+  -- fullyConnected (2*lenIn) >> relu >>
+  fullyConnected (round $ 1.5*fromIntegral lenIn) >> relu >>
+  fullyConnected ((lenIn + lenOut) `div` 2) >> relu >>
+  -- fullyConnected (2*lenOut) >> relu >>
 
   -- fullyConnected (1*lenIn) >> relu >>
   -- fullyConnected (lenIn `div` 2) >> relu >>

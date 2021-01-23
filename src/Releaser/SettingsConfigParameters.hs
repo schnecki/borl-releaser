@@ -28,7 +28,7 @@ borlSettings =
     , _nStep                         = 5
     , _mainAgentSelectsGreedyActions = False
     , _workersMinExploration         = replicate 5 0.01
-    , _overEstimateRho               = True
+    , _overEstimateRho               = True -- False
     , _independentAgents             = if bnNbn then 2 else length productTypes
     , _independentAgentsSharedRho    = True -- False
     }
