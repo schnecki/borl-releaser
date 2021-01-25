@@ -25,7 +25,7 @@ borlSettings =
     { _useProcessForking             = True
     , _disableAllLearning            = False
     , _explorationStrategy           = EpsilonGreedy
-    , _nStep                         = 5
+    , _nStep                         = 3
     , _mainAgentSelectsGreedyActions = False
     , _workersMinExploration         = replicate 5 0.01
     , _overEstimateRho               = True -- False
@@ -83,7 +83,7 @@ alg =
   -- AlgDQNAvgRewAdjusted 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
   -- AlgDQNAvgRewAdjusted 0.75 0.99 ByStateValues
   -- AlgDQNAvgRewAdjusted 0.8 0.995 ByStateValues
-  AlgDQNAvgRewAdjusted 0.8 0.995 ByStateValues
+  AlgDQNAvgRewAdjusted 0.8 0.99 ByStateValues
   -- AlgDQNAvgRewAdjusted 0.99 1.0 ByStateValues
   -- (ByStateValuesAndReward 0.5 NoDecay)
   -- (ByMovAvg 5000)

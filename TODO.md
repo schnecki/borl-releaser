@@ -1,3 +1,7 @@
+# Note
+
+- Tanh layer as output activation seems to work worse than none
+
 
 # Parameterisation
 
@@ -21,6 +25,7 @@
 | Scaling              | {(-400, 2000)}                                                                           |
 | Decay Steps          | 50k                                                                                      |
 | Epsilon              | {(0.5, 0.3)}                                                                             |
+| Reward               | (0, 200)                                                                                 |
 | ReplayMemoryStategy  | ReplayMemoryPerAction                                                                    |
 | ReplayMemorySize     | 10800                                                                                    |
 | Overestimate Rho     | False                                                                                    |
@@ -45,9 +50,10 @@ Todo: DQN(0.99)-ohneTanhLayer
 | ShopFloor            | JobShop                                                                                             |
 | Costs                | 1:... (siehe paper 1)                                                                               |
 | LearningParamsDecay  | NoDecay                                                                                             |
+| Reward               | (0,400), (0,800)                                                                                    |
 | # Workers            | 0, 4                                                                                                |
 | Scaling              | {(-400, 1000), (-400, 1500), (-400, 3000)}                                                          |
-| Epsilon              | {(0.5, 0.0), (2.0, 0.3)}                                                                         |
+| Epsilon              | {(0.5, 0.0), (2.0, 0.3)}                                                                            |
 | N-Step               | 3, 10                                                                                               |
 | ReplayMemoryStategy  | ReplayMemorySingle                                                                                  |
 | ReplayMemorySize     | 21600, 5400, 5                                                                                      |

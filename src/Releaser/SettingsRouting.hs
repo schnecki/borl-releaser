@@ -52,7 +52,7 @@ isRoutedOver' :: Block -> ProductType -> Bool
 isRoutedOver' bl pt = isRoutedOver (configRoutingRoutes routing) pt bl
 
 bnNbn :: Bool
-bnNbn = False -- True
+bnNbn = True -- False
 
 mapProductType :: ProductType -> ProductType
 mapProductType x | not bnNbn = x
