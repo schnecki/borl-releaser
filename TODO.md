@@ -1,6 +1,7 @@
 # Note
 
 - Tanh layer as output activation seems to work worse than none
+- nStep = 10 seems to work very well and is fast!
 
 
 # Parameterisation
