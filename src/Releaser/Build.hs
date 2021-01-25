@@ -195,8 +195,8 @@ modelBuilder initState cols =
 
   -- Sol 1
   -- fullyConnected (2*lenIn) >> relu >>
-  fullyConnected (round $ 1.5*fromIntegral lenIn) >> relu >>
-  fullyConnected ((lenIn + lenOut) `div` 2) >> relu >>
+  fullyConnected (round $ 1.5*fromIntegral lenIn) >> leakyRelu >>
+  fullyConnected ((lenIn + lenOut) `div` 2) >> leakyRelu >>
   -- fullyConnected (2*lenOut) >> relu >>
 
   -- fullyConnected (1*lenIn) >> relu >>
