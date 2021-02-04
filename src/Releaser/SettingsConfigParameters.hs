@@ -19,16 +19,30 @@ import           Releaser.Type
 -- useHeuristicToFillReplMem :: Maybe Release
 -- useHeuristicToFillReplMem = Just $ releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
 
+-- borlSettings :: Settings
+-- borlSettings =
+--   Settings
+--     { _useProcessForking             = True
+--     , _disableAllLearning            = False
+--     , _explorationStrategy           = EpsilonGreedy
+--     , _nStep                         = 25
+--     , _mainAgentSelectsGreedyActions = False
+--     , _workersMinExploration         = replicate 5 0.01 -- DIFFERENT ONES?
+--     , _overEstimateRho               = False -- True
+--     , _independentAgents             = if bnNbn then 2 else length productTypes
+--     , _independentAgentsSharedRho    = True -- False
+--     }
+
 borlSettings :: Settings
 borlSettings =
   Settings
     { _useProcessForking             = True
     , _disableAllLearning            = False
     , _explorationStrategy           = EpsilonGreedy
-    , _nStep                         = 25
-    , _mainAgentSelectsGreedyActions = False
-    , _workersMinExploration         = replicate 5 0.01
-    , _overEstimateRho               = True -- False
+    , _nStep                         = 5
+    , _mainAgentSelectsGreedyActions = False -- True
+    , _workersMinExploration         = take 5 [0.05, 0.10 .. 1.0] -- DIFFERENT ONES?
+    , _overEstimateRho               = False -- True
     , _independentAgents             = if bnNbn then 2 else length productTypes
     , _independentAgentsSharedRho    = True -- False
     }
@@ -57,7 +71,7 @@ nnConfig =
   NNConfig
   {   _replayMemoryMaxSize             = 10800 -- 2700 -- 5400 -- 2700
     , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
-    , _trainBatchSize                  = 4
+    , _trainBatchSize                  = 8
     , _trainingIterations              = 1
     , _grenadeLearningParams           = OptAdam 0.005 0.9 0.999 1e-8 1e-3
     , _grenadeSmoothTargetUpdate       = 0.01
