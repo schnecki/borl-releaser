@@ -16,23 +16,6 @@ import           Releaser.SettingsReward
 import           Releaser.SettingsRouting (bnNbn, productTypes)
 import           Releaser.Type
 
--- useHeuristicToFillReplMem :: Maybe Release
--- useHeuristicToFillReplMem = Just $ releaseBIL (M.fromList [(Product 1, 3), (Product 2, 3)])
-
--- borlSettings :: Settings
--- borlSettings =
---   Settings
---     { _useProcessForking             = True
---     , _disableAllLearning            = False
---     , _explorationStrategy           = EpsilonGreedy
---     , _nStep                         = 25
---     , _mainAgentSelectsGreedyActions = False
---     , _workersMinExploration         = replicate 5 0.01 -- DIFFERENT ONES?
---     , _overEstimateRho               = False -- True
---     , _independentAgents             = if bnNbn then 2 else length productTypes
---     , _independentAgentsSharedRho    = True -- False
---     }
-
 borlSettings :: Settings
 borlSettings =
   Settings
@@ -42,9 +25,9 @@ borlSettings =
     , _nStep                         = 5
     , _mainAgentSelectsGreedyActions = False -- True
     , _workersMinExploration         = take 5 [0.05, 0.10 .. 1.0] -- DIFFERENT ONES?
-    , _overEstimateRho               = False -- True
+    , _overEstimateRho               = False
     , _independentAgents             = if bnNbn then 2 else length productTypes
-    , _independentAgentsSharedRho    = True -- False
+    , _independentAgentsSharedRho    = True
     }
 
 
@@ -78,7 +61,6 @@ nnConfig =
     , _grenadeSmoothTargetUpdatePeriod = 100
     , _learningParamsDecay             = ExponentialDecay (Just 5e-6) (configDecayRate decay) (configDecaySteps decay)
     , _prettyPrintElems                = []      -- is set just before printing/at initialisation
-    -- , _scaleParameters                 = ScalignNetOutParameters (-800) 800 (-300) 300 (-300) 1000 (-300) 1000
     , _scaleParameters                 = ScalingNetOutParameters (-800) 800 (-300) 300 (-400) 800 (-400) 800
     , _scaleOutputAlgorithm            = ScaleMinMax
     , _cropTrainMaxValScaled           = Nothing -- Just 0.98

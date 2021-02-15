@@ -194,17 +194,14 @@ modelBuilder initState cols =
   -- fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
 
   -- Sol 1
-  -- fullyConnected (2*lenIn) >> relu >>
-  fullyConnected (round $ 1.5*fromIntegral lenIn) >> leakyRelu >>
-  fullyConnected ((lenIn + lenOut) `div` 2) >> leakyRelu >>
-  -- fullyConnected (2*lenOut) >> relu >>
 
-  -- fullyConnected (1*lenIn) >> relu >>
-  -- fullyConnected (lenIn `div` 2) >> relu >>
-  -- fullyConnected (4*lenOut) >> relu >>
+  fullyConnected (round $ 1.75*fromIntegral lenIn) >> leakyRelu >>
+  fullyConnected (round $ 1.5* fromIntegral lenIn) >> leakyRelu >>
 
-
-   -- SpecFullyConnected 540 540 :=> SpecRelu (540,1,1) :=> SpecFullyConnected 540 270 :=> SpecRelu (270,1,1) :=> SpecFullyConnected 270 36 :=> SpecReshape (36,1,1) (18,2,1) :=> SpecNNil2D 18x2
+-- SpecFullyConnected 324 972 :=> SpecLeakyRelu (972,1,1) :=> SpecFullyConnected 972 486 :=> SpecLeakyRelu (486,1,1) :=> SpecFullyConnected 486 36 :=> SpecReshape (36,1,1) (18,2,1) :=> SpecNNil2D 18x2
+-- Net: 
+-- FullyConnected ~> LeakyRelu ~> FullyConnected ~> LeakyRelu ~> FullyConnected ~> Reshape ~> NNil
+-- len - length (head plts): 318
 
 
   -- Test 2
