@@ -24,7 +24,7 @@ borlSettings =
     , _explorationStrategy           = EpsilonGreedy
     , _nStep                         = 5
     , _mainAgentSelectsGreedyActions = False -- True
-    , _workersMinExploration         = take 5 [0.05, 0.10 .. 1.0] -- DIFFERENT ONES?
+    , _workersMinExploration         = take 8 $ 0.01 : 0.02 : 0.03 : 0.04 : [0.05, 0.10 .. 1.0] -- DIFFERENT ONES?
     , _overEstimateRho               = False
     , _independentAgents             = if bnNbn then 2 else length productTypes
     , _independentAgentsSharedRho    = True
@@ -54,7 +54,7 @@ nnConfig =
   NNConfig
   {   _replayMemoryMaxSize             = 10800 -- 2700 -- 5400 -- 2700
     , _replayMemoryStrategy            = ReplayMemoryPerAction -- ReplayMemorySingle
-    , _trainBatchSize                  = 8
+    , _trainBatchSize                  = 4
     , _trainingIterations              = 1
     , _grenadeLearningParams           = OptAdam 0.005 0.9 0.999 1e-8 1e-3
     , _grenadeSmoothTargetUpdate       = 0.01
@@ -79,7 +79,7 @@ alg =
   -- AlgDQNAvgRewAdjusted 0.8 0.995 (ByStateValuesAndReward 1.0 (ExponentialDecay (Just 0.8) 0.99 100000))
   -- AlgDQNAvgRewAdjusted 0.75 0.99 ByStateValues
   -- AlgDQNAvgRewAdjusted 0.8 0.995 ByStateValues
-  AlgDQNAvgRewAdjusted 0.8 0.99 ByStateValues
+  AlgDQNAvgRewAdjusted 0.8 1.0 ByStateValues
   -- AlgDQNAvgRewAdjusted 0.99 1.0 ByStateValues
   -- (ByStateValuesAndReward 0.5 NoDecay)
   -- (ByMovAvg 5000)
