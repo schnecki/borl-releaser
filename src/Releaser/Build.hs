@@ -180,57 +180,15 @@ netInpTblBinary st = case extractFeatures False st of
              | otherwise = 1
 
 
-modelBuilder :: St -> Integer -> IO SpecConcreteNetwork
-modelBuilder initState cols =
+modelBuilder :: NrFeatures -> (NrRows, NrCols) -> IO SpecConcreteNetwork
+modelBuilder nrInp (nrRows, nrCols) =
   buildModelWith (NetworkInitSettings UniformInit BLAS Nothing) (DynamicBuildSetup False) $
-  inputLayer1D lenIn >>
-  -- fullyConnected (10*lenIn) >> dropout 0.99 >> leakyRelu >>
-  -- fullyConnected (5*lenIn) >> leakyRelu >> dropout 0.95 >>
-  -- fullyConnected (10*lenIn) >> leakyRelu >>
-  -- fullyConnected (3*lenIn) >> leakyRelu >> dropout 0.98 >>
-  -- fullyConnected (2*lenIn) >> leakyRelu >>
-  -- fullyConnected lenIn >> leakyRelu >>
-  -- fullyConnected (2*lenOut) >> leakyRelu >>
-  -- fullyConnected lenOut >> reshape (lenActs, cols, 1) >> tanhLayer -- trivial
-
-  -- Sol 1
-
-  fullyConnected (round $ 1.75*fromIntegral lenIn) >> leakyRelu >>
-  fullyConnected (round $ 1.5* fromIntegral lenIn) >> leakyRelu >>
-
--- SpecFullyConnected 324 972 :=> SpecLeakyRelu (972,1,1) :=> SpecFullyConnected 972 486 :=> SpecLeakyRelu (486,1,1) :=> SpecFullyConnected 486 36 :=> SpecReshape (36,1,1) (18,2,1) :=> SpecNNil2D 18x2
--- Net: 
--- FullyConnected ~> LeakyRelu ~> FullyConnected ~> LeakyRelu ~> FullyConnected ~> Reshape ~> NNil
--- len - length (head plts): 318
-
-
-  -- Test 2
-
-  -- fullyConnected (2*lenIn) >> relu >>
-  -- fullyConnected (3 * lenIn `div` 2) >> relu >>
-  -- fullyConnected (lenIn `div` 2) >> relu >>
-  -- fullyConnected (lenIn `div` 2) >> relu >>
-  -- fullyConnected (2*lenIn) >> relu >>
-
-  -- before:
-  -- fullyConnected (1*lenIn) >> relu >>
-
-
-  -- current:
-  -- fullyConnected (lenIn `div` 2) >> relu >>
-
-
-  -- fullyConnected (round $ 1.5 * fromIntegral lenIn) >> relu >>
-  -- fullyConnected (1 * lenIn) >> relu >>
-  -- fullyConnected (lenIn `div` 2) >> relu >>
-  -- fullyConnected lenIn >> relu >>
-  -- fullyConnected (lenIn `div` 2) >> relu >>
-  fullyConnected lenOut >> reshape (lenActs, cols, 1) -- >> tanhLayer -- leakyTanhLayer 0.98
+  inputLayer1D nrInp >>
+  fullyConnected (round $ 1.75*fromIntegral nrInp) >> leakyRelu >>
+  fullyConnected (round $ 1.5* fromIntegral nrInp) >> leakyRelu >>
+  fullyConnected lenOut >> reshape (nrRows, nrCols, 1) -- >> tanhLayer -- leakyTanhLayer 0.98
   where
-    lenOut = lenActs * cols
-    lenIn = fromIntegral $ V.length (netInp initState)
-    lenActs = genericLength actions * fromIntegral (borlSettings ^. independentAgents)
-    actions = [minBound .. maxBound] :: [Action Act]
+    lenOut = nrRows * nrCols
 
 
 -- SpecFullyConnected 180 540 :=> SpecRelu (540,1,1) :=> SpecFullyConnected 540 180 :=> SpecRelu (180,1,1) :=> SpecFullyConnected 180 24 :=> SpecRelu (24,1,1) :=> SpecFullyConnected 24 12 :=> SpecReshape (12,1,1) (6,2,1) :=> SpecLeakyTanh 0.98 (6,2,1) :=> SpecNNil2D 6x2
@@ -262,7 +220,7 @@ buildBORLGrenade = do
   let (initSt, actFilter) = mkInitSt sim startOrds
   st <- liftIO $ initSt MainAgent
   flipObjective . setPrettyPrintElems <$>
-    mkUnichainGrenadeCombinedNet alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
+    mkUnichainGrenadeCombinedNet alg initSt netInp action actFilter borlParams (configDecay decay) modelBuilder nnConfig borlSettings (Just initVals)
   -- flipObjective . setPrettyPrintElems <$> mkUnichainGrenade alg initSt netInp action actFilter borlParams (configDecay decay) (modelBuilder st) nnConfig borlSettings (Just initVals)
 
 
@@ -595,7 +553,7 @@ instance ExperimentDef (BORL St Act) where
       "AlphaRhoMin (at period 0)"
       (set (B.parameters . alphaRhoMin))
       (^. B.parameters . alphaRhoMin)
-      (Just $ return . const [0.005])
+      (Just $ return . const [2e-5])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -616,7 +574,7 @@ instance ExperimentDef (BORL St Act) where
       "Epsilon (at period 0)"
       (set (B.parameters . epsilon))
       (^. B.parameters . epsilon)
-      (Just $ return . const [fromList [0.50, 0.30]])
+      (Just $ return . const [fromList [0.25, 0.25]])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -637,28 +595,28 @@ instance ExperimentDef (BORL St Act) where
       "Decay Alpha"
       (set (B.decaySetting . alpha))
       (^. B.decaySetting . alpha)
-      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.5 50000])
+      (Just $ return . const [ExponentialDecay (Just 5e-5) 0.25 50000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Decay AlphaRhoMin"
       (set (B.decaySetting . alphaRhoMin))
       (^. B.decaySetting . alphaRhoMin)
-      (Just $ return . const [ExponentialDecay (Just 2e-5) 0.5 50000])
+      (Just $ return . const [ExponentialDecay (Just 2e-5) 0.25 50000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Decay Delta"
       (set (B.decaySetting . delta))
       (^. B.decaySetting . delta)
-      (Just $ return . const [ExponentialDecay (Just 5e-4) 0.5 50000])
+      (Just $ return . const [ExponentialDecay (Just 5e-4) 0.25 100000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
       "Decay Gamma"
       (set (B.decaySetting . gamma))
       (^. B.decaySetting . gamma)
-      (Just $ return . const [ExponentialDecay (Just 1e-3) 0.5 50000])
+      (Just $ return . const [ExponentialDecay (Just 1e-3) 0.25 100000])
       Nothing Nothing Nothing
     ] ++
     [ ParameterSetup
@@ -672,7 +630,7 @@ instance ExperimentDef (BORL St Act) where
       "Decay Exploration"
       (set (B.decaySetting . exploration))
       (^. B.decaySetting . exploration)
-      (Just $ return . const [ExponentialDecay Nothing 0.5 50000])
+      (Just $ return . const [ExponentialDecay (Just 0.005) 0.25 100000])
       Nothing Nothing Nothing
     ] ++
     -- Cannot be changed here!!!
@@ -720,7 +678,8 @@ instance ExperimentDef (BORL St Act) where
       "ANN (Grenade) Learning Rate"
       (setAllProxies (proxyNNConfig . grenadeLearningParams))
       (^?! proxies . v . proxyNNConfig . grenadeLearningParams)
-      (Just $ return . const [OptAdam 0.0001 0.9 0.999 1e-8 1e-3])
+      (Just $ return . const [OptAdam 0.005 0.9 0.999 1e-8 1e-3 -- , OptAdam 0.0001 0.9 0.999 1e-8 1e-3
+                             ])
       Nothing
       Nothing
       Nothing
@@ -730,7 +689,7 @@ instance ExperimentDef (BORL St Act) where
       "ANN Learning Rate Decay"
       (setAllProxies (proxyNNConfig . learningParamsDecay))
       (^?! proxies . v . proxyNNConfig . learningParamsDecay)
-      (Just $ return . const [ExponentialDecay (Just 1e-6) 0.5 (configDecaySteps decay) ])
+      (Just $ return . const [ ExponentialDecay (Just 5e-6) (configDecayRate decay) (configDecaySteps decay)])
       Nothing
       Nothing
       Nothing
@@ -760,7 +719,7 @@ instance ExperimentDef (BORL St Act) where
       "ScaleParameters"
       (setAllProxies (proxyNNConfig . scaleParameters))
       (^?! proxies . v . proxyNNConfig . scaleParameters)
-      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-300) 300 (-400) 2000 (-400) 2000])
+      (Just $ return . const [ScalingNetOutParameters (-800) 800 (-300) 300 (-400) 800 (-400) 800])
       Nothing
       Nothing
       Nothing
@@ -830,7 +789,7 @@ instance ExperimentDef (BORL St Act) where
       "Workers Min Exploration"
       (set (settings . workersMinExploration))
       (^. settings . workersMinExploration)
-      (Just $ return . const [[0.01, 0.01]])
+      (Just $ return . const [take 8 $ 0.01 : 0.02 : 0.03 : 0.04 : [0.05, 0.10 .. 1.0]])
       Nothing
       Nothing
       Nothing
@@ -889,7 +848,7 @@ expSetting borl =
     { _experimentBaseName = experimentName
     , _experimentInfoParameters = [actBounds, pltBounds, csts, dem, ftExtr, rout, procT, isNN] ++ concat [[repMemSize, repMemStrat, nnSetup] | isNNFlag]
     , _experimentRepetitions = 1
-    , _preparationSteps = 200000
+    , _preparationSteps = 300000
     , _evaluationWarmUpSteps = 1000
     , _evaluationSteps = 7000
     , _evaluationReplications = 30
