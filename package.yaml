@@ -35,7 +35,7 @@ dependencies:
   - transformers
   - borl
   - simsim
-  - experimenter >= 0.1.0.4
+  - experimenter >= 0.1.0.6
   - cereal
   - cereal-text
   - lens
